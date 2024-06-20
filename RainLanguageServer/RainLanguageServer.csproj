@@ -32,7 +32,7 @@
   </Target>
 
   <ItemGroup>
-    <ProjectReference Include="..\LanguageServerProtocol\LanguageServerProtocol\LanguageServerProtocol.csproj" />
+    <ProjectReference Include="..\LanguageServerProtocol\LanguageServerProtocol.csproj" />
   </ItemGroup>
 
 </Project>
