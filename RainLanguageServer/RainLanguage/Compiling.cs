@@ -182,13 +182,18 @@ namespace RainLanguageServer.RainLanguage
                 infos.Add(new HighlightInfo(range.name, DocumentHighlightKind.Text));
         }
     }
+    internal class CompilingConstructor(TextRange name, Declaration declaration, List<TextRange> attributes, CompilingSpace space, FileDeclaration? file, List<CompilingCallable.Parameter> parameters, Tuple returns, LogicBlock logicBlock, TextRange? expressionRange) : CompilingFunction(name, declaration, attributes, space, file, parameters, returns, logicBlock)
+    {
+        public TextRange? expressionRange = expressionRange;
+        public Expression? expression;
+    }
     internal class CompilingClass(TextRange name, Declaration declaration, List<TextRange> attributes, CompilingSpace space, FileDeclaration? file, Type parent)
         : CompilingDeclaration(name, declaration, attributes, space, file)
     {
         public Type parent = parent;
         public readonly List<Type> inherits = [];
         public readonly List<CompilingVariable> variables = [];
-        public readonly List<CompilingFunction> constructors = [];
+        public readonly List<CompilingConstructor> constructors = [];
         public readonly List<CompilingVirtualFunction> functions = [];
         public LogicBlock? destructor;
         public readonly HashSet<CompilingClass> implements = [];

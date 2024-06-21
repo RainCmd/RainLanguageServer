@@ -186,19 +186,36 @@
                             fileClass.variables.Add(variable);
                             attributeCollector.Clear();
                         }
-                        else if (TryParseCallable(line, position, false, out name, out var parameters, out var returns, collector))
+                        else if (TryParseTuple(line, position, false, out name, out var returns, collector))
                         {
                             if (visibility == Visibility.None) visibility = Visibility.Private;
-                            ParseBlock(reader, fileClass.indent, out var body, out var blockIndent, collector);
-                            var function = new FileFunction(name, visibility, this, parameters!, returns!, body) { range = new TextRange(line.start, reader.GetLastNBNC().end), indent = blockIndent };
-                            function.attributes.AddRange(attributeCollector);
-                            if (name!.ToString() == fileClass.name.ToString())
+                            position = name.end;
+                            if (TryParseParameters(line, ref position, out var parameters, collector))
                             {
-                                if (returns!.Count > 0) collector.Add(name, CErrorLevel.Error, "构造函数不能有返回值");
-                                fileClass.constructors.Add(function);
+                                ParseBlock(reader, fileClass.indent, out var body, out var blockIndent, collector);
+                                if (name!.ToString() == fileClass.name.ToString())
+                                {
+                                    expression = null;
+                                    if (Lexical.TryAnalysis(line, position, out lexical, collector))
+                                    {
+                                        if (lexical.type == LexicalType.KeyWord_this || lexical.type == LexicalType.KeyWord_base)
+                                            expression = lexical.anchor.start & line.end;
+                                        else collector.Add(lexical.anchor, CErrorLevel.Error, "意外的词条");
+                                    }
+                                    var function = new FileConstructor(name, visibility, this, parameters!, returns!, body, expression) { range = new TextRange(line.start, reader.GetLastNBNC().end), indent = blockIndent };
+                                    function.attributes.AddRange(attributeCollector);
+                                    if (returns!.Count > 0) collector.Add(name, CErrorLevel.Error, "构造函数不能有返回值");
+                                    fileClass.constructors.Add(function);
+                                }
+                                else
+                                {
+                                    var function = new FileFunction(name, visibility, this, parameters!, returns!, body) { range = new TextRange(line.start, reader.GetLastNBNC().end), indent = blockIndent };
+                                    function.attributes.AddRange(attributeCollector);
+                                    fileClass.functions.Add(function);
+                                    CheckLineEnd(line, position, collector);
+                                }
+                                attributeCollector.Clear();
                             }
-                            else fileClass.functions.Add(function);
-                            attributeCollector.Clear();
                         }
                         else if (Lexical.TryAnalysis(line, position, out lexical, collector))
                         {

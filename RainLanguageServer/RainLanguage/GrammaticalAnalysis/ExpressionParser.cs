@@ -2086,7 +2086,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             if (count < 0) collector.Add(parameter.range, CErrorLevel.Error, "参数数量过多");
             return parameter;
         }
-        private bool TryGetFunction(TextRange range, List<CompilingDeclaration> declarations, Expression parameters, out CompilingCallable? callable)
+        public bool TryGetFunction(TextRange range, List<CompilingDeclaration> declarations, Expression parameters, out CompilingCallable? callable)
         {
             callable = default;
             if (!parameters.Valid) return false;

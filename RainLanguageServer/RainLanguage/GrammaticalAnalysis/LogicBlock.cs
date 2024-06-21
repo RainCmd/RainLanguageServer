@@ -34,6 +34,55 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             this.collector = collector;
             destructor = true;
         }
+        public Expression? Parse(ASTManager manager, CompilingClass compilingClass, CompilingConstructor member, TextRange? constructorExpression)
+        {
+            if (constructorExpression != null)
+            {
+                if (Lexical.TryAnalysis(constructorExpression.Value, 0, out var lexical, collector))
+                {
+                    var parser = new ExpressionParser(manager, context, localContext, collector, destructor);
+                    var parameters = parser.Parse(lexical.anchor.end & constructorExpression.Value.end);
+                    if (lexical.type == LexicalType.KeyWord_this)
+                    {
+                        var declarations = new List<CompilingDeclaration>(compilingClass.constructors);
+                        declarations.Remove(member);
+                        if (parser.TryGetFunction(lexical.anchor, declarations, parameters, out var callable))
+                        {
+                            var thisExpression = new VariableLocalExpression(compilingClass.name, localContext.thisValue!.Value, compilingClass.name, ExpressionAttribute.Value);
+                            return new InvokerMemberExpression(constructorExpression.Value, parameters, thisExpression, callable!, lexical.anchor);
+                        }
+                    }
+                    else if (lexical.type == LexicalType.KeyWord_base)
+                    {
+                        if (manager.GetSourceDeclaration(compilingClass.parent) is CompilingClass parent)
+                        {
+                            var declarations = new List<CompilingDeclaration>();
+                            foreach (var ctor in parent.constructors)
+                                if (context.IsVisiable(manager, ctor.declaration))
+                                    declarations.Add(ctor);
+                            if (parser.TryGetFunction(lexical.anchor, declarations, parameters, out var callable))
+                            {
+                                var thisExpression = new VariableLocalExpression(compilingClass.name, localContext.thisValue!.Value, compilingClass.name, ExpressionAttribute.Value);
+                                return new InvokerMemberExpression(constructorExpression.Value, parameters, thisExpression, callable!, lexical.anchor);
+                            }
+                        }
+                    }
+                    collector.Add(lexical.anchor, CErrorLevel.Error, "未找到匹配的构造函数");
+                }
+                return new InvalidExpression(constructorExpression.Value);
+            }
+            else
+            {
+                if (compilingClass.parent != Type.HANDLE && manager.GetSourceDeclaration(compilingClass.parent) is CompilingClass parent)
+                {
+                    foreach (var constructor in parent.constructors)
+                        if (context.IsVisiable(manager, constructor.declaration) && constructor.parameters.Count == 0)
+                            return null;
+                    collector.Add(member.name, CErrorLevel.Error, "父类没有可用的无参构造函数");
+                }
+                return null;
+            }
+        }
         public void Parse(ASTManager manager)
         {
             if (body.Count == 0) return;

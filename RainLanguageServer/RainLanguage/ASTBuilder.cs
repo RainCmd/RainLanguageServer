@@ -193,7 +193,11 @@ namespace RainLanguageServer.RainLanguage
                             member.expression.Read(new ExpressionParameter(manager, space.collector));
                         }
                     foreach (var member in compiling.constructors)
+                    {
+                        member.expression = member.logicBlock.Parse(manager, compiling, member, member.expressionRange);
+                        member.expression?.Read(new ExpressionParameter(manager, space.collector));
                         member.logicBlock.Parse(manager);
+                    }
                     foreach (var member in compiling.functions)
                     {
                         member.logicBlock.Parse(manager);

@@ -168,7 +168,7 @@ namespace RainLanguageServer.RainLanguage
                     var parameterTypes = new List<Type>();
                     foreach (var parameter in parameters) parameterTypes.Add(parameter.type);
                     var declaration = new Declaration(library.name, function.visibility, DeclarationCategory.Constructor, compiling.GetMemberName(file.name.ToString(), function.name.ToString()), new Tuple(parameterTypes));
-                    var compilingFunction = new CompilingFunction(function.name, declaration, function.attributes, compiling, cite ? function : null, parameters, new Tuple([]), new LogicBlock(document, compilingClass, parameters, [], compiling, function.body, relies, collector));
+                    var compilingFunction = new CompilingConstructor(function.name, declaration, function.attributes, compiling, cite ? function : null, parameters, new Tuple([]), new LogicBlock(document, compilingClass, parameters, [], compiling, function.body, relies, collector), function.expression);
                     compilingClass.constructors.Add(compilingFunction);
                     function.compiling = compilingFunction;
                 }

@@ -1,4 +1,6 @@
 ﻿using System.Text;
+using LanguageServer;
+using LanguageServer.Parameters;
 using LanguageServer.Parameters.TextDocument;
 
 namespace RainLanguageServer.RainLanguage
@@ -177,7 +179,7 @@ namespace RainLanguageServer.RainLanguage
         {
             return OnHover(manager, position, null, out info);
         }
-        public bool OnHover(ASTManager manager, TextPosition position, FileDeclaration? declaration, out HoverInfo info)
+        public virtual bool OnHover(ASTManager manager, TextPosition position, FileDeclaration? declaration, out HoverInfo info)
         {
             if (name.Contain(position))
             {
@@ -299,7 +301,7 @@ namespace RainLanguageServer.RainLanguage
             return false;
         }
         public override bool CollectCompletions(ASTManager manager, TextPosition position, List<CompletionInfo> infos) => CollectCompletions(manager, null, position, infos);
-        public bool CollectCompletions(ASTManager manager, FileDeclaration? declaration, TextPosition position, List<CompletionInfo> infos)
+        public virtual bool CollectCompletions(ASTManager manager, FileDeclaration? declaration, TextPosition position, List<CompletionInfo> infos)
         {
             var line = position.Line;
             if (line.line == name.start.Line.line)
@@ -309,7 +311,7 @@ namespace RainLanguageServer.RainLanguage
             return false;
         }
         public override void CollectSemanticToken(SemanticTokenCollector collector) => CollectSemanticToken(collector, false);
-        public void CollectSemanticToken(SemanticTokenCollector collector, bool member, bool ctor = false)
+        public virtual void CollectSemanticToken(SemanticTokenCollector collector, bool member, bool ctor = false)
         {
             if (member) collector.AddRange(ctor ? SemanticTokenType.Type : SemanticTokenType.Method, name);
             else collector.AddRange(SemanticTokenType.Function, name);
@@ -575,10 +577,48 @@ namespace RainLanguageServer.RainLanguage
                 function.CollectSemanticToken(collector, true);
         }
     }
+    internal class FileConstructor(TextRange name, Visibility visibility, FileSpace space, List<FileParameter> parameters, List<FileType> returns, List<TextLine> body, TextRange? expression) : FileFunction(name, visibility, space, parameters, returns, body)
+    {
+        public TextRange? expression = expression;
+        public override bool OnHover(ASTManager manager, TextPosition position, FileDeclaration? declaration, out HoverInfo info)
+        {
+            if (base.OnHover(manager, position, declaration, out info)) return true;
+            else if (compiling is CompilingConstructor constructor && constructor.expression != null && constructor.expression.range.Contain(position))
+                return constructor.expression.OnHover(manager, position, out info);
+            return false;
+        }
+        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (base.OnHighlight(manager, position, infos)) return true;
+            else if (compiling is CompilingConstructor constructor && constructor.expression != null && constructor.expression.range.Contain(position))
+                return constructor.expression.OnHighlight(manager, position, infos);
+            return false;
+        }
+        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
+        {
+            if (base.TryGetDeclaration(manager, position, out result)) return true;
+            else if (compiling is CompilingConstructor constructor && constructor.expression != null && constructor.expression.range.Contain(position))
+                return constructor.expression.TryGetDeclaration(manager, position, out result);
+            return false;
+        }
+        public override bool CollectCompletions(ASTManager manager, FileDeclaration? declaration, TextPosition position, List<CompletionInfo> infos)
+        {
+            if (base.CollectCompletions(manager, declaration, position, infos)) return true;
+            else if (compiling is CompilingConstructor constructor && constructor.expression != null && constructor.expression.range.Contain(position))
+                return constructor.expression.CollectCompletions(manager, new Context(name.start.document, space.compiling, space.relies, declaration?.compiling), position, infos);
+            return false;
+        }
+        public override void CollectSemanticToken(SemanticTokenCollector collector, bool member, bool ctor = false)
+        {
+            base.CollectSemanticToken(collector, member, ctor);
+            if (compiling is CompilingConstructor constructor && constructor.expression != null)
+                constructor.expression.CollectSemanticToken(collector);
+        }
+    }
     internal class FileClass(TextRange name, Visibility visibility, FileSpace space) : FileInterface(name, visibility, space)
     {
         public readonly List<FileVariable> variables = [];
-        public readonly List<FileFunction> constructors = [];
+        public readonly List<FileConstructor> constructors = [];
         public TextRange destructorRange;
         public readonly List<TextLine> destructor = [];
         public int destructorIndent = -1;

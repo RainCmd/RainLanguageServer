@@ -83,7 +83,7 @@
             }
             foreach (var file in classes)
             {
-                if (file.constructors.Count == 0) file.constructors.Add(new FileFunction(file.name, Visibility.Public, file.space, [], [], []));
+                if (file.constructors.Count == 0) file.constructors.Add(new FileConstructor(file.name, Visibility.Public, file.space, [], [], [], null));
                 var declaration = new Declaration(library.name, file.visibility, DeclarationCategory.Class, compiling.GetChildName(file.name.ToString()), default);
                 var compilingClass = new CompilingClass(file.name, declaration, file.attributes, compiling, cite ? file : null, default);
                 compilingClass.destructor = new GrammaticalAnalysis.LogicBlock(compilingClass, file.destructor, relies, collector);
