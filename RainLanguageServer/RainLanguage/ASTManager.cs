@@ -15,14 +15,12 @@ namespace RainLanguageServer.RainLanguage
         private readonly HashSet<string> imports;
         public readonly CompilingLibrary kernel;
         private readonly Func<string, string> relyLoader;
-        private readonly Action<string, string> regPreviewDoc;
-        public ASTManager(string kernelPath, string name, string[]? imports, Func<string, string> relyLoader, Action<string, string> regPreviewDoc)
+        public ASTManager(string kernelPath, string name, string[]? imports, Func<string, string> relyLoader)
         {
             library = new CompilingLibrary(name, []);
             kernelPath = new UnifiedPath(kernelPath);
             this.imports = imports != null ? new HashSet<string>(imports) : [];
             this.relyLoader = relyLoader;
-            this.regPreviewDoc = regPreviewDoc;
             using var sr = File.OpenText(kernelPath);
             kernel = LoadLibrary(Type.LIBRARY_KERNEL, sr.ReadToEnd(), true, out var file);
             foreach (var space in file.children) space.Link(this, kernel, false);
@@ -52,7 +50,6 @@ namespace RainLanguageServer.RainLanguage
         {
             var path = $"rain-language:{name}.rain";
             var reader = new LineReader(new FileDocument(path, content));
-            regPreviewDoc(path, content);
             var library = new CompilingLibrary(name, null);
             file = new FileSpace(reader, library, false, null, -1, allowKeywordType) { range = new TextRange(reader.document, 0, content.Length) };
             foreach (var space in file.children) space.Tidy(this, library, false);

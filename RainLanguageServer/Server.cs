@@ -73,7 +73,7 @@ namespace RainLanguageServer
         {
             if (kernelDefinePath != null)
             {
-                builder = new(kernelDefinePath, projectName ?? "TestLibrary", new DocumentLoader(projectPath, this), imports, LoadRelyLibrary, RegPreviewDoc);
+                builder = new(kernelDefinePath, projectName ?? "TestLibrary", new DocumentLoader(projectPath, this), imports, LoadRelyLibrary);
                 builder.Reparse();
                 foreach (var space in builder.manager.fileSpaces.Values)
                 {
@@ -334,10 +334,6 @@ namespace RainLanguageServer
         {
             public string path = path;
             public string content = content;
-        }
-        public void RegPreviewDoc(string path, string content)
-        {
-            Proxy.SendNotification("rainlanguage/regPreviewDoc", new PreviewDoc(path, content));
         }
         private string LoadRelyLibrary(string library)
         {

@@ -76,24 +76,28 @@ namespace RainLanguageServer
         public static bool operator !=(string? left, TextRange right) => right != left;
         public static TextRange operator &(TextRange left, TextRange right) => new(left.start, right.end);
         public override readonly string ToString() => start.document.text[start.charactor..end.charactor];
-        public override readonly bool Equals(object? obj) => obj is string value && this == value;
-
+        public bool Equals(TextRange other) => start.Equals(other.start) && end.Equals(other.end);
         public override readonly int GetHashCode() => start.GetHashCode() ^ end.GetHashCode();
-
-        public bool Equals(TextRange other)
-        {
-            return start.Equals(other.start) && end.Equals(other.end);
-        }
+        public override readonly bool Equals(object? obj) => obj is TextRange value && Equals(value);
     }
     internal readonly struct TextLine(int line, int indent, TextPosition start, TextPosition end)
     {
         public readonly int line = line;
+        /// <summary>
+        /// 缩进
+        /// <list type="bullet">
+        ///     <item>有效行：>=0</item>
+        ///     <item>空行：<see cref="EMPTY"/></item>
+        ///     <item>注释：<see cref="ANNOTATION"/></item>
+        /// </list>
+        /// </summary>
         public readonly int indent = indent;
         public readonly TextPosition start = start;
         public readonly TextPosition end = end;
-        public readonly TextRange Range => new(start, end);
-        public static implicit operator TextRange(TextLine line) => line.Range;
-        public override string ToString() => Range.ToString();
+        public static implicit operator TextRange(TextLine line) => line.start & line.end;
+        public override string ToString() => (start & end).ToString();
+        public const int EMPTY = -1;
+        public const int ANNOTATION = -2;
     }
     internal class TextDocument(string path, string text)
     {
@@ -182,7 +186,7 @@ namespace RainLanguageServer
                     case '\t': indent += 4; break;
                     case '\r': return -1;
                     case '/':
-                        if (i + 1 < end && text[i + 1] == '/') return -1;
+                        if (i + 1 < end && text[i + 1] == '/') return -2;
                         else return indent;
                     default: return indent;
                 }
