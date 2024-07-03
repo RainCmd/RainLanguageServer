@@ -11,7 +11,6 @@ namespace RainLanguageServer
         {
             var parser = new ArgsParser(args);
 #if DEBUG
-            parser.logPath = "D:\\Projects\\CPP\\RainLanguage\\RainLanguagePlugin\\bin\\server.log";
             var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             socket.Bind(new IPEndPoint(IPAddress.Loopback, 14567));
