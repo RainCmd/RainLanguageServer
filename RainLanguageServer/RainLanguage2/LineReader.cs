@@ -16,5 +16,14 @@
             return false;
         }
         public void Rollback() => line--;
+        public TextLine GetLastValidLine()
+        {
+            for (var i = line - 1; i >= 0; i--)
+            {
+                var result = document[i];
+                if (result.indent >= 0) return result;
+            }
+            return document[0];
+        }
     }
 }

@@ -94,6 +94,7 @@ namespace RainLanguageServer
         public readonly int indent = indent;
         public readonly TextPosition start = start;
         public readonly TextPosition end = end;
+        public readonly TextRange this[Range range] => ((TextRange)this)[range];
         public static implicit operator TextRange(TextLine line) => line.start & line.end;
         public override string ToString() => (start & end).ToString();
         public const int EMPTY = -1;

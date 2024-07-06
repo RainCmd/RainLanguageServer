@@ -12,12 +12,18 @@ namespace RainLanguageServer.RainLanguage2
             var sb = new StringBuilder();
             foreach (var item in qualify)
             {
-                if(sb.Length > 0) sb.Append(".");
+                if(sb.Length > 0) sb.Append('.');
                 sb.Append(item.ToString());
             }
-            sb.Append(".");
+            sb.Append('.');
             sb.Append(name.ToString());
             return sb.ToString();
+        }
+        public IEnumerator<TextRange> GetEnumerator()
+        {
+            foreach (var item in qualify)
+                yield return item;
+            yield return name;
         }
     }
 }

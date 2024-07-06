@@ -1,4 +1,6 @@
 ﻿
+using System.Xml.Linq;
+
 namespace RainLanguageServer.RainLanguage2
 {
     internal class FileType(TextRange range, QualifiedName name, int dimension)
@@ -22,6 +24,8 @@ namespace RainLanguageServer.RainLanguage2
         public readonly Visibility visibility = visibility;
         public readonly TextRange name = name;
         public readonly List<TextRange> attributes = [];
+
+        public AbstractDeclaration? abstractDeclaration;
     }
     internal class FileVariable(FileSpace space, Visibility visibility, TextRange name, bool isReadonly, FileType type, TextRange? expression = null)
         : FileDeclaration(space, visibility, name)
@@ -129,18 +133,31 @@ namespace RainLanguageServer.RainLanguage2
         public readonly List<FileParameter> parameters = parameters;
         public readonly List<FileType> returns = returns;
     }
-    internal readonly struct ImportSpaceInfo(List<TextRange> names)
+    internal class ImportSpaceInfo(List<TextRange> names) : IDisposable
     {
         public readonly TextRange range = names[0] & names[^1];
         public readonly List<TextRange> names = names;
+        public AbstractSpace? space;
+
+        public void Dispose(Manager manager)
+        {
+            if (space == null) return;
+            var index = space;
+            for (int i = 1; i < names.Count; i++)
+            {
+                index.references.Remove(names[i]);
+                if (!index.children.TryGetValue(names[i].ToString(), out index)) break;
+            }
+        }
     }
-    internal class FileSpace(QualifiedName? name, FileSpace? parent, TextDocument document)
+    internal class FileSpace : IDisposable
     {
         public TextRange range;
-        public QualifiedName? name = name;
-        public readonly FileSpace? parent = parent;
-        public readonly TextDocument document = document;
-        public readonly MessageCollector collector = [];
+        public readonly TextRange? name;
+        public readonly FileSpace? parent;
+        public readonly AbstractSpace space;
+        public readonly TextDocument document;
+        public readonly MessageCollector collector;
 
         public readonly List<ImportSpaceInfo> imports = [];
         public readonly List<FileSpace> children = [];
@@ -153,5 +170,44 @@ namespace RainLanguageServer.RainLanguage2
         public readonly List<FileDelegate> delegates = [];
         public readonly List<FileTask> tasks = [];
         public readonly List<FileNative> natives = [];
+
+        public readonly HashSet<AbstractSpace> relies = [];
+
+        public FileSpace(TextRange? name, FileSpace? parent, AbstractSpace space, TextDocument document, MessageCollector collector)
+        {
+            this.name = name;
+            this.parent = parent;
+            this.space = space;
+            this.document = document;
+            this.collector = collector;
+            parent?.children.Add(this);
+#if DEBUG
+            space.AddDeclaractionFile(this);
+#else
+            space.AddDeclaractionFile();
+#endif
+        }
+
+        public void Dispose(Manager manager)
+        {
+            foreach (var child in children) child.Dispose(manager);
+
+            foreach (var import in imports) import.Dispose(manager);
+
+            foreach (var file in variables) file.abstractDeclaration?.Dispose(manager);
+            foreach (var file in functions) file.abstractDeclaration?.Dispose(manager);
+            foreach (var file in structs) file.abstractDeclaration?.Dispose(manager);
+            foreach (var file in interfaces) file.abstractDeclaration?.Dispose(manager);
+            foreach (var file in classes) file.abstractDeclaration?.Dispose(manager);
+            foreach (var file in delegates) file.abstractDeclaration?.Dispose(manager);
+            foreach (var file in tasks) file.abstractDeclaration?.Dispose(manager);
+            foreach (var file in natives) file.abstractDeclaration?.Dispose(manager);
+
+#if DEBUG
+            space.RemoveDeclaractionFile(manager, this);
+#else
+            space.RemoveDeclaractionFile(manager);
+#endif
+        }
     }
 }
