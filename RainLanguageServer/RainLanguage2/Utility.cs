@@ -2,6 +2,11 @@
 {
     internal static class Utility
     {
+        public static void Set<T>(this List<T> list, int index, T value)
+        {
+            if (index < 0) list.Add(value);
+            else list[index] = value;
+        }
         public static T RemoveAt<T>(this List<T> list, Index index)
         {
             var offset = index.GetOffset(list.Count);

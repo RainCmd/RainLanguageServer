@@ -9,9 +9,9 @@ namespace RainLanguageServer.RainLanguage2
         public readonly QualifiedName name = name;
         public readonly int dimension = dimension;
     }
-    internal class FileParameter(TextRange range, FileType type, TextRange? name)
+    internal class FileParameter(FileType type, TextRange? name)
     {
-        public readonly TextRange range = range;
+        public readonly TextRange range = name == null ? type.range : type.range & name.Value;
         public readonly FileType type = type;
         public readonly TextRange? name = name;
     }
@@ -59,9 +59,10 @@ namespace RainLanguageServer.RainLanguage2
         {
             public readonly FileType type = type;
         }
-        internal class Function(FileSpace space, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns) :
+        internal class Function(FileSpace space, Visibility visibility, TextRange name, bool valid, List<FileParameter> parameters, List<FileType> returns) :
             FileDeclaration(space, visibility, name)
         {
+            public readonly bool valid = valid;
             public readonly List<FileParameter> parameters = parameters;
             public readonly List<FileType> returns = returns;
             public readonly List<TextLine> body = [];
@@ -105,10 +106,11 @@ namespace RainLanguageServer.RainLanguage2
             public readonly List<FileType> returns = returns;
             public readonly List<TextLine> body = [];
         }
-        internal class Descontructor(TextRange range, List<TextLine> body)
+        internal class Descontructor(TextRange name)
         {
-            public readonly TextRange range = range;
-            public readonly List<TextLine> body = body;
+            public TextRange range;
+            public readonly TextRange name = name;
+            public readonly List<TextLine> body = [];
         }
         public readonly List<FileType> inherits = [];
         public readonly List<Variable> variables = [];
@@ -133,13 +135,13 @@ namespace RainLanguageServer.RainLanguage2
         public readonly List<FileParameter> parameters = parameters;
         public readonly List<FileType> returns = returns;
     }
-    internal class ImportSpaceInfo(List<TextRange> names) : IDisposable
+    internal class ImportSpaceInfo(List<TextRange> names) : System.IDisposable
     {
         public readonly TextRange range = names[0] & names[^1];
         public readonly List<TextRange> names = names;
         public AbstractSpace? space;
 
-        public void Dispose(Manager manager)
+        public void Dispose()
         {
             if (space == null) return;
             var index = space;
@@ -152,6 +154,7 @@ namespace RainLanguageServer.RainLanguage2
     }
     internal class FileSpace : IDisposable
     {
+        public bool dirty = false;
         public TextRange range;
         public readonly TextRange? name;
         public readonly FileSpace? parent;
@@ -188,20 +191,33 @@ namespace RainLanguageServer.RainLanguage2
 #endif
         }
 
+        public IEnumerator<FileDeclaration> GetEnumerator()
+        {
+            foreach (var file in variables) yield return file;
+            foreach (var file in functions) yield return file;
+            foreach (var file in structs) yield return file;
+            foreach (var file in interfaces) yield return file;
+            foreach (var file in classes) yield return file;
+            foreach (var file in delegates) yield return file;
+            foreach (var file in tasks) yield return file;
+            foreach (var file in natives) yield return file;
+        }
+
+        public void Mark(Manager manager)
+        {
+            foreach (var child in children) child.Mark(manager);
+
+            foreach (var file in this) file.abstractDeclaration?.Mark(manager);
+
+            dirty = true;
+        }
         public void Dispose(Manager manager)
         {
             foreach (var child in children) child.Dispose(manager);
 
-            foreach (var import in imports) import.Dispose(manager);
+            foreach (var import in imports) import.Dispose();
 
-            foreach (var file in variables) file.abstractDeclaration?.Dispose(manager);
-            foreach (var file in functions) file.abstractDeclaration?.Dispose(manager);
-            foreach (var file in structs) file.abstractDeclaration?.Dispose(manager);
-            foreach (var file in interfaces) file.abstractDeclaration?.Dispose(manager);
-            foreach (var file in classes) file.abstractDeclaration?.Dispose(manager);
-            foreach (var file in delegates) file.abstractDeclaration?.Dispose(manager);
-            foreach (var file in tasks) file.abstractDeclaration?.Dispose(manager);
-            foreach (var file in natives) file.abstractDeclaration?.Dispose(manager);
+            foreach (var file in this) file.abstractDeclaration?.Dispose(manager);
 
 #if DEBUG
             space.RemoveDeclaractionFile(manager, this);

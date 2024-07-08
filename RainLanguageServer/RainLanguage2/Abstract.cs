@@ -9,6 +9,8 @@
         public readonly HashSet<TextRange> references = [];
 
         public virtual void Dispose(Manager manager) { }//todo dispose
+
+        public void Mark(Manager manager) { }//todo mark
     }
     internal class AbstractVariable(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, bool isReadonly, Type type)
         : AbstractDeclaration(file, space, name, declaration)
@@ -128,7 +130,7 @@
         : AbstractCallable(file, space, name, declaration, parameters, returns)
     {
     }
-    internal class AbstractSpace(AbstractSpace? parent, string name) : IDisposable
+    internal class AbstractSpace(AbstractSpace? parent, string name)
     {
         public readonly AbstractSpace? parent = parent;
         public readonly string name = name;
