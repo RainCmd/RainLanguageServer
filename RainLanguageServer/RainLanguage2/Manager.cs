@@ -53,10 +53,15 @@ namespace RainLanguageServer.RainLanguage2
                     FileParse.ParseSpace(space, reader, -1);
                     manager.fileSpaces.Add(item.Key, space);
                 }
+                foreach (var item in removed)
+                    FileTidy.Tidy(manager, manager.library, manager.fileSpaces[item.Key]);
+                foreach (var item in removed)
+                    FileLink.Link(manager, manager.library, manager.fileSpaces[item.Key]);
+
                 removed.Clear();
             }
         }
-        internal class FreeDeclarationIndex
+        internal class IndexManager
         {
             private readonly IndexPool variables = [];
             private readonly IndexPool functions = [];
@@ -94,11 +99,11 @@ namespace RainLanguageServer.RainLanguage2
                     case DeclarationCategory.Task: return tasks;
                     case DeclarationCategory.Native: return natives;
                 }
-                throw new InvalidOperationException();
+                throw new InvalidOperationException("无效的声明类型");
             }
-            public int GetIndex(int library, DeclarationCategory category)
+            public int GetIndex(AbstractLibrary library, DeclarationCategory category)
             {
-                if (library == LIBRARY_SELF)
+                if (library.library == LIBRARY_SELF)
                 {
                     var pool = GetPool(category);
 #if DEBUG
@@ -112,11 +117,50 @@ namespace RainLanguageServer.RainLanguage2
                     if (pool.Count > 0) return pool.Pop();
 #endif
                 }
-                return -1;
+                switch (category)
+                {
+                    case DeclarationCategory.Invalid:
+                        break;
+                    case DeclarationCategory.Variable:
+                        return library.variables.Count;
+                    case DeclarationCategory.Function:
+                        return library.functions.Count;
+                    case DeclarationCategory.Enum:
+                        return library.enums.Count;
+                    case DeclarationCategory.EnumElement:
+                        break;
+                    case DeclarationCategory.Struct:
+                        return library.structs.Count;
+                    case DeclarationCategory.StructVariable:
+                        break;
+                    case DeclarationCategory.StructFunction:
+                        break;
+                    case DeclarationCategory.Class:
+                        return library.classes.Count;
+                    case DeclarationCategory.Constructor:
+                        break;
+                    case DeclarationCategory.ClassVariable:
+                        break;
+                    case DeclarationCategory.ClassFunction:
+                        break;
+                    case DeclarationCategory.Interface:
+                        return library.interfaces.Count;
+                    case DeclarationCategory.InterfaceFunction:
+                        break;
+                    case DeclarationCategory.Delegate:
+                        return library.delegates.Count;
+                    case DeclarationCategory.Task:
+                        return library.tasks.Count;
+                    case DeclarationCategory.Native:
+                        return library.natives.Count;
+                    default:
+                        break;
+                }
+                throw new InvalidOperationException("无效的类型");
             }
-            public void Recycle(int library, DeclarationCategory category, int index)
+            public void Recycle(AbstractLibrary library, DeclarationCategory category, int index)
             {
-                if (library == LIBRARY_SELF)
+                if (library.library == LIBRARY_SELF)
                 {
                     var pool = GetPool(category);
 #if DEBUG
@@ -134,6 +178,7 @@ namespace RainLanguageServer.RainLanguage2
         public const int LIBRARY_SELF = -1;
         public const int LIBRARY_KERNEL = -2;
         public readonly FileManager fileManager;
+        public readonly IndexManager indexManager = new();
         public readonly AbstractLibrary library;
         public readonly AbstractLibrary kernel;
         public readonly Dictionary<string, FileSpace> fileSpaces = [];

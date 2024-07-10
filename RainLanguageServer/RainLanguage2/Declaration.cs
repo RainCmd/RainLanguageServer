@@ -21,13 +21,14 @@
         Task,                 //程序集              可见性                    索引          -    
         Native,               //程序集              可见性                    索引          -    
     }
-    internal readonly struct Declaration
+    internal readonly struct Declaration(int library, Visibility visibility, DeclarationCategory category, int index, int define)
     {
-        public readonly int library;
-        public readonly Visibility visibility;
-        public readonly DeclarationCategory category;
-        public readonly int index;
-        public readonly int define;
+        public readonly int library = library;
+        public readonly Visibility visibility = visibility;
+        public readonly DeclarationCategory category = category;
+        public readonly int index = index;
+        public readonly int define = define;
+        public Declaration(int library, Visibility visibility, DeclarationCategory category, int index) : this(library, visibility, category, index, 0) { }
     }
     internal enum TypeCode
     {

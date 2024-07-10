@@ -139,17 +139,24 @@ namespace RainLanguageServer.RainLanguage2
     {
         public readonly TextRange range = names[0] & names[^1];
         public readonly List<TextRange> names = names;
-        public AbstractSpace? space;
-
+        public AbstractSpace? space;//names[0] 对应的space
+        public AbstractSpace? GetSpace(int index)
+        {
+            var space = this.space;
+            if (index >= names.Count || space == null) return null;
+            for (int i = 1; i <= index; i++)
+                if (!space.children.TryGetValue(names[i].ToString(), out space)) 
+                    return null;
+            return space;
+        }
         public void Dispose()
         {
             if (space == null) return;
             var index = space;
+            index.references.Remove(names[0]);
             for (int i = 1; i < names.Count; i++)
-            {
-                index.references.Remove(names[i]);
-                if (!index.children.TryGetValue(names[i].ToString(), out index)) break;
-            }
+                if (index.children.TryGetValue(names[i].ToString(), out index)) index.references.Remove(names[i]);
+                else return;
         }
     }
     internal class FileSpace : IDisposable

@@ -1,4 +1,6 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using RainLanguageServer.RainLanguage;
+using System.Diagnostics.CodeAnalysis;
+using System.Xml.Linq;
 
 namespace RainLanguageServer.RainLanguage2
 {
@@ -293,7 +295,7 @@ namespace RainLanguageServer.RainLanguage2
                 space.collector.Add((index - 1) & index, ErrorLevel.Error, "应输入标识符");
                 return;
             }
-            if (lexical.type != LexicalType.Word && !lexical.IsReloadable)
+            if (lexical.type != LexicalType.Word && !lexical.type.IsReloadable())
             {
                 space.collector.Add(lexical.anchor, ErrorLevel.Error, "不是有效的标识符");
                 return;
@@ -314,7 +316,7 @@ namespace RainLanguageServer.RainLanguage2
                     return;
                 }
                 space.collector.Add(lexical.anchor, ErrorLevel.Error, "const 关键字只能修饰全局变量");
-                if (!Lexical.TryAnalysis(line, lexical.anchor.end, out lexical, space.collector) || (lexical.type != LexicalType.Word && !lexical.IsReloadable)) return;
+                if (!Lexical.TryAnalysis(line, lexical.anchor.end, out lexical, space.collector) || (lexical.type != LexicalType.Word && !lexical.type.IsReloadable())) return;
             }
             if (lexical.anchor == KeyWords.ENUM)
             {
@@ -642,15 +644,22 @@ namespace RainLanguageServer.RainLanguage2
                             }
                             else space.collector.Add(lexical.anchor, ErrorLevel.Error, "需要输入命名空间名");
                         }
-                        else
-                        {
-                            //todo 解析声明
-                            ParseDeclaration(space, reader, line, attributes, annotations);
-                        }
+                        else ParseDeclaration(space, reader, line, attributes, annotations);
                     }
-                    else if (lexical.IsReloadable)
+                    else if (lexical.type.IsReloadable())
                     {
-                        //todo 解析重载函数
+                        if (TryParseTupleDeclaration(line, lexical.anchor.end, out var tuple, out var name, space.collector))
+                        {
+                            var parameterRange = ParseParameters(line, name.end, out var parameters, space.collector);
+                            CheckEnd(line, parameterRange.end, space.collector);
+                            var file = new FileFunction(space, Visibility.Private, name, parameters, tuple);
+                            file.attributes.AddRange(attributes);
+                            attributes.Clear();
+                            file.annotation.AddRange(annotations);
+                            annotations.Clear();
+                            space.functions.Add(file);
+                        }
+                        else space.collector.Add((lexical.anchor.end - 1) & lexical.anchor.end, ErrorLevel.Error, "需要输入标识符");
                     }
                     else space.collector.Add(lexical.anchor, ErrorLevel.Error, "应输入类型或命名空间");
                     annotations.Clear();
