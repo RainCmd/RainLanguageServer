@@ -15,10 +15,9 @@ namespace RainLanguageServer.RainLanguage2
             while (Lexical.TryAnalysis(segment, start, out var lexical, null)) start = lexical.anchor.end;
             return start;
         }
-        private static TextRange TrimLine(TextLine line)
+        private static TextRange TrimLine(TextLine line, TextPosition start)
         {
-            if (line.indent < 0) return line;
-            var start = line.start + line.indent;
+            if (line.indent < 0) return line.start & line.start;
             return start & GetLastLexicalEnd(line, start);
         }
         private static bool TryParseAttribute(TextLine line, List<TextRange> attributes, MessageCollector collector)
@@ -96,7 +95,6 @@ namespace RainLanguageServer.RainLanguage2
                         }
                         else collector.Add(lexical.anchor, ErrorLevel.Error, "应输入 =");
                     }
-                    expression = default;
                     return true;
                 }
             }
@@ -108,7 +106,10 @@ namespace RainLanguageServer.RainLanguage2
             {
                 if (lexical.type != LexicalType.Assignment) space.collector.Add(lexical.anchor, ErrorLevel.Error, "应输入 =");
                 if (Lexical.TryAnalysis(line, lexical.anchor.end, out var expressionLexical, space.collector))
-                    return new FileEnum.Element(space, name, expressionLexical.anchor.start & line.end) { range = TrimLine(line) };
+                {
+                    var range = TrimLine(line, expressionLexical.anchor.end);
+                    return new FileEnum.Element(space, name, expressionLexical.anchor.start & range.end) { range = range };
+                }
                 else if (lexical.type == LexicalType.Assignment)
                     space.collector.Add(lexical.anchor, ErrorLevel.Error, "缺少表达式");
             }
@@ -139,56 +140,53 @@ namespace RainLanguageServer.RainLanguage2
             }
             else if (tuple.Count > 0) collector.Add((position - 1) & position, ErrorLevel.Error, "需要输入类型");
         }
-        private static bool TryParseTupleDeclaration(TextLine line, TextPosition position, [MaybeNullWhen(false)] out List<FileType> tuple, out Lexical name, MessageCollector collector)
+        private static bool TryParseTupleDeclaration(TextLine line, TextPosition position, [MaybeNullWhen(false)] out List<FileType> tuple, out TextRange name, MessageCollector collector)
         {
             name = default;
             var index = position;
             while (Lexical.TryAnalysis(line, index, out var lexical, collector))
             {
                 if (lexical.type == LexicalType.BracketLeft0) break;
-                name = lexical;
+                name = lexical.anchor;
                 index = lexical.anchor.end;
             }
-            if (name.anchor.Valid)
+            if (name.Valid)
             {
-                ParseTuple(position & name.anchor.start, position, out tuple, collector);
+                ParseTuple(position & name.start, position, out tuple, collector);
                 return true;
             }
             tuple = null;
             return false;
         }
-        private static void ParseParameters(TextLine line, TextPosition position, out List<FileParameter> parameters, MessageCollector collector)
+        private static TextRange ParseParameters(TextRange segment, TextPosition position, out List<FileParameter> parameters, MessageCollector collector)
         {
             parameters = [];
-            if (!Lexical.TryAnalysis(line, position, out var lexical, collector))
+            if (!Lexical.TryAnalysis(segment, position, out var lexical, collector))
             {
                 collector.Add((position - 1) & position, ErrorLevel.Error, "需要输入 (");
-                return;
+                return position & position;
             }
             if (lexical.type != LexicalType.BracketLeft0)
             {
                 collector.Add(lexical.anchor, ErrorLevel.Error, "需要输入 (");
-                return;
+                return lexical.anchor.start & lexical.anchor.start;
             }
+            Lexical.MatchBlock(lexical.anchor.start & segment.end, LexicalType.BracketLeft0, LexicalType.BracketRight0, out var bracketLeft, out var bracketRight, collector);
+            segment = bracketLeft.end & bracketRight.start;
+
         label_parse_parameter:
             position = lexical.anchor.end;
-            while (Lexical.TryExtractName(line, position, out var name, collector))
+            while (Lexical.TryExtractName(segment, position, out var name, collector))
             {
                 position = name.name.end;
-                var dimension = Lexical.ExtractDimension(line, ref position);
+                var dimension = Lexical.ExtractDimension(segment, ref position);
                 var type = new FileType(name.Range.start & position, name, dimension);
                 var parameter = new FileParameter(type, null);
             label_try_parse_name:
-                if (Lexical.TryAnalysis(line, position, out lexical, collector))
+                if (Lexical.TryAnalysis(segment, position, out lexical, collector))
                 {
                     position = lexical.anchor.end;
-                    if (lexical.type == LexicalType.BracketRight0)
-                    {
-                        parameters.Add(parameter);
-                        CheckEnd(line, lexical.anchor.end, collector);
-                        return;
-                    }
-                    else if (lexical.type == LexicalType.Word)
+                    if (lexical.type == LexicalType.Word)
                     {
                         parameter = new FileParameter(type, lexical.anchor);
                         goto label_try_parse_name;
@@ -203,17 +201,15 @@ namespace RainLanguageServer.RainLanguage2
                 else
                 {
                     parameters.Add(parameter);
-                    collector.Add((position - 1) & position, ErrorLevel.Error, "应输入 )");
-                    return;
+                    return bracketLeft & bracketRight;
                 }
             }
-            if (Lexical.TryAnalysis(line, position, out lexical, collector))
+            if (Lexical.TryAnalysis(segment, position, out lexical, collector))
             {
-                if (lexical.type != LexicalType.BracketRight0)
-                    collector.Add(lexical.anchor, ErrorLevel.Error, "应输入类型或 )");
+                collector.Add(lexical.anchor, ErrorLevel.Error, "应输入类型");
                 goto label_parse_parameter;
             }
-            else collector.Add((position - 1) & position, ErrorLevel.Error, "应输入 )");
+            return bracketLeft & bracketRight;
         }
         private static void ParseBlock(LineReader reader, int parentIndent, List<TextLine> lines)
         {
@@ -254,7 +250,7 @@ namespace RainLanguageServer.RainLanguage2
             {
                 if (fileName.type != LexicalType.Word) space.collector.Add(fileName.anchor, ErrorLevel.Error, "不是有效的标识符名称");
                 var file = creater(fileName.anchor);
-                file.range = TrimLine(line);
+                file.range = TrimLine(line, fileName.anchor.end);
                 file.attributes.AddRange(attributes);
                 attributes.Clear();
                 file.annotation.AddRange(annotations);
@@ -294,7 +290,7 @@ namespace RainLanguageServer.RainLanguage2
             var visibility = ParseVisibility(line, out var index, space.collector);
             if (!Lexical.TryAnalysis(line, index, out var lexical, space.collector))
             {
-                space.collector.Add(line[line.indent..index.charactor], ErrorLevel.Error, "应输入标识符");
+                space.collector.Add((index - 1) & index, ErrorLevel.Error, "应输入标识符");
                 return;
             }
             if (lexical.type != LexicalType.Word && !lexical.IsReloadable)
@@ -310,7 +306,7 @@ namespace RainLanguageServer.RainLanguage2
                 if (TryParseVariable(line, lexical.anchor.end, out var name, out var type, out var expression, space.collector))
                 {
                     if (expression == null) space.collector.Add(name, ErrorLevel.Error, "常量必须在声明时赋值");
-                    var variable = new FileVariable(space, visibility, name, true, type, expression) { range = TrimLine(line) };
+                    var variable = new FileVariable(space, visibility, name, true, type, expression) { range = TrimLine(line, name.end) };
                     variable.attributes.AddRange(attributes);
                     attributes.Clear();
                     variable.annotation.AddRange(annotations);
@@ -327,6 +323,7 @@ namespace RainLanguageServer.RainLanguage2
                     {
                         var file = new FileEnum(space, visibility, name);
                         CheckEnd(line, name.end, space.collector);
+                        space.enums.Add(file);
                         return file;
                     },
                     (file, memberLine) =>
@@ -352,6 +349,7 @@ namespace RainLanguageServer.RainLanguage2
                     {
                         var file = new FileStruct(space, visibility, name);
                         CheckEnd(line, name.end, space.collector);
+                        space.structs.Add(file);
                         return file;
                     },
                     (file, memberLine) =>
@@ -360,7 +358,7 @@ namespace RainLanguageServer.RainLanguage2
                         if (TryParseVariable(memberLine, index, out var name, out var type, out var expression, space.collector))
                         {
                             if (visibility != Visibility.None) space.collector.Add(name, ErrorLevel.Error, "结构体成员字段不允许有访问修饰符");
-                            var member = new FileStruct.Variable(space, name, type) { range = TrimLine(memberLine) };
+                            var member = new FileStruct.Variable(space, name, type) { range = TrimLine(memberLine, name.end) };
                             member.attributes.AddRange(attributes);
                             attributes.Clear();
                             file.variables.Add(member);
@@ -369,16 +367,11 @@ namespace RainLanguageServer.RainLanguage2
                         else
                         {
                             if (visibility == Visibility.None) visibility = Visibility.Private;
-                            if (TryParseTupleDeclaration(memberLine, index, out var tuple, out var nameLexical, space.collector))
+                            if (TryParseTupleDeclaration(memberLine, index, out var tuple, out var memberName, space.collector))
                             {
-                                var valid = true;
-                                if (nameLexical.type != LexicalType.Word)
-                                {
-                                    valid = false;
-                                    space.collector.Add(nameLexical.anchor, ErrorLevel.Error, "不是有效的函数名");
-                                }
-                                ParseParameters(memberLine, nameLexical.anchor.end, out var parameters, space.collector);
-                                var member = new FileStruct.Function(space, visibility, lexical.anchor, valid, parameters, tuple) { range = TrimLine(memberLine) };
+                                var parameterRange = ParseParameters(memberLine, memberName.end, out var parameters, space.collector);
+                                CheckEnd(memberLine, parameterRange.end, space.collector);
+                                var member = new FileStruct.Function(space, visibility, lexical.anchor, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
                                 member.attributes.AddRange(attributes);
                                 attributes.Clear();
                                 file.functions.Add(member);
@@ -386,6 +379,7 @@ namespace RainLanguageServer.RainLanguage2
                                 member.range &= reader.GetLastValidLine();
                                 return member;
                             }
+                            else space.collector.Add((index - 1) & index, ErrorLevel.Error, "需要输入标识符");
                         }
                         return null;
                     }, attributes, annotations);
@@ -397,6 +391,7 @@ namespace RainLanguageServer.RainLanguage2
                     {
                         var file = new FileClass(space, visibility, name);
                         ParseInherits(line, name.end, file.inherits, space.collector);
+                        space.classes.Add(file);
                         return file;
                     },
                     (file, memberLine) =>
@@ -405,7 +400,7 @@ namespace RainLanguageServer.RainLanguage2
                         if (TryParseVariable(memberLine, index, out var name, out var type, out var expression, space.collector))
                         {
                             if (visibility == Visibility.None) visibility = Visibility.Private;
-                            var member = new FileClass.Variable(space, visibility, name, type, expression) { range = TrimLine(memberLine) };
+                            var member = new FileClass.Variable(space, visibility, name, type, expression) { range = TrimLine(memberLine, name.end) };
                             member.attributes.AddRange(attributes);
                             attributes.Clear();
                             file.variables.Add(member);
@@ -415,8 +410,9 @@ namespace RainLanguageServer.RainLanguage2
                         {
                             if (lexical.type == LexicalType.Negate)
                             {
+                                CheckEnd(memberLine, lexical.anchor.end, space.collector);
                                 if (visibility != Visibility.None) space.collector.Add(lexical.anchor, ErrorLevel.Warning, "析构函数的可访问性修饰符无效");
-                                if (file.descontructor == null) file.descontructor = new FileClass.Descontructor(lexical.anchor) { range = TrimLine(memberLine) };
+                                if (file.descontructor == null) file.descontructor = new FileClass.Descontructor(lexical.anchor) { range = TrimLine(memberLine, lexical.anchor.end) };
                                 else
                                 {
                                     var message = new Message(lexical.anchor, ErrorLevel.Error, "已经声明了析构函数");
@@ -431,7 +427,33 @@ namespace RainLanguageServer.RainLanguage2
                             else
                             {
                                 if (visibility == Visibility.None) visibility = Visibility.Private;
-                                //todo parse member function and ctor
+                                if (TryParseTupleDeclaration(memberLine, index, out var tuple, out var memberName, space.collector))
+                                {
+                                    var parameterRange = ParseParameters(memberLine, memberName.end, out var parameters, space.collector);
+                                    if (memberName.ToString() == file.name)
+                                    {
+                                        if (tuple.Count > 0) space.collector.Add(tuple[0].range & tuple[^1].range, ErrorLevel.Error, "构造函数不允许有返回值");
+                                        var member = new FileClass.Constructor(space, visibility, memberName, [], tuple, parameterRange.end & memberLine.end);
+                                        member.attributes.AddRange(attributes);
+                                        attributes.Clear();
+                                        file.constructors.Add(member);
+                                        ParseBlock(reader, memberLine.indent, member.body);
+                                        member.range &= reader.GetLastValidLine();
+                                        return member;
+                                    }
+                                    else
+                                    {
+                                        CheckEnd(memberLine, parameterRange.end, space.collector);
+                                        var member = new FileClass.Function(space, visibility, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
+                                        member.attributes.AddRange(attributes);
+                                        attributes.Clear();
+                                        file.functions.Add(member);
+                                        ParseBlock(reader, memberLine.indent, member.body);
+                                        member.range &= reader.GetLastValidLine();
+                                        return member;
+                                    }
+                                }
+                                else space.collector.Add((index - 1) & index, ErrorLevel.Error, "需要输入标识符");
                             }
                         }
                         return null;
@@ -440,31 +462,97 @@ namespace RainLanguageServer.RainLanguage2
             }
             else if (lexical.anchor == KeyWords.INTERFACE)
             {
-
+                ParseDeclaration(space, reader, line, lexical.anchor,
+                    name =>
+                    {
+                        var file = new FileInterface(space, visibility, name);
+                        ParseInherits(line, name.end, file.inherits, space.collector);
+                        space.interfaces.Add(file);
+                        return file;
+                    },
+                    (file, memberLine) =>
+                    {
+                        var visibility = ParseVisibility(memberLine, out var index, space.collector);
+                        if (TryParseTupleDeclaration(memberLine, index, out var tuple, out var memberName, space.collector))
+                        {
+                            if (visibility != Visibility.None) space.collector.Add(memberName, ErrorLevel.Error, "接口函数不允许有可访问性修饰符");
+                            var parameterRange = ParseParameters(memberLine, memberName.end, out var parameters, space.collector);
+                            CheckEnd(memberLine, parameterRange.end, space.collector);
+                            var member = new FileInterface.Function(space, Visibility.None, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
+                            member.attributes.AddRange(attributes);
+                            attributes.Clear();
+                            file.functions.Add(member);
+                            return member;
+                        }
+                        else space.collector.Add((index - 1) & index, ErrorLevel.Error, "需要输入标识符");
+                        return null;
+                    }, attributes, annotations);
             }
             else if (lexical.anchor == KeyWords.DELEGATE)
             {
-
+                if (TryParseTupleDeclaration(line, lexical.anchor.end, out var tuple, out var name, space.collector))
+                {
+                    var parameterRange = ParseParameters(line, name.end, out var parameters, space.collector);
+                    CheckEnd(line, parameterRange.end, space.collector);
+                    var file = new FileDelegate(space, visibility, name, parameters, tuple) { range = TrimLine(line, parameterRange.end) };
+                    file.attributes.AddRange(attributes);
+                    attributes.Clear();
+                    file.annotation.AddRange(annotations);
+                    annotations.Clear();
+                    space.delegates.Add(file);
+                }
+                else space.collector.Add((lexical.anchor.end - 1) & lexical.anchor.end, ErrorLevel.Error, "需要输入标识符");
             }
             else if (lexical.anchor == KeyWords.TASK)
             {
-
+                if (TryParseTupleDeclaration(line, lexical.anchor.end, out var tuple, out var name, space.collector))
+                {
+                    CheckEnd(line, name.end, space.collector);
+                    var file = new FileTask(space, visibility, name, tuple) { range = TrimLine(line, name.end) };
+                    file.attributes.AddRange(attributes);
+                    attributes.Clear();
+                    file.annotation.AddRange(annotations);
+                    annotations.Clear();
+                    space.tasks.Add(file);
+                }
+                else space.collector.Add((lexical.anchor.end - 1) & lexical.anchor.end, ErrorLevel.Error, "需要输入标识符");
             }
             else if (lexical.anchor == KeyWords.NATIVE)
             {
-
+                if (TryParseTupleDeclaration(line, lexical.anchor.end, out var tuple, out var name, space.collector))
+                {
+                    var parameterRange = ParseParameters(line, name.end, out var parameters, space.collector);
+                    CheckEnd(line, parameterRange.end, space.collector);
+                    var file = new FileNative(space, visibility, name, parameters, tuple) { range = TrimLine(line, parameterRange.end) };
+                    file.attributes.AddRange(attributes);
+                    attributes.Clear();
+                    file.annotation.AddRange(annotations);
+                    annotations.Clear();
+                    space.natives.Add(file);
+                }
+                else space.collector.Add((lexical.anchor.end - 1) & lexical.anchor.end, ErrorLevel.Error, "需要输入标识符");
             }
-            else
+            else if (TryParseVariable(line, lexical.anchor.end, out var name, out var type, out var expression, space.collector))
             {
-                if (TryParseVariable(line, lexical.anchor.end, out var name, out var type, out var expression, space.collector))
-                {
-
-                }
-                else
-                {
-
-                }
+                var file = new FileVariable(space, visibility, name, false, type, expression);
+                file.attributes.AddRange(attributes);
+                attributes.Clear();
+                file.annotation.AddRange(annotations);
+                annotations.Clear();
+                space.variables.Add(file);
             }
+            else if (TryParseTupleDeclaration(line, lexical.anchor.end, out var tuple, out name, space.collector))
+            {
+                var parameterRange = ParseParameters(line, name.end, out var parameters, space.collector);
+                CheckEnd(line, parameterRange.end, space.collector);
+                var file = new FileFunction(space, visibility, name, parameters, tuple);
+                file.attributes.AddRange(attributes);
+                attributes.Clear();
+                file.annotation.AddRange(annotations);
+                annotations.Clear();
+                space.functions.Add(file);
+            }
+            else space.collector.Add((lexical.anchor.end - 1) & lexical.anchor.end, ErrorLevel.Error, "需要输入标识符");
         }
         public static FileSpace ParseSpace(AbstractLibrary library, TextDocument document)
         {

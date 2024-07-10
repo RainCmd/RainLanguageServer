@@ -1,4 +1,5 @@
 ﻿
+using System.Security.AccessControl;
 using System.Xml.Linq;
 
 namespace RainLanguageServer.RainLanguage2
@@ -59,10 +60,9 @@ namespace RainLanguageServer.RainLanguage2
         {
             public readonly FileType type = type;
         }
-        internal class Function(FileSpace space, Visibility visibility, TextRange name, bool valid, List<FileParameter> parameters, List<FileType> returns) :
+        internal class Function(FileSpace space, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns) :
             FileDeclaration(space, visibility, name)
         {
-            public readonly bool valid = valid;
             public readonly List<FileParameter> parameters = parameters;
             public readonly List<FileType> returns = returns;
             public readonly List<TextLine> body = [];
@@ -91,12 +91,12 @@ namespace RainLanguageServer.RainLanguage2
             public readonly FileType type = type;
             public readonly TextRange? expression = expression;
         }
-        internal class Constructor(FileSpace space, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns, TextRange? expression)
+        internal class Constructor(FileSpace space, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns, TextRange expression)
             : FileDeclaration(space, visibility, name)
         {
             public readonly List<FileParameter> parameters = parameters;
             public readonly List<FileType> returns = returns;
-            public readonly TextRange? expression = expression;
+            public readonly TextRange expression = expression;
             public readonly List<TextLine> body = [];
         }
         internal class Function(FileSpace space, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns)
@@ -167,6 +167,7 @@ namespace RainLanguageServer.RainLanguage2
 
         public readonly List<FileVariable> variables = [];
         public readonly List<FileFunction> functions = [];
+        public readonly List<FileEnum> enums = [];
         public readonly List<FileStruct> structs = [];
         public readonly List<FileInterface> interfaces = [];
         public readonly List<FileClass> classes = [];

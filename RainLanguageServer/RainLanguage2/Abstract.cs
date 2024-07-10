@@ -52,6 +52,7 @@
         internal class Element(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration)
             : AbstractDeclaration(file, space, name, declaration)
         {
+            public bool valid = true;
             public long? value;
             //todo expression
         }
@@ -63,12 +64,14 @@
         internal class Variable(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, Type type)
             : AbstractDeclaration(file, space, name, declaration)
         {
+            public bool valid = true;
             public readonly Type type = type;
             public readonly HashSet<TextRange> write = [];
         }
         internal class Function(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
+            public bool valid = true;
             //todo logicBlock
         }
         public readonly List<Variable> variables = [];
@@ -80,6 +83,7 @@
         internal class Function(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
+            public bool valid = true;
             public readonly List<AbstractClass.Function> implements = [];
         }
         public readonly List<Type> inherits = [];
@@ -92,6 +96,7 @@
         internal class Variable(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, Type type)
             : AbstractDeclaration(file, space, name, declaration)
         {
+            public bool valid = true;
             public readonly Type type = type;
             //todo expression
             public readonly HashSet<TextRange> write = [];
@@ -99,12 +104,14 @@
         internal class Constructor(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
+            public bool valid = true;
             //todo expression
             //todo logicBlock
         }
         internal class Function(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
+            public bool valid = true;
             //todo logicBlock
             public readonly List<AbstractCallable> overrides = [];
             public readonly List<Function> implements = [];

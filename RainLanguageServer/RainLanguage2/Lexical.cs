@@ -1,4 +1,4 @@
-﻿using RainLanguageServer.RainLanguage;
+﻿using System;
 
 namespace RainLanguageServer.RainLanguage2
 {
@@ -152,20 +152,25 @@ namespace RainLanguageServer.RainLanguage2
             ch |= 0x20;
             return ch >= 'a' && ch <= 'z';
         }
-        public static TextRange MatchStringTemplateBlock(TextRange segment, MessageCollector? collector)
+        public static void MatchBlock(TextRange segment, LexicalType leftType, LexicalType rightType, out TextRange left, out TextRange right, MessageCollector? collector)
         {
-            if (segment[0] != '{') throw new ArgumentException("需要保留前后花括号");
-            var index = 1;
+            if (!TryAnalysis(segment, 0, out var lexical, collector) || lexical.type != leftType) throw new Exception("必须保留左括号");
+            left = lexical.anchor;
+            var index = lexical.anchor.end;
             var deep = 1;
-            while (TryAnalysis(segment, index, out var lexical, collector))
+            while (TryAnalysis(segment, index, out lexical, collector))
             {
-                index = lexical.anchor.end - segment.start;
-                if (lexical.type == LexicalType.BracketLeft2) deep++;
-                else if (lexical.type == LexicalType.BracketRight2)
-                    if (--deep == 0) return segment[..index];
+                index = lexical.anchor.end;
+                if (lexical.type == leftType) deep++;
+                else if (lexical.type == rightType)
+                    if (--deep == 0)
+                    {
+                        right = lexical.anchor;
+                        return;
+                    }
             }
-            collector?.Add(segment, ErrorLevel.Error, "缺少配对的符号");
-            return segment;
+            collector?.Add(left, ErrorLevel.Error, "缺少配对的符号");
+            right = segment.end & segment.end;
         }
 
         public static bool TryAnalysis(TextRange segment, TextPosition index, out Lexical lexical, MessageCollector? collector) => TryAnalysis(segment, index - segment.start, out lexical, collector);
@@ -359,8 +364,8 @@ namespace RainLanguageServer.RainLanguage2
                                     else if (segment[index + 1] == '{') index += 2;
                                     else
                                     {
-                                        var block = MatchStringTemplateBlock(segment[index..], collector);
-                                        index += block.Count;
+                                        MatchBlock(segment[index..], LexicalType.BracketLeft2, LexicalType.BracketRight2, out _, out var end, collector);
+                                        index = end.end - segment.start;
                                     }
                                 }
                                 else index++;
