@@ -1,8 +1,4 @@
-﻿
-using System.Security.AccessControl;
-using System.Xml.Linq;
-
-namespace RainLanguageServer.RainLanguage2
+﻿namespace RainLanguageServer.RainLanguage2
 {
     internal class FileType(TextRange range, QualifiedName name, int dimension)
     {

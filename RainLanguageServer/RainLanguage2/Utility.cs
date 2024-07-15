@@ -2,15 +2,24 @@
 {
     internal static class Utility
     {
-        public static void Add<TKey, TElement>(this Dictionary<TKey, List<TElement>> dictionary, TKey key, int index, TElement element) where TKey : notnull
+        public static void AddRange<T>(this HashSet<T> set, IEnumerable<T> values)
+        {
+            foreach (var value in values) set.Add(value);
+        }
+        public static void Add<TKey, TElement>(this Dictionary<TKey, List<TElement>> dictionary, TKey key, TElement element) where TKey : notnull
         {
             if (!dictionary.TryGetValue(key, out var list))
             {
                 list = [];
                 dictionary[key] = list;
             }
-            if (index < list.Count) list[index] = element;
-            else list.Add(element);
+            list.Add(element);
+        }
+        public static void Add<T>(this List<T> list, int index, T value)
+        {
+            if (index < list.Count) list[index] = value;
+            else if (index == list.Count) list.Add(value);
+            else throw new InvalidOperationException();
         }
         public static T RemoveAt<T>(this List<T> list, Index index)
         {
@@ -91,18 +100,24 @@
             }
             return false;
         }
-        public static bool IsValidName(TextRange name, bool allowKeyword, bool operatorReloadable)
+        public static bool IsValidName(TextRange name, bool allowKeyword, bool operatorReloadable, MessageCollector collector)
         {
-            if (name == KeyWords.DISCARD_VARIABLE) return false;
+            if (name == KeyWords.DISCARD_VARIABLE)
+            {
+                collector.Add(name, ErrorLevel.Error, "不能已单个下划线作为名称");
+                return false;
+            }
             if (Lexical.TryAnalysis(name, 0, out var lexical, null))
             {
                 if (lexical.type == LexicalType.Word)
                 {
-                    if (allowKeyword) return true;
-                    else return !KeyWords.IsKeyWorld(name.ToString());
+                    if (allowKeyword && !KeyWords.IsKeyWorld(name.ToString())) return true;
+                    collector.Add(name, ErrorLevel.Error, "关键字不能作为名称");
+                    return false;
                 }
-                return operatorReloadable && lexical.type.IsReloadable();
+                else if (operatorReloadable && lexical.type.IsReloadable()) return true;
             }
+            collector.Add(name, ErrorLevel.Error, "名称不是合法的标识符");
             return false;
         }
         public static Declaration GetDeclaration(Manager manager, AbstractLibrary library, Visibility visibility, DeclarationCategory category)

@@ -1,6 +1,4 @@
-﻿using RainLanguageServer.RainLanguage;
-using System.Diagnostics.CodeAnalysis;
-using System.Xml.Linq;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage2
 {
@@ -432,9 +430,8 @@ namespace RainLanguageServer.RainLanguage2
                                 if (TryParseTupleDeclaration(memberLine, index, out var tuple, out var memberName, space.collector))
                                 {
                                     var parameterRange = ParseParameters(memberLine, memberName.end, out var parameters, space.collector);
-                                    if (memberName.ToString() == file.name)
+                                    if (tuple.Count == 0 && memberName.ToString() == file.name)
                                     {
-                                        if (tuple.Count > 0) space.collector.Add(tuple[0].range & tuple[^1].range, ErrorLevel.Error, "构造函数不允许有返回值");
                                         var member = new FileClass.Constructor(space, visibility, memberName, [], tuple, parameterRange.end & memberLine.end);
                                         member.attributes.AddRange(attributes);
                                         attributes.Clear();

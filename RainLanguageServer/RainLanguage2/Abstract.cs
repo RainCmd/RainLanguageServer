@@ -1,18 +1,27 @@
 ﻿namespace RainLanguageServer.RainLanguage2
 {
-    internal abstract class AbstractDeclaration(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration) : IDisposable
+    internal abstract class AbstractDeclaration : IDisposable
     {
-        public readonly FileDeclaration file = file;
-        public readonly AbstractSpace space = space;
-        public readonly TextRange name = name;
-        public readonly Declaration declaration = declaration;
+        public readonly FileDeclaration file;
+        public readonly AbstractSpace space;
+        public readonly TextRange name;
+        public readonly Declaration declaration;
         public readonly HashSet<TextRange> references = [];
+
+        public AbstractDeclaration(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration)
+        {
+            this.file = file;
+            this.space = space;
+            this.name = name;
+            this.declaration = declaration;
+            file.abstractDeclaration = this;
+        }
 
         public virtual void Dispose(Manager manager) { }//todo dispose
 
         public void Mark(Manager manager) { }//todo mark
     }
-    internal class AbstractVariable(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, bool isReadonly, Type type)
+    internal class AbstractVariable(FileVariable file, AbstractSpace space, TextRange name, Declaration declaration, bool isReadonly, Type type)
         : AbstractDeclaration(file, space, name, declaration)
     {
         public readonly bool isReadonly = isReadonly;
@@ -22,10 +31,10 @@
     }
     internal class AbstractCallable : AbstractDeclaration
     {
-        internal readonly struct Parameter(Type type, TextRange name)
+        internal readonly struct Parameter(Type type, TextRange? name)
         {
             public readonly Type type = type;
-            public readonly TextRange name = name;
+            public readonly TextRange? name = name;
         }
         public readonly List<Parameter> parameters;
         public readonly Tuple signature;
@@ -41,77 +50,76 @@
             this.returns = returns;
         }
     }
-    internal class AbstractFunction(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
+    internal class AbstractFunction(FileFunction file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
     {
         //todo logicBlock
     }
-    internal class AbstractEnum(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration)
+    internal class AbstractEnum(FileEnum file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
     {
-        internal class Element(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration)
+        internal class Element(FileEnum.Element file, AbstractSpace space, TextRange name, Declaration declaration, bool valid)
             : AbstractDeclaration(file, space, name, declaration)
         {
-            public bool valid = true;
+            public readonly bool valid = valid;
             public long? value;
             //todo expression
         }
         public readonly List<Element> elements = [];
     }
-    internal class AbstractStruct(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration)
+    internal class AbstractStruct(FileStruct file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
     {
-        internal class Variable(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, Type type)
+        internal class Variable(FileStruct.Variable file, AbstractSpace space, TextRange name, Declaration declaration, Type type, bool valid)
             : AbstractDeclaration(file, space, name, declaration)
         {
-            public bool valid = true;
+            public readonly bool valid = valid;
             public readonly Type type = type;
             public readonly HashSet<TextRange> write = [];
         }
-        internal class Function(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
+        internal class Function(FileStruct.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
-            public bool valid = true;
+            public readonly bool valid = valid;
             //todo logicBlock
         }
         public readonly List<Variable> variables = [];
         public readonly List<Function> functions = [];
     }
-    internal class AbstractInterface(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration)
+    internal class AbstractInterface(FileInterface file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
     {
-        internal class Function(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
+        internal class Function(FileInterface.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
-            public bool valid = true;
+            public readonly bool valid = valid;
             public readonly List<AbstractClass.Function> implements = [];
         }
         public readonly List<Type> inherits = [];
         public readonly List<Function> functions = [];
         public readonly List<AbstractDeclaration> implements = [];
     }
-    internal class AbstractClass(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration)
+    internal class AbstractClass(FileClass file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
     {
-        internal class Variable(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, Type type)
+        internal class Variable(FileClass.Variable file, AbstractSpace space, TextRange name, Declaration declaration, Type type, bool valid)
             : AbstractDeclaration(file, space, name, declaration)
         {
-            public bool valid = true;
+            public readonly bool valid = valid;
             public readonly Type type = type;
             //todo expression
             public readonly HashSet<TextRange> write = [];
         }
-        internal class Constructor(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
+        internal class Constructor(FileClass.Constructor file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
-            public bool valid = true;
             //todo expression
             //todo logicBlock
         }
-        internal class Function(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
+        internal class Function(FileClass.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
-            public bool valid = true;
+            public readonly bool valid = valid;
             //todo logicBlock
             public readonly List<AbstractCallable> overrides = [];
             public readonly List<Function> implements = [];
@@ -124,16 +132,16 @@
         //todo descontructor
         public readonly List<AbstractClass> implements = [];
     }
-    internal class AbstructDelegate(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
+    internal class AbstructDelegate(FileDelegate file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
     {
     }
-    internal class AbstructTask(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, Tuple returns)
+    internal class AbstructTask(FileTask file, AbstractSpace space, TextRange name, Declaration declaration, Tuple returns)
         : AbstractDeclaration(file, space, name, declaration)
     {
         public readonly Tuple returns = returns;
     }
-    internal class AbstructNative(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
+    internal class AbstructNative(FileNative file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
     {
     }

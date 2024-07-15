@@ -29,6 +29,45 @@
         public readonly int index = index;
         public readonly int define = define;
         public Declaration(int library, Visibility visibility, DeclarationCategory category, int index) : this(library, visibility, category, index, 0) { }
+        public Type DefineType
+        {
+            get
+            {
+                switch (category)
+                {
+                    case DeclarationCategory.Invalid:
+                    case DeclarationCategory.Variable:
+                    case DeclarationCategory.Function:
+                        break;
+                    case DeclarationCategory.Enum:
+                        return new Type(library, TypeCode.Enum, index, 0);
+                    case DeclarationCategory.EnumElement:
+                        return new Type(library, TypeCode.Enum, define, 0);
+                    case DeclarationCategory.Struct:
+                        return new Type(library, TypeCode.Struct, index, 0);
+                    case DeclarationCategory.StructVariable:
+                    case DeclarationCategory.StructFunction:
+                        return new Type(library, TypeCode.Struct, define, 0);
+                    case DeclarationCategory.Class:
+                        return new Type(library, TypeCode.Handle, index, 0);
+                    case DeclarationCategory.Constructor:
+                    case DeclarationCategory.ClassVariable:
+                    case DeclarationCategory.ClassFunction:
+                        return new Type(library, TypeCode.Handle, define, 0);
+                    case DeclarationCategory.Interface:
+                        return new Type(library, TypeCode.Interface, index, 0);
+                    case DeclarationCategory.InterfaceFunction:
+                        return new Type(library, TypeCode.Interface, define, 0);
+                    case DeclarationCategory.Delegate:
+                        return new Type(library, TypeCode.Delegate, index, 0);
+                    case DeclarationCategory.Task:
+                        return new Type(library, TypeCode.Task, index, 0);
+                    case DeclarationCategory.Native:
+                        break;
+                }
+                throw new InvalidOperationException();
+            }
+        }
     }
     internal enum TypeCode
     {
@@ -70,6 +109,8 @@
         public static bool operator ==(Tuple left, Tuple right) => left.Equals(right);
         public static bool operator !=(Tuple left, Tuple right) => !left.Equals(right);
         public override bool Equals(object? obj) => obj is Tuple tuple && Equals(tuple);
+        public static implicit operator Tuple(Type[] types) => new(types);
+        public static implicit operator Tuple(Type type) => new(type);
         public override int GetHashCode()
         {
             var result = new HashCode();

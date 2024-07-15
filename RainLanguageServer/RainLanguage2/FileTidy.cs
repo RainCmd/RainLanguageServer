@@ -35,8 +35,8 @@
         }
         private static void AddDeclaration(FileDeclaration file, bool allowKeyword, Declaration declaration, FileSpace space)
         {
-            if (Utility.IsValidName(file.name, allowKeyword, false))
-                space.space.declarations.Add(file.name.ToString(), declaration.index, declaration);
+            if (Utility.IsValidName(file.name, allowKeyword, false, space.collector))
+                space.space.declarations.Add(file.name.ToString(), declaration);
             else space.collector.Add(file.name, ErrorLevel.Error, "无效的名称标识符");
         }
         public static void Tidy(Manager manager, AbstractLibrary library, FileSpace space)
@@ -44,57 +44,51 @@
             InitRelies(manager, library, space);
             foreach (var child in space.children)
             {
-                foreach (var rely in space.relies) child.relies.Add(rely);
+                child.relies.AddRange(space.relies);
                 Tidy(manager, library, child);
             }
-            var allowKeyword = library == manager.kernel;
+            var allowKeyword = library.library == Manager.LIBRARY_KERNEL;
             foreach (var file in space.enums)
             {
                 var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Enum);
                 var abstractEnum = new AbstractEnum(file, space.space, file.name, declaration);
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.enums.Add(abstractEnum);
-                file.abstractDeclaration = abstractEnum;
+                library.enums.Add(declaration.index, abstractEnum);
             }
             foreach (var file in space.structs)
             {
                 var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Struct);
                 var abstractStruct = new AbstractStruct(file, space.space, file.name, declaration);
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.structs.Add(abstractStruct);
-                file.abstractDeclaration = abstractStruct;
+                library.structs.Add(declaration.index, abstractStruct);
             }
             foreach (var file in space.interfaces)
             {
                 var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Interface);
                 var abstractInterface = new AbstractInterface(file, space.space, file.name, declaration);
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.interfaces.Add(abstractInterface);
-                file.abstractDeclaration = abstractInterface;
+                library.interfaces.Add(declaration.index, abstractInterface);
             }
             foreach (var file in space.classes)
             {
                 var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Class);
                 var abstractClass = new AbstractClass(file, space.space, file.name, declaration);
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.classes.Add(abstractClass);
-                file.abstractDeclaration = abstractClass;
+                library.classes.Add(declaration.index, abstractClass);
             }
             foreach (var file in space.delegates)
             {
                 var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Delegate);
                 var abstructDelegate = new AbstructDelegate(file, space.space, file.name, declaration, [], new Tuple());
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.delegates.Add(abstructDelegate);
-                file.abstractDeclaration = abstructDelegate;
+                library.delegates.Add(declaration.index, abstructDelegate);
             }
             foreach (var file in space.tasks)
             {
                 var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Task);
                 var abstructTask = new AbstructTask(file, space.space, file.name, declaration, new Tuple());
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.tasks.Add(abstructTask);
-                file.abstractDeclaration = abstructTask;
+                library.tasks.Add(declaration.index, abstructTask);
             }
         }
     }

@@ -173,12 +173,40 @@ namespace RainLanguageServer.RainLanguage2
                 else throw new InvalidOperationException("被引用的库不应该会出现回收索引");
             }
         }
+        internal class KernelManager(AbstractLibrary kernel)
+        {
+            public readonly Type BOOL = GetType(kernel.structs, "bool");
+            public readonly Type BYTE = GetType(kernel.structs, "byte");
+            public readonly Type CHAR = GetType(kernel.structs, "char");
+            public readonly Type INT = GetType(kernel.structs, "integer");
+            public readonly Type REAL = GetType(kernel.structs, "real");
+            public readonly Type REAL2 = GetType(kernel.structs, "real2");
+            public readonly Type REAL3 = GetType(kernel.structs, "real3");
+            public readonly Type REAL4 = GetType(kernel.structs, "real4");
+            public readonly Type ENUM = GetType(kernel.structs, "enum");
+            public readonly Type TYPE = GetType(kernel.structs, "type");
+            public readonly Type STRING = GetType(kernel.structs, "string");
+            public readonly Type ENTITY = GetType(kernel.structs, "entity");
+            public readonly Type HANDLE = GetType(kernel.structs, "handle");
+            public readonly Type INTERFACE = GetType(kernel.structs, "interface");
+            public readonly Type DELEGATE = GetType(kernel.structs, "Delegate");
+            public readonly Type TASK = GetType(kernel.structs, "Task");
+            public readonly Type ARRAY = GetType(kernel.structs, "array");
+            private static Type GetType<T>(List<T> declarations, string name) where T : AbstractDeclaration
+            {
+                foreach (var declaration in declarations)
+                    if (declaration.name == name)
+                        return declaration.declaration.DefineType;
+                throw new Exception($"kernel中类型 {name} 查找失败");
+            }
+        }
         public const string SCHEME = "rain-language";
         public const string KERNEL = "kernel";
         public const int LIBRARY_SELF = -1;
         public const int LIBRARY_KERNEL = -2;
         public readonly FileManager fileManager;
         public readonly IndexManager indexManager = new();
+        public readonly KernelManager kernelManager;
         public readonly AbstractLibrary library;
         public readonly AbstractLibrary kernel;
         public readonly Dictionary<string, FileSpace> fileSpaces = [];
@@ -191,15 +219,14 @@ namespace RainLanguageServer.RainLanguage2
             fileManager = new FileManager(this);
             library = new AbstractLibrary(LIBRARY_SELF, name);
             librarys.Add(LIBRARY_SELF, library);
-            if (imports != null)
-                foreach (var import in imports)
-                    this.imports.Add(import);
+            if (imports != null) this.imports.AddRange(imports);
             this.relyLoader = relyLoader;
             kernelPath = new UnifiedPath(kernelPath);
             using var reader = File.OpenText(kernelPath);
             kernel = LoadLibrary(KERNEL, [new TextDocument(ToRainScheme(KERNEL), reader.ReadToEnd())], out var files);
             foreach (var file in files)
                 FileLink.Link(this, kernel, file);
+            kernelManager = new KernelManager(kernel);
         }
         public bool TryLoadLibrary(string name, [MaybeNullWhen(false)] out AbstractLibrary library)
         {
@@ -237,6 +264,92 @@ namespace RainLanguageServer.RainLanguage2
             return result;
         }
         public AbstractLibrary GetLibrary(int library) => librarys[library];
+        public bool TryGetDeclaration(Type type, [MaybeNullWhen(false)] out AbstractDeclaration declaration)
+        {
+            if (librarys.TryGetValue(type.library, out var library))
+                switch (type.code)
+                {
+                    case TypeCode.Invalid: break;
+                    case TypeCode.Struct:
+                        declaration = library.structs[type.index];
+                        return true;
+                    case TypeCode.Enum:
+                        declaration = library.enums[type.index];
+                        return true;
+                    case TypeCode.Handle:
+                        declaration = library.classes[type.index];
+                        return true;
+                    case TypeCode.Interface:
+                        declaration = library.interfaces[type.index];
+                        return true;
+                    case TypeCode.Delegate:
+                        declaration = library.delegates[type.index];
+                        return true;
+                    case TypeCode.Task:
+                        declaration = library.tasks[type.index];
+                        return true;
+                }
+            declaration = null;
+            return false;
+        }
+        public bool TryGetDeclaration(Declaration declaration, [MaybeNullWhen(false)] out AbstractDeclaration abstractDeclaration)
+        {
+            if (librarys.TryGetValue(declaration.library, out var library))
+                switch (declaration.category)
+                {
+                    case DeclarationCategory.Invalid: break;
+                    case DeclarationCategory.Variable:
+                        abstractDeclaration = library.variables[declaration.index];
+                        return true;
+                    case DeclarationCategory.Function:
+                        abstractDeclaration = library.functions[declaration.index];
+                        return true;
+                    case DeclarationCategory.Enum:
+                        abstractDeclaration = library.enums[declaration.index];
+                        return true;
+                    case DeclarationCategory.EnumElement:
+                        abstractDeclaration = library.enums[declaration.define].elements[declaration.index];
+                        return true;
+                    case DeclarationCategory.Struct:
+                        abstractDeclaration = library.structs[declaration.index];
+                        return true;
+                    case DeclarationCategory.StructVariable:
+                        abstractDeclaration = library.structs[declaration.define].variables[declaration.index];
+                        return true;
+                    case DeclarationCategory.StructFunction:
+                        abstractDeclaration = library.structs[declaration.define].functions[declaration.index];
+                        return true;
+                    case DeclarationCategory.Class:
+                        abstractDeclaration = library.classes[declaration.index];
+                        return true;
+                    case DeclarationCategory.Constructor:
+                        abstractDeclaration = library.classes[declaration.define].constructors[declaration.index];
+                        return true;
+                    case DeclarationCategory.ClassVariable:
+                        abstractDeclaration = library.classes[declaration.define].variables[declaration.index];
+                        return true;
+                    case DeclarationCategory.ClassFunction:
+                        abstractDeclaration = library.classes[declaration.define].functions[declaration.index];
+                        return true;
+                    case DeclarationCategory.Interface:
+                        abstractDeclaration = library.interfaces[declaration.index];
+                        return true;
+                    case DeclarationCategory.InterfaceFunction:
+                        abstractDeclaration = library.interfaces[declaration.define].functions[declaration.index];
+                        return true;
+                    case DeclarationCategory.Delegate:
+                        abstractDeclaration = library.delegates[declaration.index];
+                        return true;
+                    case DeclarationCategory.Task:
+                        abstractDeclaration = library.tasks[declaration.index];
+                        return true;
+                    case DeclarationCategory.Native:
+                        abstractDeclaration = library.natives[declaration.index];
+                        return true;
+                }
+            abstractDeclaration = null;
+            return false;
+        }
         public static string ToRainScheme(string library, string? path = null)
         {
             if (!string.IsNullOrEmpty(path)) return $"{SCHEME}:{library}.rain";
