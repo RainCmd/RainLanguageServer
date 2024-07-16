@@ -5,6 +5,7 @@
         public readonly TextRange range = range;
         public readonly QualifiedName name = name;
         public readonly int dimension = dimension;
+        public AbstractSpace? space;//name.qualify > 0 时是 name.qualify[0]对应的space，否则为type所属space
     }
     internal class FileParameter(FileType type, TextRange? name)
     {

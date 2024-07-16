@@ -443,10 +443,10 @@ namespace RainLanguageServer.RainLanguage2
             return false;
         }
 
-        public static bool TryExtractName(TextRange segment, TextPosition index, out QualifiedName name, MessageCollector? collector) => TryExtractName(segment, index - segment.start, out name, collector);
-        public static bool TryExtractName(TextRange segment, int index, out QualifiedName name, MessageCollector? collector)
+        public static bool TryExtractName(TextRange segment, TextPosition index, out List<TextRange> names, MessageCollector? collector) => TryExtractName(segment, index - segment.start, out names, collector);
+        public static bool TryExtractName(TextRange segment, int index, out List<TextRange> names, MessageCollector? collector)
         {
-            var names = new List<TextRange>();
+            names = [];
             while (TryAnalysis(segment, index, out var lexical, collector))
             {
                 if (lexical.type == LexicalType.Word) names.Add(lexical.anchor);
@@ -456,12 +456,6 @@ namespace RainLanguageServer.RainLanguage2
                     index = lexical.anchor.end - segment.start;
                 else break;
             }
-            if (names.Count > 0)
-            {
-                name = new QualifiedName(names, names.RemoveAt(^1));
-                return true;
-            }
-            name = default;
             return false;
         }
 

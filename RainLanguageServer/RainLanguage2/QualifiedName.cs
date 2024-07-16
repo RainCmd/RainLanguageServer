@@ -2,10 +2,21 @@
 
 namespace RainLanguageServer.RainLanguage2
 {
-    internal readonly struct QualifiedName(List<TextRange> qualify, TextRange name)
+    internal readonly struct QualifiedName
     {
-        public readonly List<TextRange> qualify = qualify;
-        public readonly TextRange name = name;
+        public readonly List<TextRange> qualify;
+        public readonly TextRange name;
+
+        public QualifiedName(List<TextRange> qualify, TextRange name)
+        {
+            this.qualify = qualify;
+            this.name = name;
+        }
+        public QualifiedName(List<TextRange> names)
+        {
+            qualify = names;
+            name = names.RemoveAt(^1);
+        }
         public TextRange Range
         {
             get

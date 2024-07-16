@@ -266,6 +266,11 @@ namespace RainLanguageServer.RainLanguage2
         public AbstractLibrary GetLibrary(int library) => librarys[library];
         public bool TryGetDeclaration(Type type, [MaybeNullWhen(false)] out AbstractDeclaration declaration)
         {
+            if (type.code == TypeCode.Invalid)
+            {
+                declaration = default;
+                return false;
+            }
             if (librarys.TryGetValue(type.library, out var library))
                 switch (type.code)
                 {
@@ -349,6 +354,14 @@ namespace RainLanguageServer.RainLanguage2
                 }
             abstractDeclaration = null;
             return false;
+        }
+        public List<AbstractDeclaration> ToDeclarations(IEnumerable<Declaration> declarations)
+        {
+            var results = new List<AbstractDeclaration>();
+            foreach (var declaration in declarations)
+                if (TryGetDeclaration(declaration, out var result))
+                    results.Add(result);
+            return results;
         }
         public static string ToRainScheme(string library, string? path = null)
         {

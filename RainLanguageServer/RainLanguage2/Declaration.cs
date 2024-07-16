@@ -1,4 +1,6 @@
-﻿namespace RainLanguageServer.RainLanguage2
+﻿using System.Net.Http.Headers;
+
+namespace RainLanguageServer.RainLanguage2
 {
     internal enum DeclarationCategory
     {
@@ -85,9 +87,8 @@
         public readonly TypeCode code = code;
         public readonly int index = index;
         public readonly int dimension = dimension;
-
+        public Type ToDimension(int dimension) => new(library, code, index, dimension);
         public bool Equals(Type other) => library == other.library && code == other.code && index == other.index && dimension == other.dimension;
-
         public static bool operator ==(Type left, Type right) => left.Equals(right);
         public static bool operator !=(Type left, Type right) => !left.Equals(right);
         public override bool Equals(object? obj) => obj is Type type && Equals(type);

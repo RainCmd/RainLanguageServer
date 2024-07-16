@@ -73,8 +73,9 @@ namespace RainLanguageServer.RainLanguage2
             name = default;
             type = default;
             expression = default;
-            if (Lexical.TryExtractName(line, position, out var qualifiedName, collector))
+            if (Lexical.TryExtractName(line, position, out var names, collector))
             {
+                var qualifiedName = new QualifiedName(names);
                 position = qualifiedName.name.end;
                 var dimension = Lexical.ExtractDimension(line, ref position);
                 type = new FileType(qualifiedName.Range.start & position, qualifiedName, dimension);
@@ -119,8 +120,9 @@ namespace RainLanguageServer.RainLanguage2
         {
             tuple = [];
         label_parse_type:
-            if (Lexical.TryExtractName(segment, position, out var qualifiedName, collector))
+            if (Lexical.TryExtractName(segment, position, out var names, collector))
             {
+                var qualifiedName = new QualifiedName(names);
                 position = qualifiedName.name.end;
                 var dimension = Lexical.ExtractDimension(segment, ref position);
                 tuple.Add(new FileType(qualifiedName.Range.start & position, qualifiedName, dimension));
@@ -176,11 +178,12 @@ namespace RainLanguageServer.RainLanguage2
 
         label_parse_parameter:
             position = lexical.anchor.end;
-            while (Lexical.TryExtractName(segment, position, out var name, collector))
+            while (Lexical.TryExtractName(segment, position, out var names, collector))
             {
-                position = name.name.end;
+                var qualifiedName = new QualifiedName(names);
+                position = qualifiedName.name.end;
                 var dimension = Lexical.ExtractDimension(segment, ref position);
-                var type = new FileType(name.Range.start & position, name, dimension);
+                var type = new FileType(qualifiedName.Range.start & position, qualifiedName, dimension);
                 var parameter = new FileParameter(type, null);
             label_try_parse_name:
                 if (Lexical.TryAnalysis(segment, position, out lexical, collector))
@@ -226,11 +229,12 @@ namespace RainLanguageServer.RainLanguage2
         private static void ParseInherits(TextLine line, TextPosition position, List<FileType> inherits, MessageCollector collector)
         {
         label_parse_inherit:
-            while (Lexical.TryExtractName(line, position, out var name, collector))
+            while (Lexical.TryExtractName(line, position, out var names, collector))
             {
-                position = name.name.end;
+                var qualifiedName = new QualifiedName(names);
+                position = qualifiedName.name.end;
                 var dimension = Lexical.ExtractDimension(line, ref position);
-                var type = new FileType(name.Range.start & position, name, dimension);
+                var type = new FileType(qualifiedName.Range.start & position, qualifiedName, dimension);
                 inherits.Add(type);
                 if (dimension > 0) collector.Add(type.range, ErrorLevel.Error, "数组类型不能被继承");
             }
@@ -618,21 +622,20 @@ namespace RainLanguageServer.RainLanguage2
                             foreach (var attribute in attributes)
                                 space.collector.Add(attribute, ErrorLevel.Error, "无效的属性");
 
-                            if (Lexical.TryExtractName(line, lexical.anchor.end, out var name, space.collector))
+                            if (Lexical.TryExtractName(line, lexical.anchor.end, out var names, space.collector))
                             {
-                                CheckEnd(line, name.name.end, space.collector);
-                                name.qualify.Add(name.name);
-                                space.imports.Add(new ImportSpaceInfo(name.qualify));
+                                CheckEnd(line, names[^1].end, space.collector);
+                                space.imports.Add(new ImportSpaceInfo(names));
                             }
                             else space.collector.Add(lexical.anchor, ErrorLevel.Error, "需要输入命名空间名");
                         }
                         else if (lexical.anchor == KeyWords.NAMESPACE)
                         {
-                            if (Lexical.TryExtractName(line, lexical.anchor.end, out var name, space.collector))
+                            if (Lexical.TryExtractName(line, lexical.anchor.end, out var names, space.collector))
                             {
-                                CheckEnd(line, name.name.end, space.collector);
+                                CheckEnd(line, names[^1].end, space.collector);
                                 var index = space;
-                                foreach (var spaceName in name)
+                                foreach (var spaceName in names)
                                     index = new FileSpace(spaceName, index, index.space.GetChild(spaceName.ToString()), space.document, space.collector) { range = line };
                                 index.space.attributes.AddRange(attributes);
                                 attributes.Clear();

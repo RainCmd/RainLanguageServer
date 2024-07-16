@@ -1,4 +1,6 @@
-﻿namespace RainLanguageServer.RainLanguage2
+﻿using System.Text;
+
+namespace RainLanguageServer.RainLanguage2
 {
     internal abstract class AbstractDeclaration : IDisposable
     {
@@ -183,6 +185,19 @@
             }
         }
 #endif
+        public string FullName
+        {
+            get
+            {
+                var name = new StringBuilder(this.name);
+                for (var index = parent; index != null; index = index.parent)
+                {
+                    name.Insert(0, '.');
+                    name.Insert(0, index.name);
+                }
+                return name.ToString();
+            }
+        }
         public AbstractSpace GetChild(string name)
         {
             if (children.TryGetValue(name, out var child)) return child;

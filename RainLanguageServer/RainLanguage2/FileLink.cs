@@ -2,9 +2,22 @@
 {
     internal static class FileLink
     {
-        private static Type GetType(Context context, Manager manager, FileType type)
+        private static Type GetType(Context context, Manager manager, FileType type, MessageCollector collector)
         {
-            return default;//todo get type
+            Type resultType = default;
+            var result = context.FindDeclaration(manager, type.name, collector);
+            if (result.Count > 0)
+            {
+                if (result.Count == 1)
+                {
+                    resultType = result[0].declaration.DefineType;
+                    if (resultType.code == TypeCode.Invalid) collector.Add(type.name.Range, ErrorLevel.Error, "无效的类型");
+                    else resultType = resultType.ToDimension(type.dimension);
+                }
+                else collector.Add(type.name.name, ErrorLevel.Error, "类型不明确");
+                //todo 添加引用
+            }
+            return resultType;
         }
         private static void AddDeclaration(FileDeclaration file, bool allowKeyword, bool operatorReloadable, Declaration declaration, FileSpace space)
         {
@@ -42,7 +55,7 @@
             var context = new Context(space.document, space.space, space.relies, default);
             foreach (var file in space.variables)
             {
-                var type = GetType(context, manager, file.type);
+                var type = GetType(context, manager, file.type, space.collector);
                 var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Variable);
                 var variable = new AbstractVariable(file, space.space, file.name, declaration, file.isReadonly, type);
                 AddDeclaration(file, allowKeyword, false, declaration, space);
@@ -52,10 +65,10 @@
             {
                 var parameters = new List<AbstractCallable.Parameter>();
                 foreach (var parameter in file.parameters)
-                    parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type), parameter.name));
+                    parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type, space.collector), parameter.name));
                 var returns = new Type[file.returns.Count];
                 for (var i = 0; i < returns.Length; i++)
-                    returns[i] = GetType(context, manager, file.returns[i]);
+                    returns[i] = GetType(context, manager, file.returns[i], space.collector);
                 var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Function);
                 var function = new AbstractFunction(file, space.space, file.name, declaration, parameters, returns);
                 AddDeclaration(file, allowKeyword, true, declaration, space);
@@ -78,7 +91,7 @@
 
                 foreach (var variable in file.variables)
                 {
-                    var type = GetType(context, manager, variable.type);
+                    var type = GetType(context, manager, variable.type, space.collector);
                     var declaration = new Declaration(library.library, Visibility.Public, DeclarationCategory.StructVariable, abstractStruct.variables.Count, abstractStruct.declaration.index);
                     var structVariable = new AbstractStruct.Variable(variable, space.space, variable.name, declaration, type, IsValidMemberName(variable.name, space.collector));
                     abstractStruct.variables.Add(declaration.index, structVariable);
@@ -87,10 +100,10 @@
                 {
                     var parameters = new List<AbstractCallable.Parameter>();
                     foreach (var parameter in function.parameters)
-                        parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type), parameter.name));
+                        parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type, space.collector), parameter.name));
                     var returns = new Type[function.returns.Count];
                     for (var i = 0; i < returns.Length; i++)
-                        returns[i] = GetType(context, manager, function.returns[i]);
+                        returns[i] = GetType(context, manager, function.returns[i], space.collector);
                     var declaration = new Declaration(library.library, function.visibility, DeclarationCategory.StructFunction, abstractStruct.functions.Count, abstractStruct.declaration.index);
                     var structFunction = new AbstractStruct.Function(function, space.space, function.name, declaration, parameters, returns, IsValidMemberName(function.name, space.collector));
                     abstractStruct.functions.Add(declaration.index, structFunction);
@@ -101,7 +114,7 @@
                 var abstractInterface = Find(library.interfaces, space, file.name);
                 foreach (var inherit in file.inherits)
                 {
-                    var type = GetType(context, manager, inherit);
+                    var type = GetType(context, manager, inherit, space.collector);
                     if (type.dimension > 0) space.collector.Add(inherit.range, ErrorLevel.Error, "不能继承数组");
                     else if (type.code != TypeCode.Interface) space.collector.Add(inherit.range, ErrorLevel.Error, "只能继承接口");
                     else abstractInterface.inherits.Add(type);
@@ -112,10 +125,10 @@
                 {
                     var parameters = new List<AbstractCallable.Parameter>();
                     foreach (var parameter in function.parameters)
-                        parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type), parameter.name));
+                        parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type, space.collector), parameter.name));
                     var returns = new Type[function.returns.Count];
                     for (var i = 0; i < returns.Length; i++)
-                        returns[i] = GetType(context, manager, function.returns[i]);
+                        returns[i] = GetType(context, manager, function.returns[i], space.collector);
                     var declaration = new Declaration(library.library, function.visibility, DeclarationCategory.InterfaceFunction, abstractInterface.functions.Count, abstractInterface.declaration.index);
                     var interfaceFunction = new AbstractInterface.Function(function, space.space, function.name, declaration, parameters, returns, IsValidMemberName(function.name, space.collector));
                     abstractInterface.functions.Add(declaration.index, interfaceFunction);
@@ -127,7 +140,7 @@
 
                 for (var i = 0; i < file.inherits.Count; i++)
                 {
-                    var type = GetType(context, manager, file.inherits[i]);
+                    var type = GetType(context, manager, file.inherits[i], space.collector);
                     if (type.dimension > 0) space.collector.Add(file.inherits[i].range, ErrorLevel.Error, "不能继承数组");
                     else if (i > 0 || type.code == TypeCode.Interface)
                     {
@@ -145,7 +158,7 @@
 
                 foreach (var variable in file.variables)
                 {
-                    var type = GetType(context, manager, variable.type);
+                    var type = GetType(context, manager, variable.type, space.collector);
                     var declaration = new Declaration(library.library, variable.visibility, DeclarationCategory.ClassVariable, abstractClass.variables.Count, abstractClass.declaration.index);
                     var classVariable = new AbstractClass.Variable(variable, space.space, variable.name, declaration, type, IsValidMemberName(variable.name, space.collector));
                     abstractClass.variables.Add(declaration.index, classVariable);
@@ -154,7 +167,7 @@
                 {
                     var parameters = new List<AbstractCallable.Parameter>();
                     foreach (var parameter in constructor.parameters)
-                        parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type), parameter.name));
+                        parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type, space.collector), parameter.name));
                     var declaration = new Declaration(library.library, constructor.visibility, DeclarationCategory.Constructor, abstractClass.constructors.Count, abstractClass.declaration.index);
                     var classConstructor = new AbstractClass.Constructor(constructor, space.space, constructor.name, declaration, parameters, new Tuple());
                     abstractClass.constructors.Add(declaration.index, classConstructor);
@@ -163,10 +176,10 @@
                 {
                     var parameters = new List<AbstractCallable.Parameter>();
                     foreach (var parameter in function.parameters)
-                        parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type), parameter.name));
+                        parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type, space.collector), parameter.name));
                     var returns = new Type[function.returns.Count];
                     for (var i = 0; i < returns.Length; i++)
-                        returns[i] = GetType(context, manager, function.returns[i]);
+                        returns[i] = GetType(context, manager, function.returns[i], space.collector);
                     var valid = true;
                     if (function.name.ToString() == abstractClass.name)
                     {
@@ -184,10 +197,10 @@
                 var references = abstructDelegate.references;
                 var parameters = new List<AbstractCallable.Parameter>();
                 foreach (var parameter in file.parameters)
-                    parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type), parameter.name));
+                    parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type, space.collector), parameter.name));
                 var returns = new Type[file.returns.Count];
                 for (var i = 0; i < returns.Length; i++)
-                    returns[i] = GetType(context, manager, file.returns[i]);
+                    returns[i] = GetType(context, manager, file.returns[i], space.collector);
                 abstructDelegate = new AbstructDelegate(file, space.space, file.name, abstructDelegate.declaration, parameters, returns);
                 abstructDelegate.references.AddRange(references);
                 library.delegates[abstructDelegate.declaration.index] = abstructDelegate;
@@ -198,7 +211,7 @@
                 var references = abstructTask.references;
                 var returns = new Type[file.returns.Count];
                 for (var i = 0; i < returns.Length; i++)
-                    returns[i] = GetType(context, manager, file.returns[i]);
+                    returns[i] = GetType(context, manager, file.returns[i], space.collector);
                 abstructTask = new AbstructTask(file, space.space, file.name, abstructTask.declaration, returns);
                 abstructTask.references.AddRange(references);
                 library.tasks[abstructTask.declaration.index] = abstructTask;
@@ -207,10 +220,10 @@
             {
                 var parameters = new List<AbstractCallable.Parameter>();
                 foreach (var parameter in file.parameters)
-                    parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type), parameter.name));
+                    parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type, space.collector), parameter.name));
                 var returns = new Type[file.returns.Count];
                 for (var i = 0; i < returns.Length; i++)
-                    returns[i] = GetType(context, manager, file.returns[i]);
+                    returns[i] = GetType(context, manager, file.returns[i], space.collector);
                 var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Native);
                 var native = new AbstructNative(file, space.space, file.name, declaration, parameters, returns);
                 AddDeclaration(file, allowKeyword, false, declaration, space);
