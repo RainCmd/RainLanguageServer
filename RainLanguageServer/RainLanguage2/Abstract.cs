@@ -2,7 +2,7 @@
 
 namespace RainLanguageServer.RainLanguage2
 {
-    internal abstract class AbstractDeclaration : IDisposable
+    internal abstract class AbstractDeclaration : IRainObject
     {
         public readonly FileDeclaration file;
         public readonly AbstractSpace space;
@@ -169,6 +169,9 @@ namespace RainLanguageServer.RainLanguage2
             {
                 parent.children.Remove(name);
                 Dispose(manager);
+                foreach (var reference in references)
+                    if (manager.fileSpaces.TryGetValue(reference.start.document.path, out var file))
+                        file.dirty = true;
             }
         }
 #else

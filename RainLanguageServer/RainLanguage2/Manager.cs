@@ -8,7 +8,7 @@ using IndexPool = System.Collections.Generic.Stack<int>;
 
 namespace RainLanguageServer.RainLanguage2
 {
-    internal interface IDisposable
+    internal interface IRainObject
     {
         void Mark(Manager manager);
         void Dispose(Manager manager);
@@ -26,7 +26,6 @@ namespace RainLanguageServer.RainLanguage2
                     if (mark) space.Mark(manager);
                     space.Dispose(manager);
                 }
-                removed.Remove(path);
             }
             public void OnChanged(TextDocument document)
             {
@@ -36,15 +35,24 @@ namespace RainLanguageServer.RainLanguage2
             public void OnRemove(string path)
             {
                 Remove(path, true);
+                removed.Remove(path);
             }
             public void Parse()
             {
                 var dirtys = new List<string>();
-                foreach (var file in manager.fileSpaces)
-                    if (file.Value.dirty)
-                        dirtys.Add(file.Key);
-                foreach (var dirty in dirtys)
-                    Remove(dirty, false);
+                while (true)
+                {
+                    foreach (var file in manager.fileSpaces)
+                        if (file.Value.dirty)
+                        {
+                            dirtys.Add(file.Key);
+                            removed.Add(file.Key, file.Value.document);
+                        }
+                    if (dirtys.Count == 0) break;
+                    foreach (var dirty in dirtys)
+                        Remove(dirty, false);
+                    dirtys.Clear();
+                }
 
                 foreach (var item in removed)
                 {

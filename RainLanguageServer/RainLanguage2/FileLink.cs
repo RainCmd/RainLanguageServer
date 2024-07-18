@@ -13,9 +13,9 @@
                     resultType = result[0].declaration.DefineType;
                     if (resultType.code == TypeCode.Invalid) collector.Add(type.name.Range, ErrorLevel.Error, "无效的类型");
                     else resultType = resultType.ToDimension(type.dimension);
+                    type.SetDeclaration(result[0]);
                 }
                 else collector.Add(type.name.name, ErrorLevel.Error, "类型不明确");
-                //todo 添加引用
             }
             return resultType;
         }
