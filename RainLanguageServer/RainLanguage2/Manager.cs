@@ -1,186 +1,10 @@
 ﻿using LanguageServer;
 using System.Diagnostics.CodeAnalysis;
-#if DEBUG
-using IndexPool = System.Collections.Generic.HashSet<int>;
-#else
-using IndexPool = System.Collections.Generic.Stack<int>;
-#endif
 
 namespace RainLanguageServer.RainLanguage2
 {
-    internal interface IRainObject
-    {
-        void Mark(Manager manager);
-        void Dispose(Manager manager);
-    }
     internal class Manager
     {
-        internal class FileManager(Manager manager)
-        {
-            private readonly Manager manager = manager;
-            private readonly Dictionary<string, TextDocument> removed = [];
-            private void Remove(string path, bool mark)
-            {
-                if (manager.fileSpaces.Remove(path, out var space))
-                {
-                    if (mark) space.Mark(manager);
-                    space.Dispose(manager);
-                }
-            }
-            public void OnChanged(TextDocument document)
-            {
-                Remove(document.path, true);
-                removed.Add(document.path, document);
-            }
-            public void OnRemove(string path)
-            {
-                Remove(path, true);
-                removed.Remove(path);
-            }
-            public void Parse()
-            {
-                var dirtys = new List<string>();
-                while (true)
-                {
-                    foreach (var file in manager.fileSpaces)
-                        if (file.Value.dirty)
-                        {
-                            dirtys.Add(file.Key);
-                            removed.Add(file.Key, file.Value.document);
-                        }
-                    if (dirtys.Count == 0) break;
-                    foreach (var dirty in dirtys)
-                        Remove(dirty, false);
-                    dirtys.Clear();
-                }
-
-                foreach (var item in removed)
-                {
-                    var reader = new LineReader(item.Value);
-                    var space = new FileSpace(null, null, manager.library, item.Value, []);
-                    FileParse.ParseSpace(space, reader, -1);
-                    manager.fileSpaces.Add(item.Key, space);
-                }
-                foreach (var item in removed)
-                    FileTidy.Tidy(manager, manager.library, manager.fileSpaces[item.Key]);
-                foreach (var item in removed)
-                    FileLink.Link(manager, manager.library, manager.fileSpaces[item.Key]);
-
-                removed.Clear();
-            }
-        }
-        internal class IndexManager
-        {
-            private readonly IndexPool variables = [];
-            private readonly IndexPool functions = [];
-            private readonly IndexPool enums = [];
-            private readonly IndexPool structs = [];
-            private readonly IndexPool classes = [];
-            private readonly IndexPool interfaces = [];
-            private readonly IndexPool delegates = [];
-            private readonly IndexPool tasks = [];
-            private readonly IndexPool natives = [];
-            private IndexPool GetPool(DeclarationCategory category)
-            {
-                switch (category)
-                {
-                    case DeclarationCategory.Invalid:
-                        break;
-                    case DeclarationCategory.Variable: return variables;
-                    case DeclarationCategory.Function: return functions;
-                    case DeclarationCategory.Enum: return enums;
-                    case DeclarationCategory.EnumElement:
-                        break;
-                    case DeclarationCategory.Struct: return structs;
-                    case DeclarationCategory.StructVariable:
-                    case DeclarationCategory.StructFunction:
-                        break;
-                    case DeclarationCategory.Class: return classes;
-                    case DeclarationCategory.Constructor:
-                    case DeclarationCategory.ClassVariable:
-                    case DeclarationCategory.ClassFunction:
-                        break;
-                    case DeclarationCategory.Interface: return interfaces;
-                    case DeclarationCategory.InterfaceFunction:
-                        break;
-                    case DeclarationCategory.Delegate: return delegates;
-                    case DeclarationCategory.Task: return tasks;
-                    case DeclarationCategory.Native: return natives;
-                }
-                throw new InvalidOperationException("无效的声明类型");
-            }
-            public int GetIndex(AbstractLibrary library, DeclarationCategory category)
-            {
-                if (library.library == LIBRARY_SELF)
-                {
-                    var pool = GetPool(category);
-#if DEBUG
-                    if (pool.Count > 0)
-                    {
-                        var result = pool.First();
-                        pool.Remove(result);
-                        return result;
-                    }
-#else
-                    if (pool.Count > 0) return pool.Pop();
-#endif
-                }
-                switch (category)
-                {
-                    case DeclarationCategory.Invalid:
-                        break;
-                    case DeclarationCategory.Variable:
-                        return library.variables.Count;
-                    case DeclarationCategory.Function:
-                        return library.functions.Count;
-                    case DeclarationCategory.Enum:
-                        return library.enums.Count;
-                    case DeclarationCategory.EnumElement:
-                        break;
-                    case DeclarationCategory.Struct:
-                        return library.structs.Count;
-                    case DeclarationCategory.StructVariable:
-                        break;
-                    case DeclarationCategory.StructFunction:
-                        break;
-                    case DeclarationCategory.Class:
-                        return library.classes.Count;
-                    case DeclarationCategory.Constructor:
-                        break;
-                    case DeclarationCategory.ClassVariable:
-                        break;
-                    case DeclarationCategory.ClassFunction:
-                        break;
-                    case DeclarationCategory.Interface:
-                        return library.interfaces.Count;
-                    case DeclarationCategory.InterfaceFunction:
-                        break;
-                    case DeclarationCategory.Delegate:
-                        return library.delegates.Count;
-                    case DeclarationCategory.Task:
-                        return library.tasks.Count;
-                    case DeclarationCategory.Native:
-                        return library.natives.Count;
-                    default:
-                        break;
-                }
-                throw new InvalidOperationException("无效的类型");
-            }
-            public void Recycle(AbstractLibrary library, DeclarationCategory category, int index)
-            {
-                if (library.library == LIBRARY_SELF)
-                {
-                    var pool = GetPool(category);
-#if DEBUG
-                    if (pool.Contains(index)) throw new InvalidOperationException("重复回收索引");
-                    pool.Add(index);
-#else
-                    pool.Push(index);
-#endif
-                }
-                else throw new InvalidOperationException("被引用的库不应该会出现回收索引");
-            }
-        }
         internal class KernelManager(AbstractLibrary kernel)
         {
             public readonly Type BOOL = GetType(kernel.structs, "bool");
@@ -212,29 +36,32 @@ namespace RainLanguageServer.RainLanguage2
         public const string KERNEL = "kernel";
         public const int LIBRARY_SELF = -1;
         public const int LIBRARY_KERNEL = -2;
-        public readonly FileManager fileManager;
-        public readonly IndexManager indexManager = new();
         public readonly KernelManager kernelManager;
         public readonly AbstractLibrary library;
         public readonly AbstractLibrary kernel;
+        private readonly TextDocument[] kernelDocuments;
         public readonly Dictionary<string, FileSpace> fileSpaces = [];
         public readonly Dictionary<string, AbstractLibrary> relies = [];
         private readonly Dictionary<int, AbstractLibrary> librarys = [];
         private readonly HashSet<string> imports = [];
+        private readonly Dictionary<string, TextDocument[]> importDocuments = [];
         private readonly Func<string, TextDocument[]> relyLoader;
-        public Manager(string name, string kernelPath, string[]? imports, Func<string, TextDocument[]> relyLoader)
+        private readonly Func<IEnumerable<TextDocument>> documentLoader;
+        private readonly Func<IEnumerable<TextDocument>> opendDocumentLoader;
+        public Manager(string name, string kernelPath, string[]? imports, Func<string, TextDocument[]> relyLoader, Func<IEnumerable<TextDocument>> documentLoader, Func<IEnumerable<TextDocument>> opendDocumentLoader)
         {
-            fileManager = new FileManager(this);
             library = new AbstractLibrary(LIBRARY_SELF, name);
             librarys.Add(LIBRARY_SELF, library);
             if (imports != null) this.imports.AddRange(imports);
             this.relyLoader = relyLoader;
             kernelPath = new UnifiedPath(kernelPath);
             using var reader = File.OpenText(kernelPath);
-            kernel = LoadLibrary(KERNEL, [new TextDocument(ToRainScheme(KERNEL), reader.ReadToEnd())], out var files);
-            foreach (var file in files)
-                FileLink.Link(this, kernel, file);
+            kernel = new AbstractLibrary(LIBRARY_KERNEL, KERNEL);
+            kernelDocuments = [new TextDocument(ToRainScheme(KERNEL), reader.ReadToEnd())];
+            Reparse();
             kernelManager = new KernelManager(kernel);
+            this.documentLoader = documentLoader;
+            this.opendDocumentLoader = opendDocumentLoader;
         }
         public bool TryLoadLibrary(string name, [MaybeNullWhen(false)] out AbstractLibrary library)
         {
@@ -251,25 +78,27 @@ namespace RainLanguageServer.RainLanguage2
             else if (relies.TryGetValue(name, out library)) return true;
             else if (imports.Contains(name))
             {
-                library = LoadLibrary(name, relyLoader(name), out var files);
-                relies[name] = library;
-                foreach (var file in files)
-                    FileLink.Link(this, kernel, file);
+                if (!importDocuments.TryGetValue(name, out var documents)) importDocuments.Add(name, documents = relyLoader(name));
+                library = new AbstractLibrary(relies.Count, name);
+                relies.Add(name, library);
+                ParseLibrary(library, documents);
                 return true;
             }
             library = null;
             return false;
         }
-        private AbstractLibrary LoadLibrary(string name, TextDocument[] documents, out List<FileSpace> files)
+        private void ParseLibrary(AbstractLibrary library, TextDocument[] documents)
         {
-            files = [];
-            var result = new AbstractLibrary(name == KERNEL ? LIBRARY_KERNEL : relies.Count, name);
-            librarys.Add(result.library, result);
+            librarys.Add(library.library, library);
+            var files = new List<FileSpace>(documents.Length);
             foreach (var document in documents)
-                files.Add(FileParse.ParseSpace(result, document));
+                files.Add(FileParse.ParseSpace(library, document));
             foreach (var file in files)
-                FileTidy.Tidy(this, result, file);
-            return result;
+                FileTidy.Tidy(this, library, file);
+            foreach (var file in files)
+                FileLink.Link(this, library, file);
+            foreach (var file in files)
+                file.collector.Clear();
         }
         public AbstractLibrary GetLibrary(int library) => librarys[library];
         public bool TryGetDeclaration(Type type, [MaybeNullWhen(false)] out AbstractDeclaration declaration)
@@ -370,6 +199,37 @@ namespace RainLanguageServer.RainLanguage2
                 if (TryGetDeclaration(declaration, out var result))
                     results.Add(result);
             return results;
+        }
+        public void Reparse()
+        {
+            library.Clear();
+            fileSpaces.Clear();
+            relies.Clear();
+            librarys.Clear();
+            kernel.Clear();
+            ParseLibrary(kernel, kernelDocuments);
+            if (documentLoader != null)
+            {
+                foreach (var document in documentLoader())
+                {
+                    var reader = new LineReader(document);
+                    var file = new FileSpace(null, null, library, document, []);
+                    FileParse.ParseSpace(file, reader, -1);
+                    fileSpaces.Add(document.path, file);
+                }
+                foreach (var item in fileSpaces)
+                    FileTidy.Tidy(this, library, item.Value);
+                foreach (var item in fileSpaces)
+                    FileLink.Link(this, library, item.Value);
+                //todo 重命名检查
+                //todo 继承检查
+                //todo 常量和枚举的表达式解析
+                if (opendDocumentLoader != null)
+                    foreach (var document in opendDocumentLoader())
+                    {
+                        //todo 其他表达式的解析
+                    }
+            }
         }
         public static string ToRainScheme(string library, string? path = null)
         {

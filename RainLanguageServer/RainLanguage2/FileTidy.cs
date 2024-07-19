@@ -50,45 +50,45 @@
             var allowKeyword = library.library == Manager.LIBRARY_KERNEL;
             foreach (var file in space.enums)
             {
-                var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Enum);
+                var declaration = new Declaration(library.library, file.visibility, DeclarationCategory.Enum, library.enums.Count);
                 var abstractEnum = new AbstractEnum(file, space.space, file.name, declaration);
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.enums.Add(declaration.index, abstractEnum);
+                library.enums.Add(abstractEnum);
             }
             foreach (var file in space.structs)
             {
-                var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Struct);
+                var declaration = new Declaration(library.library, file.visibility, DeclarationCategory.Struct, library.structs.Count);
                 var abstractStruct = new AbstractStruct(file, space.space, file.name, declaration);
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.structs.Add(declaration.index, abstractStruct);
+                library.structs.Add(abstractStruct);
             }
             foreach (var file in space.interfaces)
             {
-                var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Interface);
+                var declaration = new Declaration(library.library, file.visibility, DeclarationCategory.Interface, library.interfaces.Count);
                 var abstractInterface = new AbstractInterface(file, space.space, file.name, declaration);
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.interfaces.Add(declaration.index, abstractInterface);
+                library.interfaces.Add(abstractInterface);
             }
             foreach (var file in space.classes)
             {
-                var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Class);
+                var declaration = new Declaration(library.library, file.visibility, DeclarationCategory.Class, library.classes.Count);
                 var abstractClass = new AbstractClass(file, space.space, file.name, declaration);
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.classes.Add(declaration.index, abstractClass);
+                library.classes.Add(abstractClass);
             }
             foreach (var file in space.delegates)
             {
-                var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Delegate);
+                var declaration = new Declaration(library.library, file.visibility, DeclarationCategory.Delegate, library.delegates.Count);
                 var abstructDelegate = new AbstructDelegate(file, space.space, file.name, declaration, [], new Tuple());
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.delegates.Add(declaration.index, abstructDelegate);
+                library.delegates.Add(abstructDelegate);
             }
             foreach (var file in space.tasks)
             {
-                var declaration = Utility.GetDeclaration(manager, library, file.visibility, DeclarationCategory.Task);
+                var declaration = new Declaration(library.library, file.visibility, DeclarationCategory.Task, library.tasks.Count);
                 var abstructTask = new AbstructTask(file, space.space, file.name, declaration, new Tuple());
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.tasks.Add(declaration.index, abstructTask);
+                library.tasks.Add(abstructTask);
             }
         }
     }

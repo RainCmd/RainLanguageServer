@@ -15,12 +15,6 @@
             }
             list.Add(element);
         }
-        public static void Add<T>(this List<T> list, int index, T value)
-        {
-            if (index < list.Count) list[index] = value;
-            else if (index == list.Count) list.Add(value);
-            else throw new InvalidOperationException();
-        }
         public static T RemoveAt<T>(this List<T> list, Index index)
         {
             var offset = index.GetOffset(list.Count);
@@ -119,10 +113,6 @@
             }
             collector.Add(name, ErrorLevel.Error, "名称不是合法的标识符");
             return false;
-        }
-        public static Declaration GetDeclaration(Manager manager, AbstractLibrary library, Visibility visibility, DeclarationCategory category)
-        {
-            return new Declaration(library.library, visibility, category, manager.indexManager.GetIndex(library, category));
         }
     }
 }

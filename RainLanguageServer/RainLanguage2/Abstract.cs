@@ -2,7 +2,7 @@
 
 namespace RainLanguageServer.RainLanguage2
 {
-    internal abstract class AbstractDeclaration : IRainObject
+    internal abstract class AbstractDeclaration
     {
         public readonly FileDeclaration file;
         public readonly AbstractSpace space;
@@ -18,10 +18,6 @@ namespace RainLanguageServer.RainLanguage2
             this.declaration = declaration;
             file.abstractDeclaration = this;
         }
-
-        public virtual void Dispose(Manager manager) { }//todo dispose
-
-        public void Mark(Manager manager) { }//todo mark
     }
     internal class AbstractVariable(FileVariable file, AbstractSpace space, TextRange name, Declaration declaration, bool isReadonly, Type type)
         : AbstractDeclaration(file, space, name, declaration)
@@ -155,39 +151,6 @@ namespace RainLanguageServer.RainLanguage2
         public readonly Dictionary<string, AbstractSpace> children = [];
         public readonly Dictionary<string, List<Declaration>> declarations = [];
         public readonly HashSet<TextRange> references = [];
-#if DEBUG
-        private readonly HashSet<FileSpace> files = [];
-        public void AddDeclaractionFile(FileSpace space)
-        {
-            if (!files.Add(space)) throw new InvalidOperationException();
-        }
-
-        public void RemoveDeclaractionFile(Manager manager, FileSpace space)
-        {
-            if (!files.Remove(space)) throw new InvalidOperationException();
-            if (parent != null && files.Count == 0)
-            {
-                parent.children.Remove(name);
-                Dispose(manager);
-                foreach (var reference in references)
-                    if (manager.fileSpaces.TryGetValue(reference.start.document.path, out var file))
-                        file.dirty = true;
-            }
-        }
-#else
-        private int files = 0;
-        public void AddDeclaractionFile() => files++;
-
-        public void RemoveDeclaractionFile(Manager manager)
-        {
-            if (files == 0) throw new InvalidOperationException();
-            else if (--files == 0 && parent != null)
-            {
-                parent.children.Remove(name);
-                Dispose(manager);
-            }
-        }
-#endif
         public string FullName
         {
             get
@@ -206,7 +169,6 @@ namespace RainLanguageServer.RainLanguage2
             if (children.TryGetValue(name, out var child)) return child;
             else return children[name] = new AbstractSpace(this, name);
         }
-        public void Dispose(Manager manager) { }//todo dispose
     }
     internal class AbstractLibrary(int library, string name) : AbstractSpace(null, name)
     {
@@ -220,5 +182,23 @@ namespace RainLanguageServer.RainLanguage2
         public readonly List<AbstructDelegate> delegates = [];
         public readonly List<AbstructTask> tasks = [];
         public readonly List<AbstructNative> natives = [];
+
+        public void Clear()
+        {
+            attributes.Clear();
+            children.Clear();
+            declarations.Clear();
+            references.Clear();
+
+            variables.Clear();
+            functions.Clear();
+            enums.Clear();
+            structs.Clear();
+            interfaces.Clear();
+            classes.Clear();
+            delegates.Clear();
+            tasks.Clear();
+            natives.Clear();
+        }
     }
 }
