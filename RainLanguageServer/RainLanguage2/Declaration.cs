@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage2
 {
@@ -23,7 +23,7 @@ namespace RainLanguageServer.RainLanguage2
         Task,                 //程序集              可见性                    索引          -    
         Native,               //程序集              可见性                    索引          -    
     }
-    internal readonly struct Declaration(int library, Visibility visibility, DeclarationCategory category, int index, int define)
+    internal readonly struct Declaration(int library, Visibility visibility, DeclarationCategory category, int index, int define) : IEquatable<Declaration>
     {
         public readonly int library = library;
         public readonly Visibility visibility = visibility;
@@ -70,6 +70,11 @@ namespace RainLanguageServer.RainLanguage2
                 throw new InvalidOperationException();
             }
         }
+        public bool Equals(Declaration other) => library == other.library && category == other.category && index == other.index && define == other.define;
+        public override bool Equals([NotNullWhen(true)] object? obj) => obj is Declaration other && Equals(other);
+        public override int GetHashCode() => HashCode.Combine(library, category, index, define);
+        public static bool operator ==(Declaration a, Declaration b) => a.Equals(b);
+        public static bool operator !=(Declaration a, Declaration b) => !a.Equals(b);
     }
     internal enum TypeCode
     {
@@ -87,7 +92,7 @@ namespace RainLanguageServer.RainLanguage2
         public readonly TypeCode code = code;
         public readonly int index = index;
         public readonly int dimension = dimension;
-        public Type ToDimension(int dimension) => new(library, code, index, dimension);
+        public Type(Type type, int dimension) : this(type.library, type.code, type.index, dimension) { }
         public bool Equals(Type other) => library == other.library && code == other.code && index == other.index && dimension == other.dimension;
         public static bool operator ==(Type left, Type right) => left.Equals(right);
         public static bool operator !=(Type left, Type right) => !left.Equals(right);

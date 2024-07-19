@@ -195,10 +195,14 @@ namespace RainLanguageServer.RainLanguage2
         public List<AbstractDeclaration> ToDeclarations(IEnumerable<Declaration> declarations)
         {
             var results = new List<AbstractDeclaration>();
+            ToDeclarations(declarations, results);
+            return results;
+        }
+        public void ToDeclarations(IEnumerable<Declaration> declarations, List<AbstractDeclaration> results)
+        {
             foreach (var declaration in declarations)
                 if (TryGetDeclaration(declaration, out var result))
                     results.Add(result);
-            return results;
         }
         public void Reparse()
         {

@@ -12,7 +12,7 @@
                 {
                     resultType = result[0].declaration.DefineType;
                     if (resultType.code == TypeCode.Invalid) collector.Add(type.name.Range, ErrorLevel.Error, "无效的类型");
-                    else resultType = resultType.ToDimension(type.dimension);
+                    else resultType = new Type(resultType, type.dimension);
                 }
                 else collector.Add(type.name.name, ErrorLevel.Error, "类型不明确");
                 var set = new HashSet<AbstractSpace>();
