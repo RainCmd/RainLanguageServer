@@ -128,7 +128,7 @@
                     var type = GetType(context, manager, inherit, space.collector);
                     if (type.dimension > 0) space.collector.Add(inherit.range, ErrorLevel.Error, "不能继承数组");
                     else if (type.code != TypeCode.Interface) space.collector.Add(inherit.range, ErrorLevel.Error, "只能继承接口");
-                    else abstractInterface.inherits.Add(type);
+                    abstractInterface.inherits.Add(type);
                     if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractInterface parent)
                         parent.implements.Add(abstractInterface);
                 }
@@ -153,10 +153,10 @@
                 {
                     var type = GetType(context, manager, file.inherits[i], space.collector);
                     if (type.dimension > 0) space.collector.Add(file.inherits[i].range, ErrorLevel.Error, "不能继承数组");
-                    else if (i > 0 || type.code == TypeCode.Interface)
+                    if (i > 0 || type.code == TypeCode.Interface)
                     {
-                        if (type.code == TypeCode.Interface) abstractClass.inherits.Add(type);
-                        else space.collector.Add(file.inherits[i].range, ErrorLevel.Error, "必须是接口类型");
+                        if (type.code != TypeCode.Interface) space.collector.Add(file.inherits[i].range, ErrorLevel.Error, "必须是接口类型");
+                        abstractClass.inherits.Add(type);
                     }
                     else if (type.code == TypeCode.Handle) abstractClass.parent = type;
                     else space.collector.Add(file.inherits[i].range, ErrorLevel.Error, "不能继承该类型");

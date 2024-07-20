@@ -24,6 +24,7 @@ namespace RainLanguageServer.RainLanguage2
             public readonly Type DELEGATE = GetType(kernel.structs, "Delegate");
             public readonly Type TASK = GetType(kernel.structs, "Task");
             public readonly Type ARRAY = GetType(kernel.structs, "array");
+
             private static Type GetType<T>(List<T> declarations, string name) where T : AbstractDeclaration
             {
                 foreach (var declaration in declarations)
@@ -225,7 +226,7 @@ namespace RainLanguageServer.RainLanguage2
                     FileTidy.Tidy(this, library, item.Value);
                 foreach (var item in fileSpaces)
                     FileLink.Link(this, library, item.Value);
-                //todo 重命名检查
+                CheckDeclarationValidity.CheckValidity(this, library);
                 //todo 继承检查
                 //todo 常量和枚举的表达式解析
                 if (opendDocumentLoader != null)
