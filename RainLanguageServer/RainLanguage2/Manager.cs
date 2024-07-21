@@ -227,7 +227,7 @@ namespace RainLanguageServer.RainLanguage2
                 foreach (var item in fileSpaces)
                     FileLink.Link(this, library, item.Value);
                 CheckDeclarationValidity.CheckValidity(this, library);
-                //todo 继承检查
+                CheckImplements.Check(this);
                 //todo 常量和枚举的表达式解析
                 if (opendDocumentLoader != null)
                     foreach (var document in opendDocumentLoader())

@@ -23,6 +23,7 @@ namespace RainLanguageServer.RainLanguage2
         public readonly string message = message;
         public readonly List<RelatedInfo> related = [];
         public Message(IList<TextRange> ranges, ErrorLevel level, string message) : this(new TextRange(ranges[0].start, ranges[^1].end), level, message) { }
+        public void AddRelated(TextRange range, string message) => related.Add(new RelatedInfo(range, message));
     }
     internal class MessageCollector : IEnumerable<Message>
     {

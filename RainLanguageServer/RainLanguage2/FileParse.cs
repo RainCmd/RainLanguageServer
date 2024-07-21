@@ -420,7 +420,7 @@ namespace RainLanguageServer.RainLanguage2
                                 else
                                 {
                                     var message = new Message(lexical.anchor, ErrorLevel.Error, "已经声明了析构函数");
-                                    message.related.Add(new RelatedInfo(file.descontructor.name, "已经声明的析构函数"));
+                                    message.AddRelated(file.descontructor.name, "已经声明的析构函数");
                                     space.collector.Add(message);
                                 }
                                 ParseBlock(reader, memberLine.indent, file.descontructor.body);

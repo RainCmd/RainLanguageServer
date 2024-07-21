@@ -56,7 +56,7 @@
                                         var msg = new Message(declaration.name, ErrorLevel.Error, "无效的重载");
                                         foreach (var item in duplications)
                                             if (declaration != item)
-                                                msg.related.Add(new RelatedInfo(item.name, "参数类型列表相同的函数"));
+                                                msg.AddRelated(item.name, "参数类型列表相同的函数");
                                         declaration.file.space.collector.Add(msg);
                                     }
                                     duplications.Clear();
@@ -72,7 +72,7 @@
                             var msg = new Message(declaration.name, ErrorLevel.Error, "名称重复");
                             foreach (var item in abstractDeclarations)
                                 if (declaration != item)
-                                    msg.related.Add(new RelatedInfo(item.name, "名称重复的定义"));
+                                    msg.AddRelated(item.name, "名称重复的定义");
                             declaration.file.space.collector.Add(msg);
                         }
                     }
@@ -141,7 +141,7 @@
                                 var msg = new Message(element.name, ErrorLevel.Error, "枚举名称重复");
                                 foreach (var item in duplications)
                                     if (element != item)
-                                        msg.related.Add(new RelatedInfo(item.name, "重复的枚举名"));
+                                        msg.AddRelated(item.name, "重复的枚举名");
                                 enumeration.file.space.collector.Add(msg);
                             }
                             duplications.Clear();
@@ -184,7 +184,7 @@
                                     var msg = new Message(index.name, ErrorLevel.Error, "成员名称重复");
                                     foreach (var item in duplications)
                                         if (item != index)
-                                            msg.related.Add(new RelatedInfo(item.name, "成员名称重复"));
+                                            msg.AddRelated(item.name, "成员名称重复");
                                     abstractStruct.file.space.collector.Add(msg);
                                 }
                             duplications.Clear();
@@ -217,7 +217,7 @@
                                 var msg = new Message(index.name, ErrorLevel.Error, "无效的函数重载");
                                 foreach (var item in duplications)
                                     if (item != index)
-                                        msg.related.Add(new RelatedInfo(item.name, "函数名和参数列表相同的函数"));
+                                        msg.AddRelated(item.name, "函数名和参数列表相同的函数");
                                 abstractStruct.file.space.collector.Add(msg);
                             }
                             duplications.Clear();
@@ -258,7 +258,7 @@
                                 var msg = new Message(index.name, ErrorLevel.Error, "无效的函数重载");
                                 foreach (var item in duplications)
                                     if (item != index)
-                                        msg.related.Add(new RelatedInfo(item.name, "函数名和参数列表相同的函数"));
+                                        msg.AddRelated(item.name, "函数名和参数列表相同的函数");
                                 abstractInterface.file.space.collector.Add(msg);
                             }
                             duplications.Clear();
@@ -300,7 +300,7 @@
                                     var msg = new Message(index.name, ErrorLevel.Error, "成员名称重复");
                                     foreach (var item in duplications)
                                         if (item != index)
-                                            msg.related.Add(new RelatedInfo(item.name, "名称重复的成员"));
+                                            msg.AddRelated(item.name, "名称重复的成员");
                                     file.space.collector.Add(msg);
                                 }
                             duplications.Clear();
@@ -330,7 +330,7 @@
                                 var msg = new Message(index.name, ErrorLevel.Error, "无效的重载");
                                 foreach (var item in duplications)
                                     if (item != index)
-                                        msg.related.Add(new RelatedInfo(item.name, "参数列表相同的构造函数"));
+                                        msg.AddRelated(item.name, "参数列表相同的构造函数");
                                 file.space.collector.Add(msg);
                             }
                             duplications.Clear();
@@ -357,12 +357,12 @@
                         if (duplications.Count > 0)
                         {
                             duplications.Add(functionX);
-                            foreach(var index in duplications)
+                            foreach (var index in duplications)
                             {
                                 var msg = new Message(index.name, ErrorLevel.Error, "无效的函数重载");
                                 foreach (var item in duplications)
                                     if (index != item)
-                                        msg.related.Add(new RelatedInfo(item.name, "函数名和参数列表都相同的函数"));
+                                        msg.AddRelated(item.name, "函数名和参数列表都相同的函数");
                                 file.space.collector.Add(msg);
                             }
                             duplications.Clear();
