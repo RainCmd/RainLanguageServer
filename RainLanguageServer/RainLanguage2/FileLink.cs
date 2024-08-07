@@ -180,7 +180,7 @@
                     foreach (var parameter in constructor.parameters)
                         parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type, space.collector), parameter.name));
                     var declaration = new Declaration(library.library, constructor.visibility, DeclarationCategory.Constructor, abstractClass.constructors.Count, abstractClass.declaration.index);
-                    var classConstructor = new AbstractClass.Constructor(constructor, space.space, constructor.name, declaration, parameters, new Tuple());
+                    var classConstructor = new AbstractClass.Constructor(constructor, space.space, constructor.name, declaration, parameters, Tuple.Empty);
                     abstractClass.constructors.Add(classConstructor);
                 }
                 foreach (var function in file.functions)

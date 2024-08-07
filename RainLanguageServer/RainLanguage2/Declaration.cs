@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage2
 {
@@ -92,6 +93,7 @@ namespace RainLanguageServer.RainLanguage2
         public readonly TypeCode code = code;
         public readonly int index = index;
         public readonly int dimension = dimension;
+        public bool Managed => dimension > 0 || code >= TypeCode.Handle;
         public Type(Type type, int dimension) : this(type.library, type.code, type.index, dimension) { }
         public bool Equals(Type other) => library == other.library && code == other.code && index == other.index && dimension == other.dimension;
         public static bool operator ==(Type left, Type right) => left.Equals(right);
@@ -99,7 +101,7 @@ namespace RainLanguageServer.RainLanguage2
         public override bool Equals(object? obj) => obj is Type type && Equals(type);
         public override int GetHashCode() => HashCode.Combine(library, code, index, dimension);
     }
-    internal readonly struct Tuple(params Type[] types) : IEquatable<Tuple>
+    internal readonly struct Tuple(params Type[] types) : IEquatable<Tuple>, IEnumerable<Type>
     {
         private readonly Type[] types = types;
         public int Count => types.Length;
@@ -125,5 +127,15 @@ namespace RainLanguageServer.RainLanguage2
                     result.Add(type.GetHashCode());
             return result.ToHashCode();
         }
+
+        public IEnumerator<Type> GetEnumerator()
+        {
+            foreach (var type in types) yield return type;
+        }
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+        public static readonly Tuple Empty = new([]);
     }
 }
