@@ -121,5 +121,22 @@ namespace RainLanguageServer.RainLanguage2
             }
             else return FindDeclaration(manager, name.name, collector);
         }
+        public List<AbstractDeclaration> FindOperation(Manager manager, string name)
+        {
+            var set = new HashSet<Declaration>();
+            if (manager.kernel.declarations.TryGetValue(name, out var declarations))
+                set.AddRange(declarations);
+            for (var index = space; index != null; index = index.parent)
+                if (index.declarations.TryGetValue(name, out declarations))
+                    set.AddRange(declarations);
+            foreach (var rely in relies)
+                if (rely.declarations.TryGetValue(name, out declarations))
+                    set.AddRange(declarations);
+            var result = new List<AbstractDeclaration>();
+            foreach (var declaration in set)
+                if (manager.TryGetDeclaration(declaration, out var abstractDeclaration))
+                    result.Add(abstractDeclaration);
+            return result;
+        }
     }
 }

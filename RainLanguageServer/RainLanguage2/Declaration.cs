@@ -106,6 +106,7 @@ namespace RainLanguageServer.RainLanguage2
         private readonly Type[] types = types;
         public int Count => types.Length;
         public Type this[int index] => types[index];
+        public Span<Type> this[Range range] => new(types[range]);
         public bool Equals(Tuple other)
         {
             if (types == other.types) return true;
@@ -119,6 +120,7 @@ namespace RainLanguageServer.RainLanguage2
         public override bool Equals(object? obj) => obj is Tuple tuple && Equals(tuple);
         public static implicit operator Tuple(Type[] types) => new(types);
         public static implicit operator Tuple(Type type) => new(type);
+        public static implicit operator Span<Type>(Tuple tuple) => new(tuple.types);
         public override int GetHashCode()
         {
             var result = new HashCode();
