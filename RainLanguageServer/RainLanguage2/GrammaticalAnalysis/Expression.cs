@@ -27,9 +27,9 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
         {
             return (attribute & value) != 0;
         }
-        public static ExpressionAttribute GetAttribute(this Type type, Manager manager)
+        public static ExpressionAttribute GetAttribute(this Type type, Manager.KernelManager manager)
         {
-            if (type.dimension > 0 || type == manager.kernelManager.STRING || type == manager.kernelManager.ARRAY) return ExpressionAttribute.Array;
+            if (type.dimension > 0 || type == manager.STRING || type == manager.ARRAY) return ExpressionAttribute.Array;
             else if (type.code == TypeCode.Delegate) return ExpressionAttribute.Callable;
             else if (type.code == TypeCode.Task) return ExpressionAttribute.Task;
             return ExpressionAttribute.Invalid;
@@ -43,7 +43,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
         public abstract bool Valid { get; }
         public Expression ToInvalid()
         {
-            if (Valid) return new InvalidExpression(this);
+            if (Valid) return new InvalidExpression(this, tuple);
             return this;
         }
         public static readonly Type BLURRY = new(-3, TypeCode.Invalid, 0, 0);

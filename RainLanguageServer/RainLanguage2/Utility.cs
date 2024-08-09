@@ -2,6 +2,10 @@
 {
     internal static class Utility
     {
+        public static void Fill<T>(this T[] array, T value)
+        {
+            for (int i = 0; i < array.Length; i++) array[i] = value;
+        }
         public static void AddRange<T>(this HashSet<T> set, IEnumerable<T> values)
         {
             foreach (var value in values) set.Add(value);

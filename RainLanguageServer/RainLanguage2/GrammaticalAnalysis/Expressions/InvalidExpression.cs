@@ -10,5 +10,10 @@
             this.expressions = expressions;
             attribute = ExpressionAttribute.Invalid;
         }
+        public InvalidExpression(Expression expression, Tuple tuple) : base(expression.range, tuple)
+        {
+            expressions = [expression];
+            attribute = ExpressionAttribute.Invalid;
+        }
     }
 }

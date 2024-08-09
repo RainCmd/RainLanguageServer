@@ -154,7 +154,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                     types.Clear();
                 }
         }
-        private bool TryExplicitTypes(Expression expression, Span<Type> target, List<Type> result)
+        private bool TryExplicitTypes(Expression expression, TypeSpan target, List<Type> result)
         {
             if (!expression.Valid) return false;
             if (expression is TupleExpression tuple)
@@ -229,8 +229,8 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                     {
                         if (abstructDelegate.returns != body.tuple)
                         {
-                            body =;//todo 赋值转换
-                            if(!body.Valid) return false;
+                            body = AssignmentConvert(body, abstructDelegate.returns);
+                            if (!body.Valid) return false;
                         }
                     }
                     else if (ContainBlurry(body)) return false;
@@ -238,6 +238,72 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                 result.Add(target);
             }
             return true;
+        }
+        private Expression AssignmentConvert(Expression source, Tuple tuple)
+        {
+            if (!source.Valid) return source;
+            if (source.tuple.Count == tuple.Count)
+            {
+                source = InferRightValueType(source, tuple);
+                if (source.Valid)
+                    for (var i = 0; i < tuple.Count; i++)
+                        if (Convert(manager, source.tuple[i], tuple[i]) < 0)
+                            collector.Add(source.range, ErrorLevel.Error, $"当前表达式第{i + 1}个类型无法转换为目标类型");
+                return source;
+            }
+            else collector.Add(source.range, ErrorLevel.Error, "类型数量不一致");
+            return new TupleCastExpression(source, tuple, manager.kernelManager);
+        }
+        private Expression InferRightValueType(Expression source, TypeSpan span)
+        {
+            if (!source.Valid) return source;
+            if (source is TupleExpression tupleExpression)
+            {
+                if (tupleExpression.expressions.Count == 0) return source;
+                var expressions = new List<Expression>();
+                var index = 0;
+                foreach (var item in tupleExpression.expressions)
+                {
+                    expressions.Add(InferRightValueType(item, span[index..(index + item.tuple.Count)]));
+                }
+                return TupleExpression.Create(expressions, collector);
+            }
+            return source;
+        }
+        private Expression InferRightValueType(Expression expression, Type type)
+        {
+            if (expression.tuple.Count == 1 && expression.tuple[0] == type) return expression;
+            else if (!expression.Valid) return new InvalidExpression(expression, type);
+            else if (type == Expression.BLURRY) collector.Add(expression.range, ErrorLevel.Error, "表达式类型名不明确");
+            else if (expression is ConstNullExpression)
+            {
+                if (type == manager.kernelManager.ENTITY) return new ConstEntityNullExpression(expression.range, manager.kernelManager);
+                else if (type.Managed) return new ConstHandleNullExpression(expression.range, type);
+                collector.Add(expression.range, ErrorLevel.Error, "类型不匹配");
+            }
+            else if (expression is BlurrySetExpression blurrySet)
+            {
+                if (type.dimension > 0)
+                {
+                    var elementType = new Type(type, type.dimension - 1);
+                    var elementTypes = new Type[blurrySet.expression.tuple.Count];
+                    elementTypes.Fill(elementType);
+                    var elements = AssignmentConvert(blurrySet.expression, elementTypes);
+                    return new ArrayInitExpression(blurrySet.range, elements, type);
+                }
+                else collector.Add(expression.range, ErrorLevel.Error, "类型不匹配");
+            }
+            else if (expression is MethodExpression method)
+            {
+                if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstructDelegate abstructDelegate)
+                {
+                    if (TryGetFunction(expression.range, method.callables, abstructDelegate.signature, out var callable))
+                    {
+
+                    }
+                }
+                collector.Add(expression.range, ErrorLevel.Error, "无法转换为目标类型");
+            }
         }
         private bool TryGetFunction(TextRange range, List<AbstractCallable> callables, Tuple tuple, [MaybeNullWhen(false)] out AbstractCallable callable)
         {
@@ -278,10 +344,11 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                 collector.Add(condition, ErrorLevel.Error, "不是个值");
                 conditionExpression = conditionExpression.ToInvalid();
             }
-            if (ExpressionSplit.Split(value, SplitFlag.Colon, out var left, out var right, collector).type != LexicalType.Unknow)
-                return new QuestionExpression(condition & value, conditionExpression, Parse(left), Parse(right));
+            var lexical = ExpressionSplit.Split(value, SplitFlag.Colon, out var left, out var right, collector);
+            if (lexical.type != LexicalType.Unknow)
+                return new QuestionExpression(condition & value, symbol, lexical.anchor, conditionExpression, Parse(left), Parse(right));
             else
-                return new QuestionExpression(condition & value, conditionExpression, Parse(value), null);
+                return new QuestionExpression(condition & value, symbol, null, conditionExpression, Parse(value), null);
         }
         private BlurryLambdaExpression ParseLambda(TextRange parameters, TextRange symbol, TextRange body)
         {
@@ -361,11 +428,11 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                     return true;
             return false;
         }
-        private int Convert(Span<Type> source, Span<Type> target)
+        private int Convert(TypeSpan source, TypeSpan target)
         {
-            if (source.Length != target.Length) return -1;
+            if (source.Count != target.Count) return -1;
             var result = 0;
-            for (var i = 0; i < source.Length; i++)
+            for (var i = 0; i < source.Count; i++)
             {
                 var index = Convert(manager, source[i], target[i]);
                 if (index < 0) return -1;

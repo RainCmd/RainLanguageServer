@@ -106,7 +106,7 @@ namespace RainLanguageServer.RainLanguage2
         private readonly Type[] types = types;
         public int Count => types.Length;
         public Type this[int index] => types[index];
-        public Span<Type> this[Range range] => new(types[range]);
+        public TypeSpan this[Range range] => new(types[range]);
         public bool Equals(Tuple other)
         {
             if (types == other.types) return true;
@@ -120,7 +120,7 @@ namespace RainLanguageServer.RainLanguage2
         public override bool Equals(object? obj) => obj is Tuple tuple && Equals(tuple);
         public static implicit operator Tuple(Type[] types) => new(types);
         public static implicit operator Tuple(Type type) => new(type);
-        public static implicit operator Span<Type>(Tuple tuple) => new(tuple.types);
+        public static implicit operator TypeSpan(Tuple tuple) => new(tuple.types);
         public override int GetHashCode()
         {
             var result = new HashCode();
@@ -139,5 +139,75 @@ namespace RainLanguageServer.RainLanguage2
             return GetEnumerator();
         }
         public static readonly Tuple Empty = new([]);
+    }
+    internal readonly struct TypeSpan : IEquatable<TypeSpan>, IEnumerable<Type>
+    {
+        private readonly int start, count;
+        private readonly IList<Type> types;
+        public int Count => count;
+        public Type this[int index] => types[start + index];
+        public TypeSpan this[Range range]
+        {
+            get
+            {
+                var start = range.Start.GetOffset(count);
+                var end = range.End.GetOffset(count);
+                return new(this.start + start, end - start, types);
+            }
+        }
+
+        public TypeSpan(IList<Type> types)
+        {
+            start = 0; count = types.Count;
+            this.types = types;
+        }
+        public TypeSpan(int start, int count, IList<Type> types)
+        {
+            this.start = start; this.count = count;
+            this.types = types;
+        }
+        public bool Equals(TypeSpan other)
+        {
+            if (count != other.count) return false;
+            for (int i = 0; i < count; i++)
+                if (this[i] != other[i]) return false;
+            return true;
+        }
+        public static bool operator ==(TypeSpan left, TypeSpan right) => left.Equals(right);
+        public static bool operator !=(TypeSpan left, TypeSpan right) => !left.Equals(right);
+        public static implicit operator TypeSpan(Type[] types) => new(types);
+        public static implicit operator Tuple(TypeSpan span)
+        {
+            if (span.types is Type[] array)
+            {
+                if (span.start == 0 && span.count == array.Length) return new(array);
+                else return new Tuple(array[span.start..(span.start + span.count)]);
+            }
+            else
+            {
+                var result = new Type[span.count];
+                for (int i = 0; i < span.count; i++)
+                    result[i] = span[i];
+                return result;
+            }
+        }
+        public override bool Equals(object? obj) => obj is TypeSpan span && Equals(span);
+        public override int GetHashCode()
+        {
+            var result = new HashCode();
+            foreach (var type in this)
+                result.Add(type.GetHashCode());
+            return result.ToHashCode();
+        }
+        public IEnumerator<Type> GetEnumerator()
+        {
+            for (var i = 0; i < count; ++i)
+                yield return this[i];
+        }
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
     }
 }

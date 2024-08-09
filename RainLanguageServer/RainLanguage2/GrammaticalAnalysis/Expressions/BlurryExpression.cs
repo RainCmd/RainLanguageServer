@@ -43,10 +43,11 @@
     }
     internal class BlurrySetExpression : Expression
     {
-        public readonly Expression expression;
+        public readonly TextRange? type;
+        public readonly BracketExpression expression;
         public override bool Valid => expression.Valid;
 
-        public BlurrySetExpression(Expression expression) : base(expression.range, TUPLE_BLURRY)
+        public BlurrySetExpression(BracketExpression expression) : base(expression.range, TUPLE_BLURRY)
         {
             this.expression = expression;
             attribute = ExpressionAttribute.Value | ExpressionAttribute.Array;
