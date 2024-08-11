@@ -77,6 +77,11 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
             value = this.value;
             return true;
         }
+        public override bool TryEvaluateIndices(List<long> indices)
+        {
+            indices.Add(value);
+            return true;
+        }
     }
     internal class ConstCharExpression(TextRange range, char value, Manager.KernelManager manager) : ConstExpression(range, manager.CHAR)
     {
@@ -96,6 +101,11 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
             value = this.value;
             return true;
         }
+        public override bool TryEvaluateIndices(List<long> indices)
+        {
+            indices.Add(value);
+            return true;
+        }
     }
     internal class ConstIntegerExpression(TextRange range, long value, Manager.KernelManager manager) : ConstExpression(range, manager.INT)
     {
@@ -110,6 +120,11 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
             value = this.value;
             return true;
         }
+        public override bool TryEvaluateIndices(List<long> indices)
+        {
+            indices.Add(value);
+            return true;
+        }
     }
     internal class ConstRealExpression(TextRange range, double value, Manager.KernelManager manager) : ConstExpression(range, manager.REAL)
     {
@@ -120,9 +135,16 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
             return true;
         }
     }
-    internal class ConstStringExpression(TextRange range, string value, Manager.KernelManager manager) : ConstExpression(range, manager.STRING)
+    internal class ConstStringExpression : ConstExpression
     {
-        public readonly string value = value;
+        public readonly string value;
+
+        public ConstStringExpression(TextRange range, string value, Manager.KernelManager manager) : base(range, manager.STRING)
+        {
+            this.value = value;
+            attribute |= ExpressionAttribute.Array;
+        }
+
         public override bool TryEvaluate(out string value)
         {
             value = this.value;

@@ -49,5 +49,6 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
         public static readonly Type BLURRY = new(-3, TypeCode.Invalid, 0, 0);
         public static readonly Type NULL = new(-3, TypeCode.Invalid, 1, 0);
         public static readonly Tuple TUPLE_BLURRY = new([BLURRY]);
+        public virtual bool TryEvaluateIndices(List<long> indices) => false;
     }
 }

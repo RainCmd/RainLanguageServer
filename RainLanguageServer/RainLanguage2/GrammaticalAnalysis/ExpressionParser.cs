@@ -2,6 +2,7 @@
 using RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions;
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection.Emit;
 
 namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
 {
@@ -207,7 +208,96 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             goto label_next_lexical;
                         }
                     case LexicalType.BracketLeft1:
-                        break;
+                        {
+                            var bracket = ParseBracket(lexical.anchor.start & range.end, lexical.anchor, SplitFlag.Bracket1);
+                            if (attribute.ContainAll(ExpressionAttribute.Value | ExpressionAttribute.Array))
+                            {
+                                if (bracket.Valid)
+                                {
+                                    if (!IsIndies(bracket.tuple))
+                                    {
+                                        var list = new List<Type>();
+                                        foreach (var _ in bracket.tuple) list.Add(manager.kernelManager.INT);
+                                        bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan(list)));
+                                    }
+                                    var expression = expressionStack.Pop();
+                                    if (bracket.tuple.Count == 1)
+                                    {
+                                        if (expression.tuple[0] == manager.kernelManager.STRING)
+                                            expression = new StringEvaluationExpression(expression.range & bracket.range, expression, bracket, manager.kernelManager);
+                                        else expression = new ArrayEvaluationExpression(expression.range & bracket.range, expression, bracket, manager.kernelManager);
+                                        expressionStack.Push(expression);
+                                        attribute = expression.attribute;
+                                    }
+                                    else if (bracket.tuple.Count == 2)
+                                    {
+                                        expression = new ArraySubExpression(expression.range & bracket.range, expression, bracket, manager.kernelManager);
+                                        expressionStack.Push(expression);
+                                        attribute = expression.attribute;
+                                    }
+                                    else
+                                    {
+                                        collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                        expressionStack.Push(new InvalidExpression(expression, bracket));
+                                        attribute = ExpressionAttribute.Invalid;
+                                    }
+                                }
+                                else
+                                {
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), bracket));
+                                    attribute = ExpressionAttribute.Invalid;
+                                }
+                            }
+                            else if (attribute.ContainAll(ExpressionAttribute.Tuple))
+                            {
+                                if (bracket.Valid)
+                                {
+                                    var indices = new List<long>();
+                                    if (bracket.TryEvaluateIndices(indices))
+                                    {
+                                        if (indices.Count > 0)
+                                        {
+                                            var expression = expressionStack.Pop();
+                                            var tuple = new Type[indices.Count];
+                                            var error = false;
+                                            for (var i = 0; i < indices.Count; i++)
+                                            {
+                                                if (indices[i] < 0) indices[i] += expression.tuple.Count;
+                                                if (indices[i] >= 0 && indices[i] < expression.tuple.Count) tuple[i] = expression.tuple[(int)indices[i]];
+                                                else
+                                                {
+                                                    collector.Add(bracket.range, ErrorLevel.Error, $"第{i + 1}个索引超出了元组的类型数量范围");
+                                                    error = true;
+                                                }
+                                            }
+                                            if (error)
+                                            {
+                                                expressionStack.Push(new InvalidExpression(expression, bracket));
+                                                attribute = ExpressionAttribute.Invalid;
+                                            }
+                                            else
+                                            {
+                                                expression = new TupleEvaluationExpression(expression.range & bracket.range, tuple, expression, bracket, manager.kernelManager);
+                                                expressionStack.Push(expression);
+                                                attribute = expression.attribute;
+                                            }
+                                            index = bracket.range.end;
+                                            goto label_next_lexical;
+                                        }
+                                        else collector.Add(bracket.range, ErrorLevel.Error, "缺少索引");
+                                    }
+                                    else collector.Add(bracket.range, ErrorLevel.Error, "元组的索引必须是整数常量");
+                                }
+                                expressionStack.Push(new InvalidExpression(expressionStack.Pop(), bracket));
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                            else if (attribute.ContainAny(ExpressionAttribute.Task))
+                            {
+
+                            }
+                            index = bracket.range.end;
+                            goto label_next_lexical;
+                        }
                     case LexicalType.BracketLeft2:
                         break;
                     case LexicalType.BracketRight0:
@@ -332,6 +422,12 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                 index = lexical.anchor.end;
             label_next_lexical:;
             }
+        }
+        private bool IsIndies(Tuple tuple)
+        {
+            foreach (var type in tuple)
+                if (type != manager.kernelManager.INT) return false;
+            return true;
         }
         private Expression ConvertVectorParameter(Expression parameter, int count)
         {

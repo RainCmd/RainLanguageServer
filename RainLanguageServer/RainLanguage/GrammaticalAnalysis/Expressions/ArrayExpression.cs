@@ -1,6 +1,4 @@
-﻿using LanguageServer;
-using Microsoft.Win32.SafeHandles;
-using System.Text;
+﻿using System.Text;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {

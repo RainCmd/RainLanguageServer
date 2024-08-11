@@ -1,4 +1,5 @@
-﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
+﻿
+namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
 {
     internal class BracketExpression : Expression
     {
@@ -11,6 +12,10 @@
             this.right = right;
             this.expression = expression;
             attribute = expression.attribute;
+        }
+        public override bool TryEvaluateIndices(List<long> indices)
+        {
+            return expression.TryEvaluateIndices(indices);
         }
     }
 }
