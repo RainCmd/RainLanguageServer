@@ -34,7 +34,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
             value = default;
             return false;
         }
-        public virtual bool TryEvaluate([MaybeNullWhen(false)]out string value)
+        public virtual bool TryEvaluate([MaybeNullWhen(false)] out string value)
         {
             value = default;
             return false;
@@ -129,8 +129,9 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
             return true;
         }
     }
-    internal class ConstTypeExpression(TextRange range, Type value, Manager.KernelManager manager) : ConstExpression(range, manager.TYPE)
+    internal class ConstTypeExpression(TextRange range, FileType file, Type value, Manager.KernelManager manager) : ConstExpression(range, manager.TYPE)
     {
+        public readonly FileType file = file;
         public readonly Type value = value;
         public override bool TryEvaluate(out Type value)
         {

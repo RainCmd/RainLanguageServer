@@ -12,4 +12,27 @@
             else attribute = ExpressionAttribute.Tuple;
         }
     }
+    internal class InvokerDelegateExpression(TextRange range, Tuple tuple, Expression invoker, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
+    {
+        public readonly Expression invoker = invoker;
+    }
+    internal class InvokerFunctionExpression(TextRange range, Tuple tuple, TextRange method, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
+    {
+        public readonly TextRange method = method;
+        public readonly AbstractCallable callable = callable;
+    }
+    internal class InvokerMemberExpression(TextRange range, Tuple tuple, Expression target, TextRange symbol, TextRange method, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
+    {
+        public readonly Expression target = target;
+        public readonly TextRange symbol = symbol;
+        public readonly TextRange method = method;
+        public readonly AbstractCallable callable = callable;
+    }
+    internal class InvokerVirtualExpression(TextRange range, Tuple tuple, Expression target, TextRange symbol, TextRange method, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
+    {
+        public readonly Expression target = target;
+        public readonly TextRange symbol = symbol;
+        public readonly TextRange method = method;
+        public readonly AbstractCallable callable = callable;
+    }
 }

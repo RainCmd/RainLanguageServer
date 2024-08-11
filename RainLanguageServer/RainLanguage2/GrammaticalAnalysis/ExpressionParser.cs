@@ -1,5 +1,6 @@
 ﻿
 using RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions;
+using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
@@ -28,7 +29,290 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
         }
         private Expression ParseExpression(TextRange range)
         {
+            var expressionStack = new Stack<Expression>();
+            var tokenStack = new Stack<Token>();
+            var attribute = ExpressionAttribute.None;
+            for (var index = range.start; Lexical.TryAnalysis(range, index, out var lexical, collector);)
+            {
+                switch (lexical.type)
+                {
+                    case LexicalType.Unknow: goto default;
+                    case LexicalType.BracketLeft0:
+                        {
+                            var bracket = ParseBracket(lexical.anchor.start & range.end, lexical.anchor, SplitFlag.Bracket0);
+                            if (attribute.ContainAny(ExpressionAttribute.Method))
+                            {
+                                var expression = expressionStack.Pop();
+                                if (expression is MethodExpression method)
+                                {
+                                    if (bracket.Valid)
+                                    {
+                                        if (TryGetFunction(method.range, method.callables, bracket.tuple, out var callable))
+                                        {
+                                            bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, callable.signature));
+                                            expression = new InvokerFunctionExpression(method.range & bracket.range, callable.returns, method.range, callable, bracket, manager.kernelManager);
+                                            expressionStack.Push(expression);
+                                            attribute = expression.attribute;
+                                            goto label_next_lexical;
+                                        }
+                                        else collector.Add(method.range, ErrorLevel.Error, "未找到匹配的函数");
+                                    }
+                                }
+                                else if (expression is MethodMemberExpression methodMember)
+                                {
+                                    if (bracket.Valid)
+                                    {
+                                        if (TryGetFunction(methodMember.range, methodMember.callables, bracket.tuple, out var callable))
+                                        {
+                                            bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, callable.signature));
+                                            expression = new InvokerMemberExpression(methodMember.range & bracket.range, callable.returns, methodMember.target, methodMember.symbol, methodMember.range, callable, bracket, manager.kernelManager);
+                                            expressionStack.Push(expression);
+                                            attribute = expression.attribute;
+                                            goto label_next_lexical;
+                                        }
+                                        else collector.Add(methodMember.range, ErrorLevel.Error, "未找到匹配的函数");
+                                    }
+                                }
+                                else if (expression is MethodVirtualExpression methodVirtual)
+                                {
+                                    if (bracket.Valid)
+                                    {
+                                        if (TryGetFunction(methodVirtual.range, methodVirtual.callables, bracket.tuple, out var callable))
+                                        {
+                                            bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, callable.signature));
+                                            expression = new InvokerVirtualExpression(methodVirtual.range & bracket.range, callable.returns, methodVirtual.target, methodVirtual.symbol, methodVirtual.range, callable, bracket, manager.kernelManager);
+                                            expressionStack.Push(expression);
+                                            attribute = expression.attribute;
+                                            goto label_next_lexical;
+                                        }
+                                        else collector.Add(methodVirtual.range, ErrorLevel.Error, "未找到匹配的函数");
+                                    }
+                                }
+                                else throw new Exception("未知的函数表达式：" + expression.GetType());
+                                expressionStack.Push(new InvalidExpression(expression, bracket));
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                            else if (attribute.ContainAny(ExpressionAttribute.Callable))
+                            {
+                                var expression = expressionStack.Pop();
+                                if (!manager.TryGetDeclaration(expression.tuple[0], out var declaration)) throw new Exception("类型错误");
+                                if (declaration is not AbstructDelegate abstructDelegate) throw new Exception("未知的可调用类型：" + declaration.GetType());
+                                bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, abstructDelegate.signature));
+                                expression = new InvokerDelegateExpression(expression.range & bracket.range, abstructDelegate.returns, expression, bracket, manager.kernelManager);
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
+                            }
+                            else if (attribute.ContainAny(ExpressionAttribute.Type))
+                            {
+                                var expression = expressionStack.Pop();
+                                if (expression is not TypeExpression type) throw new Exception("未知的类型表达式");
+                                if (type.type == manager.kernelManager.REAL2)
+                                {
+                                    if (bracket.tuple.Count > 0)
+                                        bracket = new BracketExpression(bracket.left, bracket.right, ConvertVectorParameter(bracket.expression, 2));
+                                    expression = new VectorConstructorExpression(expression.range & bracket.range, type, bracket);
+                                    expressionStack.Push(expression);
+                                    attribute = expression.attribute;
+                                }
+                                else if (type.type == manager.kernelManager.REAL3)
+                                {
+                                    if (bracket.tuple.Count > 0)
+                                        bracket = new BracketExpression(bracket.left, bracket.right, ConvertVectorParameter(bracket.expression, 3));
+                                    expression = new VectorConstructorExpression(expression.range & bracket.range, type, bracket);
+                                    expressionStack.Push(expression);
+                                    attribute = expression.attribute;
+                                }
+                                else if (type.type == manager.kernelManager.REAL4)
+                                {
+                                    if (bracket.tuple.Count > 0)
+                                        bracket = new BracketExpression(bracket.left, bracket.right, ConvertVectorParameter(bracket.expression, 4));
+                                    expression = new VectorConstructorExpression(expression.range & bracket.range, type, bracket);
+                                    expressionStack.Push(expression);
+                                    attribute = expression.attribute;
+                                }
+                                else if (type.type.dimension == 0)
+                                {
+                                    if (type.type.code == TypeCode.Struct)
+                                    {
+                                        //todo 
+                                    }
+                                    else if (type.type.code == TypeCode.Handle)
+                                    {
 
+                                    }
+                                    else
+                                    {
+                                        collector.Add(type.range, ErrorLevel.Error, "无效的操作");
+                                        expressionStack.Push(expression.ToInvalid());
+                                        attribute = ExpressionAttribute.Invalid;
+                                    }
+                                }
+                                else
+                                {
+                                    collector.Add(type.range, ErrorLevel.Error, "数组没有构造函数");
+                                    expressionStack.Push(new InvalidExpression(expression, bracket));
+                                    attribute = ExpressionAttribute.Invalid;
+                                }
+                            }
+                            else if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                            {
+                                expressionStack.Push(bracket);
+                                attribute = bracket.attribute;
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), bracket));
+                                else
+                                    expressionStack.Push(bracket.ToInvalid());
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                            index = bracket.range.end;
+                            goto label_next_lexical;
+                        }
+                    case LexicalType.BracketLeft1:
+                        break;
+                    case LexicalType.BracketLeft2:
+                        break;
+                    case LexicalType.BracketRight0:
+                        break;
+                    case LexicalType.BracketRight1:
+                        break;
+                    case LexicalType.BracketRight2:
+                        break;
+                    case LexicalType.Comma:
+                        break;
+                    case LexicalType.Semicolon:
+                        break;
+                    case LexicalType.Assignment:
+                        break;
+                    case LexicalType.Equals:
+                        break;
+                    case LexicalType.Lambda:
+                        break;
+                    case LexicalType.BitAnd:
+                        break;
+                    case LexicalType.LogicAnd:
+                        break;
+                    case LexicalType.BitAndAssignment:
+                        break;
+                    case LexicalType.BitOr:
+                        break;
+                    case LexicalType.LogicOr:
+                        break;
+                    case LexicalType.BitOrAssignment:
+                        break;
+                    case LexicalType.BitXor:
+                        break;
+                    case LexicalType.BitXorAssignment:
+                        break;
+                    case LexicalType.Less:
+                        break;
+                    case LexicalType.LessEquals:
+                        break;
+                    case LexicalType.ShiftLeft:
+                        break;
+                    case LexicalType.ShiftLeftAssignment:
+                        break;
+                    case LexicalType.Greater:
+                        break;
+                    case LexicalType.GreaterEquals:
+                        break;
+                    case LexicalType.ShiftRight:
+                        break;
+                    case LexicalType.ShiftRightAssignment:
+                        break;
+                    case LexicalType.Plus:
+                        break;
+                    case LexicalType.Increment:
+                        break;
+                    case LexicalType.PlusAssignment:
+                        break;
+                    case LexicalType.Minus:
+                        break;
+                    case LexicalType.Decrement:
+                        break;
+                    case LexicalType.RealInvoker:
+                        break;
+                    case LexicalType.MinusAssignment:
+                        break;
+                    case LexicalType.Mul:
+                        break;
+                    case LexicalType.MulAssignment:
+                        break;
+                    case LexicalType.Div:
+                        break;
+                    case LexicalType.DivAssignment:
+                        break;
+                    case LexicalType.Annotation:
+                        break;
+                    case LexicalType.Mod:
+                        break;
+                    case LexicalType.ModAssignment:
+                        break;
+                    case LexicalType.Not:
+                        break;
+                    case LexicalType.NotEquals:
+                        break;
+                    case LexicalType.Negate:
+                        break;
+                    case LexicalType.Dot:
+                        break;
+                    case LexicalType.Question:
+                        break;
+                    case LexicalType.QuestionDot:
+                        break;
+                    case LexicalType.QuestionRealInvoke:
+                        break;
+                    case LexicalType.QuestionInvoke:
+                        break;
+                    case LexicalType.QuestionIndex:
+                        break;
+                    case LexicalType.QuestionNull:
+                        break;
+                    case LexicalType.Colon:
+                        break;
+                    case LexicalType.ConstReal:
+                        break;
+                    case LexicalType.ConstNumber:
+                        break;
+                    case LexicalType.ConstBinary:
+                        break;
+                    case LexicalType.ConstHexadecimal:
+                        break;
+                    case LexicalType.ConstChars:
+                        break;
+                    case LexicalType.ConstString:
+                        break;
+                    case LexicalType.TemplateString:
+                        break;
+                    case LexicalType.Word:
+                        break;
+                    case LexicalType.Backslash:
+                        break;
+                    default:
+                        break;
+                }
+                index = lexical.anchor.end;
+            label_next_lexical:;
+            }
+        }
+        private Expression ConvertVectorParameter(Expression parameter, int count)
+        {
+            if (!parameter.Valid) return parameter;
+            var parameterTypes = new List<Type>();
+            foreach (var type in parameter.tuple)
+                if (type == manager.kernelManager.REAL || type == manager.kernelManager.REAL2 || type == manager.kernelManager.REAL3 || type == manager.kernelManager.REAL4) parameterTypes.Add(type);
+                else parameterTypes.Add(manager.kernelManager.REAL);
+            parameter = AssignmentConvert(parameter, new TypeSpan(parameterTypes));
+            foreach (var type in parameterTypes)
+                if (type == manager.kernelManager.REAL) count--;
+                else if (type == manager.kernelManager.REAL2) count -= 2;
+                else if (type == manager.kernelManager.REAL3) count -= 3;
+                else if (type == manager.kernelManager.REAL4) count -= 4;
+            if (count != 0) collector.Add(parameter.range, ErrorLevel.Error, "参数数量不对");
+            return parameter;
         }
         private QuestionNullExpression ParseQuestionNull(TextRange left, TextRange symbol, TextRange right)
         {
@@ -165,7 +449,12 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                 }
                 return TupleExpression.Create(expressions, collector);
             }
-            else if (ContainBlurry(expression.tuple)) throw new Exception("表达式类型错误");
+            else if (ContainBlurry(expression.tuple))
+            {
+                if (expression is BracketExpression bracket)
+                    return new BracketExpression(bracket.left, bracket.right, InferLeftValueType(bracket.expression, span));
+                throw new Exception("表达式类型错误");
+            }
             return expression;
         }
         private Expression InferLeftValueType(BlurryVariableDeclarationExpression blurry, Type type)
@@ -314,37 +603,42 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             }
             return true;
         }
-        private Expression AssignmentConvert(Expression source, Tuple tuple)
+        private Expression AssignmentConvert(Expression source, TypeSpan span)
         {
             if (!source.Valid) return source;
-            if (source.tuple.Count == tuple.Count)
+            if (source.tuple.Count == span.Count)
             {
-                source = InferRightValueType(source, tuple);
+                source = InferRightValueType(source, span);
                 if (source.Valid)
-                    for (var i = 0; i < tuple.Count; i++)
-                        if (Convert(manager, source.tuple[i], tuple[i]) < 0)
+                    for (var i = 0; i < span.Count; i++)
+                        if (Convert(manager, source.tuple[i], span[i]) < 0)
                             collector.Add(source.range, ErrorLevel.Error, $"当前表达式第{i + 1}个类型无法转换为目标类型");
                 return source;
             }
             else collector.Add(source.range, ErrorLevel.Error, "类型数量不一致");
-            return new TupleCastExpression(source, tuple, manager.kernelManager);
+            return new TupleCastExpression(source, span, manager.kernelManager);
         }
         private Expression InferRightValueType(Expression source, TypeSpan span)
         {
             if (!source.Valid) return source;
-            if (source is TupleExpression tupleExpression)
+            if (source is TupleExpression tuple)
             {
-                if (tupleExpression.expressions.Count == 0) return source;
+                if (tuple.expressions.Count == 0) return source;
                 var expressions = new List<Expression>();
                 var index = 0;
-                foreach (var item in tupleExpression.expressions)
+                foreach (var item in tuple.expressions)
                 {
                     expressions.Add(InferRightValueType(item, span[index..(index + item.tuple.Count)]));
                 }
                 return TupleExpression.Create(expressions, collector);
             }
             else if (source.tuple.Count == 1) return InferRightValueType(source, span[0]);
-            else if (ContainBlurry(source.tuple)) throw new Exception("表达式类型错误");
+            else if (ContainBlurry(source.tuple))
+            {
+                if (source is BracketExpression bracket)
+                    return new BracketExpression(bracket.left, bracket.right, InferRightValueType(bracket.expression, span));
+                throw new Exception("表达式类型错误");
+            }
             return source;
         }
         private Expression InferRightValueType(Expression expression, Type type)
@@ -543,6 +837,13 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             }
             expression = default;
             return false;
+        }
+        private BracketExpression ParseBracket(TextRange range, TextRange bracketLeft, SplitFlag flag)
+        {
+            if (ExpressionSplit.Split(range, flag, out var left, out var right, collector).type != LexicalType.Unknow)
+                return new BracketExpression(left, right, Parse(left.end & right.start));
+            collector.Add(bracketLeft, ErrorLevel.Error, "缺少配对的符号");
+            return new BracketExpression(bracketLeft, range.end & range.end, Parse(bracketLeft.end & range.end));
         }
         private bool TryParseBracket(TextRange range, [MaybeNullWhen(false)] out Expression expression)
         {
