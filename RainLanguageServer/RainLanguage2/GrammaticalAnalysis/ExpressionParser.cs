@@ -134,11 +134,46 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                 {
                                     if (type.type.code == TypeCode.Struct)
                                     {
-                                        //todo 
+                                        if (!bracket.Valid || bracket.tuple.Count == 0)
+                                        {
+                                            expression = new ConstructorExpression(expression.range & bracket.range, type, null, null, bracket, manager.kernelManager);
+                                            expressionStack.Push(expression);
+                                            attribute = expression.attribute;
+                                        }
+                                        else
+                                        {
+                                            if (!manager.TryGetDeclaration(type.type, out var declaration)) throw new Exception("无效的类型");
+                                            if (declaration is not AbstractStruct abstractStruct) throw new Exception("声明不是结构体：" + declaration.GetType());
+                                            var members = new List<Type>();
+                                            foreach (var member in abstractStruct.variables) members.Add(member.type);
+                                            bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan(members)));
+                                            expression = new ConstructorExpression(expression.range & bracket.range, type, null, null, bracket, manager.kernelManager);
+                                            expressionStack.Push(expression);
+                                            attribute = expression.attribute;
+                                        }
                                     }
                                     else if (type.type.code == TypeCode.Handle)
                                     {
-
+                                        if (!manager.TryGetDeclaration(type.type, out var declaration)) throw new Exception("无效的类型");
+                                        if (declaration is not AbstractClass abstractClass) throw new Exception("声明不是结构体：" + declaration.GetType());
+                                        var constructors = new List<AbstractCallable>();
+                                        foreach (var constructor in abstractClass.constructors)
+                                            if (context.IsVisiable(manager, constructor.declaration))
+                                                constructors.Add(constructor);
+                                        if (TryGetFunction(expression.range, constructors, bracket.tuple, out var callable))
+                                        {
+                                            if (destructor) collector.Add(expression.range, ErrorLevel.Error, "析构函数中不能创建托管对象");
+                                            expression = new ConstructorExpression(expression.range & bracket.range, type, callable, null, bracket, manager.kernelManager);
+                                        }
+                                        else
+                                        {
+                                            constructors.Clear();
+                                            collector.Add(expression.range, ErrorLevel.Error, "未找到匹配的构造函数");
+                                            foreach (var constructor in abstractClass.constructors) constructors.Add(constructor);
+                                            expression = new ConstructorExpression(expression.range & bracket.range, type, null, constructors, bracket, manager.kernelManager);
+                                        }
+                                        expressionStack.Push(expression);
+                                        attribute = expression.attribute;
                                     }
                                     else
                                     {
@@ -744,13 +779,13 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             }
             return expression;
         }
-        private bool TryGetFunction(TextRange range, List<AbstractCallable> callables, Tuple tuple, [MaybeNullWhen(false)] out AbstractCallable callable)
+        private bool TryGetFunction(TextRange range, List<AbstractCallable> callables, TypeSpan span, [MaybeNullWhen(false)] out AbstractCallable callable)
         {
             var results = new List<AbstractCallable>();
             var min = 0;
             foreach (var item in callables)
             {
-                var measure = Convert(tuple, item.signature);
+                var measure = Convert(span, item.signature);
                 if (measure >= 0)
                     if (results.Count == 0 || measure < min)
                     {

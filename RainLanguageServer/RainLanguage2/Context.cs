@@ -9,6 +9,115 @@ namespace RainLanguageServer.RainLanguage2
         public readonly AbstractSpace space = space;
         public readonly HashSet<AbstractSpace> relies = relies;
         public readonly AbstractDeclaration? declaration = declaration;
+        private bool IsVisiable(Manager manager, Declaration declaration, bool isMember)
+        {
+            if (isMember)
+            {
+                if (!manager.TryGetDefineDeclaration(declaration, out var abstractDeclaration)) return false;
+                if (abstractDeclaration == this.declaration) return true;
+                if (IsVisiable(manager, abstractDeclaration.declaration, false))
+                    if (declaration.visibility.ContainAny(Visibility.Public | Visibility.Internal)) return true;
+                    else if (declaration.visibility.ContainAny(Visibility.Space)) return abstractDeclaration.space.Contain(space);
+                if (declaration.category == DeclarationCategory.ClassVariable || declaration.category == DeclarationCategory.Constructor || declaration.category == DeclarationCategory.ClassFunction)
+                    for (var index = this.declaration as AbstractClass; index != null;)
+                    {
+                        if (index == abstractDeclaration) return true;
+                        if (!manager.TryGetDeclaration(index.parent, out var parentDeclaration)) return false;
+                        index = parentDeclaration as AbstractClass;
+                    }
+            }
+            else
+            {
+                if (declaration.visibility.ContainAny(Visibility.Public | Visibility.Internal)) return true;
+                if (!manager.TryGetDeclaration(declaration, out var abstractDeclaration)) return false;
+                if (abstractDeclaration.space.Contain(space))
+                {
+                    if (declaration.visibility.ContainAny(Visibility.Space)) return true;
+                    else return abstractDeclaration.file.space.document == document;
+                }
+            }
+            return false;
+        }
+        public bool IsVisiable(Manager manager, Declaration declaration)
+        {
+            if (declaration.library == Manager.LIBRARY_KERNEL) return true;
+            else if (declaration.library == Manager.LIBRARY_SELF)
+            {
+                switch (declaration.category)
+                {
+                    case DeclarationCategory.Invalid: break;
+                    case DeclarationCategory.Variable:
+                    case DeclarationCategory.Function:
+                    case DeclarationCategory.Enum:
+                        return IsVisiable(manager, declaration, false);
+                    case DeclarationCategory.EnumElement:
+                        return IsVisiable(manager, declaration, true);
+                    case DeclarationCategory.Struct:
+                        return IsVisiable(manager, declaration, false);
+                    case DeclarationCategory.StructVariable:
+                        return IsVisiable(manager, declaration, true);
+                    case DeclarationCategory.StructFunction:
+                        return IsVisiable(manager, declaration, true);
+                    case DeclarationCategory.Class:
+                        return IsVisiable(manager, declaration, false);
+                    case DeclarationCategory.Constructor:
+                    case DeclarationCategory.ClassVariable:
+                    case DeclarationCategory.ClassFunction:
+                        return IsVisiable(manager, declaration, true);
+                    case DeclarationCategory.Interface:
+                        return IsVisiable(manager, declaration, false);
+                    case DeclarationCategory.InterfaceFunction:
+                        return IsVisiable(manager, declaration, true);
+                    case DeclarationCategory.Delegate:
+                    case DeclarationCategory.Task:
+                    case DeclarationCategory.Native:
+                        return IsVisiable(manager, declaration, false);
+                }
+            }
+            else
+            {
+                switch (declaration.category)
+                {
+                    case DeclarationCategory.Invalid: break;
+                    case DeclarationCategory.Variable:
+                    case DeclarationCategory.Function:
+                    case DeclarationCategory.Enum:
+                        return declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.EnumElement:
+                        return manager.TryGetDefineDeclaration(declaration, out var abstractDeclaration) && abstractDeclaration.declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.Struct:
+                        return declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.StructVariable:
+                        return manager.TryGetDefineDeclaration(declaration, out abstractDeclaration) && abstractDeclaration.declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.StructFunction:
+                        return manager.TryGetDefineDeclaration(declaration, out abstractDeclaration) && abstractDeclaration.declaration.visibility.ContainAny(Visibility.Public) && declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.Class:
+                        return declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.Constructor:
+                    case DeclarationCategory.ClassVariable:
+                    case DeclarationCategory.ClassFunction:
+                        if (manager.TryGetDefineDeclaration(declaration, out abstractDeclaration) && abstractDeclaration.declaration.visibility.ContainAny(Visibility.Public))
+                            if (declaration.visibility.ContainAny(Visibility.Public)) return true;
+                            else if (this.declaration != null && this.declaration.declaration.category == DeclarationCategory.Class && declaration.visibility.ContainAny(Visibility.Protected))
+                                for (var index = this.declaration as AbstractClass; index != null;)
+                                {
+                                    if (index == abstractDeclaration) return true;
+                                    if (!manager.TryGetDeclaration(index.parent, out var parentDeclaration)) return false;
+                                    index = parentDeclaration as AbstractClass;
+                                }
+                        break;
+                    case DeclarationCategory.Interface:
+                        return declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.InterfaceFunction:
+                        return manager.TryGetDefineDeclaration(declaration, out abstractDeclaration) && abstractDeclaration.declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.Delegate:
+                    case DeclarationCategory.Task:
+                    case DeclarationCategory.Native:
+                        return declaration.visibility.ContainAny(Visibility.Public);
+                }
+            }
+            return false;
+        }
         public bool TryFindSpace(Manager manager, TextRange name, [MaybeNullWhen(false)] out AbstractSpace result, MessageCollector collector)
         {
             var targetName = name.ToString();

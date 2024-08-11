@@ -169,6 +169,15 @@ namespace RainLanguageServer.RainLanguage2
             if (children.TryGetValue(name, out var child)) return child;
             else return children[name] = new AbstractSpace(this, name);
         }
+        public bool Contain(AbstractSpace? space)
+        {
+            while(space!=null)
+            {
+                if (space == this) return true;
+                space = space.parent;
+            }
+            return false;
+        }
     }
     internal class AbstractLibrary(int library, string name) : AbstractSpace(null, name)
     {

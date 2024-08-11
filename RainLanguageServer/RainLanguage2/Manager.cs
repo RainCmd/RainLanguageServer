@@ -135,6 +135,58 @@ namespace RainLanguageServer.RainLanguage2
             declaration = null;
             return false;
         }
+        public bool TryGetDefineDeclaration(Declaration declaration, [MaybeNullWhen(false)] out AbstractDeclaration abstractDeclaration)
+        {
+            if (librarys.TryGetValue(declaration.library, out var library))
+                switch (declaration.category)
+                {
+                    case DeclarationCategory.Invalid: break;
+                    case DeclarationCategory.Variable:
+                        abstractDeclaration = library.variables[declaration.index];
+                        return true;
+                    case DeclarationCategory.Function:
+                        abstractDeclaration = library.functions[declaration.index];
+                        return true;
+                    case DeclarationCategory.Enum:
+                        abstractDeclaration = library.enums[declaration.index];
+                        return true;
+                    case DeclarationCategory.EnumElement:
+                        abstractDeclaration = library.enums[declaration.define];
+                        return true;
+                    case DeclarationCategory.Struct:
+                        abstractDeclaration = library.structs[declaration.index];
+                        return true;
+                    case DeclarationCategory.StructVariable:
+                    case DeclarationCategory.StructFunction:
+                        abstractDeclaration = library.structs[declaration.define];
+                        return true;
+                    case DeclarationCategory.Class:
+                        abstractDeclaration = library.classes[declaration.index];
+                        return true;
+                    case DeclarationCategory.Constructor:
+                    case DeclarationCategory.ClassVariable:
+                    case DeclarationCategory.ClassFunction:
+                        abstractDeclaration = library.classes[declaration.define];
+                        return true;
+                    case DeclarationCategory.Interface:
+                        abstractDeclaration = library.interfaces[declaration.index];
+                        return true;
+                    case DeclarationCategory.InterfaceFunction:
+                        abstractDeclaration = library.interfaces[declaration.define];
+                        return true;
+                    case DeclarationCategory.Delegate:
+                        abstractDeclaration = library.delegates[declaration.index];
+                        return true;
+                    case DeclarationCategory.Task:
+                        abstractDeclaration = library.tasks[declaration.index];
+                        return true;
+                    case DeclarationCategory.Native:
+                        abstractDeclaration = library.natives[declaration.index];
+                        return true;
+                }
+            abstractDeclaration = null;
+            return false;
+        }
         public bool TryGetDeclaration(Declaration declaration, [MaybeNullWhen(false)] out AbstractDeclaration abstractDeclaration)
         {
             if (librarys.TryGetValue(declaration.library, out var library))
