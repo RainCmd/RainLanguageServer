@@ -1,5 +1,18 @@
 ﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
 {
+    internal class BlurryVariableDeclarationExpression : Expression
+    {
+        public readonly TextRange declaration;
+        public readonly TextRange identifier;
+        public override bool Valid => true;
+
+        public BlurryVariableDeclarationExpression(TextRange range, TextRange declaration, TextRange identifier) : base(range, TUPLE_BLURRY)
+        {
+            this.declaration = declaration;
+            this.identifier = identifier;
+            attribute = ExpressionAttribute.Assignable;
+        }
+    }
     internal class MethodExpression : Expression//global & native
     {
         public readonly List<AbstractCallable> callables;
@@ -13,27 +26,30 @@
     internal class MethodMemberExpression : Expression
     {
         public readonly Expression target;
+        public readonly TextRange symbol;
+        public readonly TextRange member;
         public readonly List<AbstractCallable> callables;
         public override bool Valid => true;
-        public MethodMemberExpression(TextRange range, Expression target, List<AbstractCallable> callables) : base(range, TUPLE_BLURRY)
+        public MethodMemberExpression(TextRange range, Expression target, TextRange symbol, TextRange member, List<AbstractCallable> callables) : base(range, TUPLE_BLURRY)
         {
             this.target = target;
+            this.symbol = symbol;
+            this.member = member;
             this.callables = callables;
             attribute = ExpressionAttribute.Method | ExpressionAttribute.Value;
         }
     }
-    internal class MethodVirtualExpression : MethodMemberExpression
+    internal class MethodVirtualExpression(TextRange range, Expression target, TextRange symbol, TextRange member, List<AbstractCallable> callables) : MethodMemberExpression(range, target, symbol, member, callables)
     {
-        public MethodVirtualExpression(TextRange range, Expression target, List<AbstractCallable> callables) : base(range, target, callables)
-        {
-        }
     }
     internal class BlurryTaskExpression : Expression
     {
+        public readonly TextRange symbol;// start new
         public readonly InvokerExpression invoker;
 
-        public BlurryTaskExpression(TextRange range, InvokerExpression invoker) : base(range, TUPLE_BLURRY)
+        public BlurryTaskExpression(TextRange range, TextRange symbol, InvokerExpression invoker) : base(range, TUPLE_BLURRY)
         {
+            this.symbol = symbol;
             this.invoker = invoker;
             attribute = ExpressionAttribute.Value;
         }

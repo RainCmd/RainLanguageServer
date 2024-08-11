@@ -178,18 +178,11 @@ namespace RainLanguageServer.RainLanguage2
         public static implicit operator TypeSpan(Type[] types) => new(types);
         public static implicit operator Tuple(TypeSpan span)
         {
-            if (span.types is Type[] array)
-            {
-                if (span.start == 0 && span.count == array.Length) return new(array);
-                else return new Tuple(array[span.start..(span.start + span.count)]);
-            }
-            else
-            {
-                var result = new Type[span.count];
-                for (int i = 0; i < span.count; i++)
-                    result[i] = span[i];
-                return result;
-            }
+            if (span.start == 0 && span.count == span.types.Count && span.types is Type[] array) return new Tuple(array);
+            var result = new Type[span.count];
+            for (int i = 0; i < span.count; i++)
+                result[i] = span[i];
+            return result;
         }
         public override bool Equals(object? obj) => obj is TypeSpan span && Equals(span);
         public override int GetHashCode()

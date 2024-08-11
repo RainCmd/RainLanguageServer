@@ -16,4 +16,17 @@
             attribute = ExpressionAttribute.Invalid;
         }
     }
+    internal class InvalidOperatorExpression : Expression
+    {
+        public readonly TextRange symbol;
+        public readonly Expression parameters;
+        public override bool Valid => false;
+
+        public InvalidOperatorExpression(TextRange range, TextRange symbol, Expression parameters) : base(range, Tuple.Empty)
+        {
+            this.symbol = symbol;
+            this.parameters = parameters;
+            attribute = ExpressionAttribute.Invalid;
+        }
+    }
 }
