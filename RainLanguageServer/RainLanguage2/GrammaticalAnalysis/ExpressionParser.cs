@@ -444,11 +444,23 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             index = bracket.range.end;
                             if (attribute.ContainAny(ExpressionAttribute.Type))
                             {
-
+                                var type = (TypeExpression)expressionStack.Pop();
+                                if (bracket.Valid)
+                                {
+                                    var elementTypes = new Type[bracket.tuple.Count];
+                                    for (var i = 0; i < elementTypes.Length; i++) elementTypes[i] = type.type;
+                                    if (bracket.tuple != elementTypes)
+                                        bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, elementTypes));
+                                }
+                                var expression = new ArrayInitExpression(type.range & bracket.range, new Type(type.type, type.type.dimension + 1), type, bracket);
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
                             }
                             else if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
                             {
-
+                                var expression = new BlurrySetExpression(bracket);
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
                             }
                             else
                             {
@@ -462,17 +474,11 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             goto label_next_lexical;
                         }
                     case LexicalType.BracketRight0:
-                        break;
                     case LexicalType.BracketRight1:
-                        break;
                     case LexicalType.BracketRight2:
-                        break;
                     case LexicalType.Comma:
-                        break;
                     case LexicalType.Semicolon:
-                        break;
-                    case LexicalType.Assignment:
-                        break;
+                    case LexicalType.Assignment: goto default;
                     case LexicalType.Equals:
                         break;
                     case LexicalType.Lambda:
@@ -956,8 +962,8 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                     var elementType = new Type(type, type.dimension - 1);
                     var elementTypes = new Type[blurrySet.expression.tuple.Count];
                     elementTypes.Fill(elementType);
-                    var elements = AssignmentConvert(blurrySet.expression, elementTypes);
-                    return new ArrayInitExpression(blurrySet.range, elements, type);
+                    var elements = new BracketExpression(blurrySet.expression.left, blurrySet.expression.right, AssignmentConvert(blurrySet.expression.expression, elementTypes));
+                    return new ArrayInitExpression(blurrySet.range, type, null, elements);
                 }
                 else collector.Add(expression.range, ErrorLevel.Error, "类型不匹配");
             }

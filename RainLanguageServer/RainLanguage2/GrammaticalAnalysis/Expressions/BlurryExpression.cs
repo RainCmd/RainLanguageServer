@@ -59,7 +59,6 @@
     }
     internal class BlurrySetExpression : Expression
     {
-        public readonly TextRange? type;
         public readonly BracketExpression expression;
         public override bool Valid => expression.Valid;
 

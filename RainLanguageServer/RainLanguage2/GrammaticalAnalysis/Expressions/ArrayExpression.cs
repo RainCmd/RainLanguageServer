@@ -14,10 +14,12 @@
     }
     internal class ArrayInitExpression : Expression
     {
-        public readonly Expression elements;
+        public readonly TypeExpression? type;
+        public readonly BracketExpression elements;
         public override bool Valid => true;
-        public ArrayInitExpression(TextRange range, Expression elements, Type type) : base(range, type)
+        public ArrayInitExpression(TextRange range, Type arrayType, TypeExpression? type, BracketExpression elements) : base(range, arrayType)
         {
+            this.type = type;
             this.elements = elements;
             attribute = ExpressionAttribute.Value | ExpressionAttribute.Array;
         }
