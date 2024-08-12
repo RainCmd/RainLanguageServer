@@ -2,10 +2,10 @@
 {
     internal class ArrayCreateExpression : Expression
     {
-        public readonly TypeExpression? type;
+        public readonly TypeExpression type;
         public readonly BracketExpression length;
         public override bool Valid => true;
-        public ArrayCreateExpression(TextRange range, Type arrayType, TypeExpression? type, BracketExpression length) : base(range, arrayType)
+        public ArrayCreateExpression(TextRange range, Type arrayType, TypeExpression type, BracketExpression length) : base(range, arrayType)
         {
             this.type = type;
             this.length = length;

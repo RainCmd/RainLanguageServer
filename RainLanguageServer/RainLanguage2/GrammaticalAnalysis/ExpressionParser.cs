@@ -1,4 +1,5 @@
 ﻿
+using RainLanguageServer.RainLanguage;
 using RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions;
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -41,6 +42,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                     case LexicalType.BracketLeft0:
                         {
                             var bracket = ParseBracket(lexical.anchor.start & range.end, lexical.anchor, SplitFlag.Bracket0);
+                            index = bracket.range.end;
                             if (attribute.ContainAny(ExpressionAttribute.Method))
                             {
                                 var expression = expressionStack.Pop();
@@ -204,12 +206,12 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                     expressionStack.Push(bracket.ToInvalid());
                                 attribute = ExpressionAttribute.Invalid;
                             }
-                            index = bracket.range.end;
                             goto label_next_lexical;
                         }
                     case LexicalType.BracketLeft1:
                         {
                             var bracket = ParseBracket(lexical.anchor.start & range.end, lexical.anchor, SplitFlag.Bracket1);
+                            index = bracket.range.end;
                             if (attribute.ContainAll(ExpressionAttribute.Value | ExpressionAttribute.Array))
                             {
                                 if (bracket.Valid)
@@ -248,10 +250,16 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                     attribute = ExpressionAttribute.Invalid;
                                 }
                             }
-                            else if (attribute.ContainAll(ExpressionAttribute.Tuple))
+                            else if (attribute.ContainAny(ExpressionAttribute.Tuple))
                             {
                                 if (bracket.Valid)
                                 {
+                                    if (!IsIndies(bracket.tuple))
+                                    {
+                                        var list = new List<Type>();
+                                        foreach (var _ in bracket.tuple) list.Add(manager.kernelManager.INT);
+                                        bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan(list)));
+                                    }
                                     var indices = new List<long>();
                                     if (bracket.TryEvaluateIndices(indices))
                                     {
@@ -281,7 +289,6 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                                 expressionStack.Push(expression);
                                                 attribute = expression.attribute;
                                             }
-                                            index = bracket.range.end;
                                             goto label_next_lexical;
                                         }
                                         else collector.Add(bracket.range, ErrorLevel.Error, "缺少索引");
@@ -293,13 +300,167 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else if (attribute.ContainAny(ExpressionAttribute.Task))
                             {
-
+                                if (bracket.Valid)
+                                {
+                                    if (!IsIndies(bracket.tuple))
+                                    {
+                                        var list = new List<Type>();
+                                        foreach (var _ in bracket.tuple) list.Add(manager.kernelManager.INT);
+                                        bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan(list)));
+                                    }
+                                    var indices = new List<long>();
+                                    if (bracket.TryEvaluateIndices(indices))
+                                    {
+                                        var expression = expressionStack.Pop();
+                                        if (!manager.TryGetDeclaration(expression.tuple[0], out var declaration)) throw new Exception("类型错误");
+                                        if (declaration is not AbstructTask abstructTask) throw new Exception("不是任务类型");
+                                        if (indices.Count > 0)
+                                        {
+                                            var tuple = new Type[indices.Count];
+                                            var error = false;
+                                            for (var i = 0; i < indices.Count; i++)
+                                            {
+                                                if (indices[i] < 0) indices[i] += abstructTask.returns.Count;
+                                                if (indices[i] >= 0 && indices[i] < abstructTask.returns.Count) tuple[i] = abstructTask.returns[(int)indices[i]];
+                                                else
+                                                {
+                                                    collector.Add(bracket.range, ErrorLevel.Error, $"第{i + 1}个索引超出了任务的值类型数量范围");
+                                                    error = true;
+                                                }
+                                            }
+                                            if (error)
+                                            {
+                                                expressionStack.Push(new InvalidExpression(expression, bracket));
+                                                attribute = ExpressionAttribute.Invalid;
+                                            }
+                                            else
+                                            {
+                                                expression = new TaskEvaluationExpression(expression.range & bracket.range, tuple, expression, bracket, manager.kernelManager);
+                                                expressionStack.Push(expression);
+                                                attribute = expression.attribute;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            expression = new TaskEvaluationExpression(expression.range & bracket.range, abstructTask.returns, expression, bracket, manager.kernelManager);
+                                            expressionStack.Push(expression);
+                                            attribute = expression.attribute;
+                                        }
+                                        goto label_next_lexical;
+                                    }
+                                    else collector.Add(bracket.range, ErrorLevel.Error, "任务的求值索引必须是整数常量");
+                                }
+                                expressionStack.Push(new InvalidExpression(expressionStack.Pop(), bracket));
+                                attribute = ExpressionAttribute.Invalid;
                             }
-                            index = bracket.range.end;
+                            else if (attribute.ContainAny(ExpressionAttribute.Type))
+                            {
+                                if (bracket.Valid)
+                                {
+                                    if (bracket.tuple.Count == 1)
+                                    {
+                                        if (bracket.tuple[0] != manager.kernelManager.INT)
+                                            bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan([manager.kernelManager.INT])));
+                                        var type = (TypeExpression)expressionStack.Pop();
+                                        if (destructor) collector.Add(type.range, ErrorLevel.Error, "析构函数中不能创建托管对象");
+                                        var expression = new ArrayCreateExpression(type.range & bracket.range, new Type(type.type, type.type.dimension + 1), type, bracket);
+                                        expressionStack.Push(expression);
+                                        attribute = expression.attribute;
+                                        goto label_next_lexical;
+                                    }
+                                    else collector.Add(bracket.range, ErrorLevel.Error, "只支持一维数组");
+                                }
+                                expressionStack.Push(new InvalidExpression(expressionStack.Pop(), bracket));
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                            else if (attribute.ContainAny(ExpressionAttribute.Value))
+                            {
+                                if (bracket.Valid)
+                                {
+                                    var expression = expressionStack.Pop();
+                                    if (expression.tuple[0].dimension == 0 && expression.tuple[0].code == TypeCode.Struct)
+                                    {
+                                        if (!IsIndies(bracket.tuple))
+                                        {
+                                            var list = new List<Type>();
+                                            foreach (var _ in bracket.tuple) list.Add(manager.kernelManager.INT);
+                                            bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan(list)));
+                                        }
+                                        var indices = new List<long>();
+                                        if (bracket.TryEvaluateIndices(indices))
+                                        {
+                                            if (!manager.TryGetDeclaration(expression.tuple[0], out var declaration)) throw new Exception("无效的类型");
+                                            if (declaration is not AbstractStruct abstractStruct) throw new Exception("不是结构体类型:" + declaration.GetType());
+                                            if (indices.Count == 0)
+                                                for (var i = 0; i < abstractStruct.variables.Count; i++)
+                                                    indices.Add(i);
+                                            var tuple = new Type[indices.Count];
+                                            var error = false;
+                                            for (var i = 0; i < abstractStruct.variables.Count; i++)
+                                            {
+                                                if (indices[i] < 0) indices[i] += abstractStruct.variables.Count;
+                                                if (indices[i] >= 0 && indices[i] < abstractStruct.variables.Count) tuple[i] = abstractStruct.variables[(int)indices[i]].type;
+                                                else
+                                                {
+                                                    collector.Add(bracket.range, ErrorLevel.Error, $"第{i + 1}个索引超出了结构体成员字段的数量范围");
+                                                    error = true;
+                                                }
+                                            }
+                                            if (error)
+                                            {
+                                                expressionStack.Push(new InvalidExpression(expression, bracket));
+                                                attribute = ExpressionAttribute.Invalid;
+                                            }
+                                            else
+                                            {
+                                                expression = new TupleEvaluationExpression(expression.range & bracket.range, tuple, expression, bracket, manager.kernelManager);
+                                                expressionStack.Push(expression);
+                                                attribute = expression.attribute;
+                                            }
+                                            goto label_next_lexical;
+                                        }
+                                        else collector.Add(bracket.range, ErrorLevel.Error, "结构体解构索引必须是整数常量");
+                                    }
+                                    else collector.Add(expression.range, ErrorLevel.Error, "只能对结构体进行解构操作");
+                                    expressionStack.Push(expression);
+                                }
+                                expressionStack.Push(new InvalidExpression(expressionStack.Pop(), bracket));
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), bracket));
+                                else
+                                    expressionStack.Push(bracket.ToInvalid());
+                                attribute = ExpressionAttribute.Invalid;
+                            }
                             goto label_next_lexical;
                         }
                     case LexicalType.BracketLeft2:
-                        break;
+                        {
+                            var bracket = ParseBracket(lexical.anchor.start & range.end, lexical.anchor, SplitFlag.Bracket2);
+                            index = bracket.range.end;
+                            if (attribute.ContainAny(ExpressionAttribute.Type))
+                            {
+
+                            }
+                            else if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                            {
+
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), bracket));
+                                else
+                                    expressionStack.Push(bracket.ToInvalid());
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                            goto label_next_lexical;
+                        }
                     case LexicalType.BracketRight0:
                         break;
                     case LexicalType.BracketRight1:
@@ -562,7 +723,12 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
         }
         private Expression InferLeftValueType(Expression expression, TypeSpan span)
         {
-            if (!expression.Valid) return new InvalidExpression(expression, span);
+            if (!expression.Valid)
+            {
+                if ((TypeSpan)expression.tuple != span)
+                    return new InvalidExpression(expression, span);
+                return expression;
+            }
             if (expression.tuple.Count != span.Count)
             {
                 collector.Add(expression.range, ErrorLevel.Error, "类型数量不一致");

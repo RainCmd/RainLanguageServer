@@ -13,4 +13,17 @@
             attribute = ExpressionAttribute.Value | type.GetAttribute(manager);
         }
     }
+    internal class TaskEvaluationExpression : Expression
+    {
+        public readonly Expression source;
+        public readonly BracketExpression indices;
+        public override bool Valid => true;
+        public TaskEvaluationExpression(TextRange range, Tuple tuple, Expression source, BracketExpression indices, Manager.KernelManager manager) : base(range, tuple)
+        {
+            this.source = source;
+            this.indices = indices;
+            if (tuple.Count == 1) attribute = ExpressionAttribute.Value | tuple[0].GetAttribute(manager);
+            else attribute = ExpressionAttribute.Tuple;
+        }
+    }
 }
