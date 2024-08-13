@@ -92,6 +92,7 @@ namespace RainLanguageServer.RainLanguage2
         {
             public readonly bool valid = valid;
             public readonly List<AbstractClass.Function> implements = [];
+            public readonly List<AbstractCallable> overrides = [];//父接口中同名同参的函数
         }
         public readonly List<Type> inherits = [];
         public readonly List<Function> functions = [];

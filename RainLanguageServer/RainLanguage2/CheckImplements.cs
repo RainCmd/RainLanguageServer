@@ -13,12 +13,15 @@
             var name = implement.name.ToString();
             foreach (var abstractInterface in set)
                 foreach (var function in abstractInterface.functions)
-                    if (function.name == name && function.signature == implement.signature && function.returns != implement.returns)
+                    if (function.name == name && function.signature == implement.signature)
                     {
-                        var msg = new Message(implement.name, ErrorLevel.Error, "与继承的接口函数同名同参，但返回值不同");
-                        msg.AddRelated(function.name, "冲突的函数");
-                        implement.file.space.collector.Add(msg);
-                        return;
+                        if(function.returns != implement.returns)
+                        {
+                            var msg = new Message(implement.name, ErrorLevel.Error, "与继承的接口函数同名同参，但返回值不同");
+                            msg.AddRelated(function.name, "冲突的函数");
+                            implement.file.space.collector.Add(msg);
+                        }
+                        implement.overrides.Add(function);
                     }
         }
         private static void CheckFunction(Manager manager, HashSet<AbstractClass> set, Type index, AbstractClass.Function implement, string name)

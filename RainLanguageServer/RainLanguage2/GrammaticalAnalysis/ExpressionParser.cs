@@ -541,8 +541,10 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             else
                             {
                                 collector.Add(left, ErrorLevel.Error, "无效的运算符");
-                                var expression = expressionStack.Pop();
-                                expressionStack.Push(new InvalidOperationExpression(expression.range & left, left, expression));
+                                if (expressionStack.TryPop(out var expression))
+                                    expressionStack.Push(new InvalidOperationExpression(expression.range & left, left, expression));
+                                else
+                                    expressionStack.Push(new InvalidOperationExpression(left, left));
                                 attribute = ExpressionAttribute.Invalid;
                             }
                         }
@@ -608,8 +610,46 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                         }
                         break;
                     case LexicalType.RealInvoker:
-                        
-                        //todo 实调用
+                        if (attribute.ContainAny(ExpressionAttribute.Value))
+                        {
+                            if (Lexical.TryAnalysis(range, index, out var identifier, collector))
+                            {
+                                var expression = expressionStack.Pop();
+                                if (identifier.type == LexicalType.Word)
+                                {
+                                    var type = expression.tuple[0];
+                                    if (type.code == TypeCode.Handle || type.dimension > 0)
+                                    {
+                                        if (context.TryFindMember(manager, identifier.anchor, type, out var members))
+                                        {
+                                            //todo 实调用
+                                        }
+                                        else collector.Add(identifier.anchor, ErrorLevel.Error, $"未找到该成员");
+                                    }
+                                    else collector.Add(lexical.anchor, ErrorLevel.Error, "只有class才可以使用实调用");
+                                }
+                                else collector.Add(identifier.anchor, ErrorLevel.Error, "无效的标识符");
+                                expressionStack.Push(new InvalidOperationExpression(expression.range & identifier.anchor, lexical.anchor, expression));
+                                attribute = ExpressionAttribute.Invalid;
+                                index = identifier.anchor.end;
+                                goto label_next_lexical;
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "缺少标识符");
+                                var expression = expressionStack.Pop();
+                                expressionStack.Push(new InvalidOperationExpression(expression.range & lexical.anchor, lexical.anchor, expression));
+                            }
+                        }
+                        else
+                        {
+                            collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                            if (expressionStack.TryPop(out var expression))
+                                expressionStack.Push(new InvalidOperationExpression(expression.range & lexical.anchor, lexical.anchor, expression));
+                            else
+                                expressionStack.Push(new InvalidOperationExpression(lexical.anchor, lexical.anchor));
+                        }
+                        attribute = ExpressionAttribute.Invalid;
                         break;
                     case LexicalType.MinusAssignment: goto default;
                     case LexicalType.Mul:
@@ -675,13 +715,22 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                     case LexicalType.Backslash:
                         break;
                     default:
+                        collector.Add(lexical.anchor, ErrorLevel.Error, "意外的词条");
+                        if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
+                            expressionStack.Push(new InvalidExpression(expressionStack.Pop(), new InvalidExpression(lexical.anchor)));
+                        else
+                            expressionStack.Push(new InvalidExpression(lexical.anchor));
+                        attribute = ExpressionAttribute.Invalid;
                         break;
                 }
                 index = lexical.anchor.end;
             label_next_lexical:;
             }
             if (attribute.ContainAny(ExpressionAttribute.Operator))
+            {
+                collector.Add(range.end & range.end, ErrorLevel.Error, "运算缺少参数");
                 expressionStack.Push(new InvalidExpression(range.end & range.end));
+            }
             while (tokenStack.Count > 0) PopToken(expressionStack, tokenStack.Pop());
             if (expressionStack.Count > 1)
             {
@@ -1466,43 +1515,26 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             {
                 if (baseType == manager.kernelManager.INTERFACE) return 1;
                 else if (baseType == manager.kernelManager.HANDLE) return 2;
-                else if (baseType.code == TypeCode.Interface) return GetInterfaceInheritDeep(manager, baseType, subType);
+                else if (baseType.code == TypeCode.Interface) return manager.GetInterfaceInheritDeep(baseType, subType);
             }
             else if (subType.code == TypeCode.Handle && (baseType.code == TypeCode.Handle || baseType.code == TypeCode.Interface))
             {
-                var index = subType;
                 var depth = 0;
                 var min = -1;
-                while (manager.TryGetDeclaration(index, out var declaration) && declaration is AbstractClass abstractClass)
-                {
-                    if (baseType.code == TypeCode.Interface)
-                        foreach (var inherit in abstractClass.inherits)
-                        {
-                            var deep = GetInterfaceInheritDeep(manager, baseType, inherit);
-                            if (deep >= 0)
-                                if (min < 0 || depth + deep < min)
-                                    min = depth + deep;
-                        }
-                    depth++;
-                    index = abstractClass.parent;
-                    if (index == baseType) return depth;
-                }
-                return min;
-            }
-            return -1;
-        }
-        private static int GetInterfaceInheritDeep(Manager manager, Type baseType, Type subType)
-        {
-            if (baseType == subType) return 0;
-            if (manager.TryGetDeclaration(subType, out var declaration) && declaration is AbstractInterface abstractInterface)
-            {
-                var min = -1;
-                foreach (var inherit in abstractInterface.inherits)
-                {
-                    var deep = GetInterfaceInheritDeep(manager, inherit, subType);
-                    if (deep >= 0 && (deep < min || min < 0)) min = deep;
-                }
-                if (min >= 0) min++;
+                if (manager.TryGetDeclaration(subType, out var declaration) && declaration is AbstractClass abstractClass)
+                    foreach (var index in manager.GetInheritIterator(abstractClass))
+                    {
+                        if (baseType.code == TypeCode.Interface)
+                            foreach (var inherit in index.inherits)
+                            {
+                                var deep = manager.GetInterfaceInheritDeep(baseType, inherit);
+                                if (deep >= 0)
+                                    if (min < 0 || depth + deep < min)
+                                        min = depth + deep;
+                            }
+                        depth++;
+                        if (index.parent == baseType) return depth;
+                    }
                 return min;
             }
             return -1;

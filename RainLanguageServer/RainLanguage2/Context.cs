@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace RainLanguageServer.RainLanguage2
@@ -19,12 +20,11 @@ namespace RainLanguageServer.RainLanguage2
                     if (declaration.visibility.ContainAny(Visibility.Public | Visibility.Internal)) return true;
                     else if (declaration.visibility.ContainAny(Visibility.Space)) return abstractDeclaration.space.Contain(space);
                 if (declaration.category == DeclarationCategory.ClassVariable || declaration.category == DeclarationCategory.Constructor || declaration.category == DeclarationCategory.ClassFunction)
-                    for (var index = this.declaration as AbstractClass; index != null;)
-                    {
+                {
+                    foreach (var index in manager.GetInheritIterator(this.declaration as AbstractClass))
                         if (index == abstractDeclaration) return true;
-                        if (!manager.TryGetDeclaration(index.parent, out var parentDeclaration)) return false;
-                        index = parentDeclaration as AbstractClass;
-                    }
+                    return false;
+                }
             }
             else
             {
@@ -99,12 +99,11 @@ namespace RainLanguageServer.RainLanguage2
                         if (manager.TryGetDefineDeclaration(declaration, out abstractDeclaration) && abstractDeclaration.declaration.visibility.ContainAny(Visibility.Public))
                             if (declaration.visibility.ContainAny(Visibility.Public)) return true;
                             else if (this.declaration != null && this.declaration.declaration.category == DeclarationCategory.Class && declaration.visibility.ContainAny(Visibility.Protected))
-                                for (var index = this.declaration as AbstractClass; index != null;)
-                                {
+                            {
+                                foreach (var index in manager.GetInheritIterator(this.declaration as AbstractClass))
                                     if (index == abstractDeclaration) return true;
-                                    if (!manager.TryGetDeclaration(index.parent, out var parentDeclaration)) return false;
-                                    index = parentDeclaration as AbstractClass;
-                                }
+                                return false;
+                            }
                         break;
                     case DeclarationCategory.Interface:
                         return declaration.visibility.ContainAny(Visibility.Public);
@@ -150,6 +149,61 @@ namespace RainLanguageServer.RainLanguage2
             result = default;
             return false;
         }
+        public bool TryFindMember(Manager manager, TextRange name, Type type, out List<AbstractDeclaration> members)
+        {
+            members = [];
+            if (type.dimension == 0) type = manager.kernelManager.ARRAY;
+            else if (type.code == TypeCode.Enum) type = manager.kernelManager.ENUM;
+            else if (type.code == TypeCode.Task) type = manager.kernelManager.TASK;
+            else if (type.code == TypeCode.Delegate) type = manager.kernelManager.DELEGATE;
+            var memberName = name.ToString();
+            if (manager.TryGetDeclaration(type, out var declaration))
+            {
+                if (declaration is AbstractStruct abstractStruct)
+                {
+                    foreach (var member in abstractStruct.variables)
+                        if (member.name == memberName)
+                        {
+                            members.Add(member);
+                            return true;
+                        }
+                    foreach (var member in abstractStruct.functions)
+                        if (member.name == memberName && IsVisiable(manager, member.declaration))
+                            members.Add(member);
+                }
+                else if (declaration is AbstractClass abstractClass)
+                {
+                    var filter = new HashSet<AbstractCallable>();
+                    foreach (var index in manager.GetInheritIterator(abstractClass))
+                    {
+                        foreach (var member in index.variables)
+                            if (member.name == memberName && IsVisiable(manager, member.declaration))
+                            {
+                                members.Add(member);
+                                return true;
+                            }
+                        foreach (var member in index.functions)
+                            if (member.name == memberName && IsVisiable(manager, member.declaration) && filter.Add(member))
+                            {
+                                members.Add(member);
+                                filter.AddRange(member.overrides);
+                            }
+                    }
+                }
+                else if (declaration is AbstractInterface abstractInterface)
+                {
+                    var filter = new HashSet<AbstractCallable>();
+                    foreach (var index in manager.GetInheritIterator(abstractInterface))
+                        foreach (var function in index.functions)
+                            if (filter.Add(function))
+                            {
+                                members.Add(function);
+                                filter.AddRange(function.overrides);
+                            }
+                }
+            }
+            return members.Count > 0;
+        }
         public List<AbstractDeclaration> FindDeclaration(Manager manager, TextRange name, MessageCollector collector)
         {
             var results = new List<AbstractDeclaration>();
@@ -166,8 +220,7 @@ namespace RainLanguageServer.RainLanguage2
                             results.Add(function);
                 }
                 else if (declaration is AbstractClass abstractClass)
-                {
-                    for (var index = abstractClass; index != null;)
+                    foreach (var index in manager.GetInheritIterator(abstractClass))
                     {
                         foreach (var variable in index.variables)
                             if (variable.name == targetName)
@@ -175,10 +228,7 @@ namespace RainLanguageServer.RainLanguage2
                         foreach (var function in index.functions)
                             if (function.name == targetName)
                                 results.Add(function);
-                        if (manager.TryGetDeclaration(index.parent, out var parent)) index = parent as AbstractClass;
-                        else break;
                     }
-                }
                 if (results.Count > 0) return results;
             }
             for (var index = space; index != null; index = index.parent)

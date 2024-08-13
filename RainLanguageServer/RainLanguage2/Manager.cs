@@ -49,6 +49,8 @@ namespace RainLanguageServer.RainLanguage2
         private readonly Func<string, TextDocument[]> relyLoader;
         private readonly Func<IEnumerable<TextDocument>> documentLoader;
         private readonly Func<IEnumerable<TextDocument>> opendDocumentLoader;
+        private readonly HashSet<AbstractDeclaration> set = [];
+        private readonly Queue<AbstractInterface> interfaceQueue = [];
         public Manager(string name, string kernelPath, string[]? imports, Func<string, TextDocument[]> relyLoader, Func<IEnumerable<TextDocument>> documentLoader, Func<IEnumerable<TextDocument>> opendDocumentLoader)
         {
             library = new AbstractLibrary(LIBRARY_SELF, name);
@@ -102,6 +104,59 @@ namespace RainLanguageServer.RainLanguage2
                 file.collector.Clear();
         }
         public AbstractLibrary GetLibrary(int library) => librarys[library];
+        public IEnumerable<AbstractClass> GetInheritIterator(AbstractClass? abstractClass)
+        {
+            set.Clear();
+            while (abstractClass != null)
+            {
+                if (!set.Add(abstractClass)) break;
+                yield return abstractClass;
+                if (TryGetDeclaration(abstractClass.parent, out var declaration))
+                    abstractClass = declaration as AbstractClass;
+                else break;
+            }
+        }
+        public IEnumerable<AbstractInterface> GetInheritIterator(AbstractInterface? abstractInterface)
+        {
+            if (abstractInterface != null)
+            {
+                set.Clear();
+                interfaceQueue.Clear();
+                interfaceQueue.Enqueue(abstractInterface);
+                while (interfaceQueue.Count > 0)
+                {
+                    var index = interfaceQueue.Dequeue();
+                    if (set.Add(index))
+                    {
+                        yield return index;
+                        foreach (var inheritType in index.inherits)
+                            if (TryGetDeclaration(inheritType, out var declaration) && declaration is AbstractInterface inherit)
+                                interfaceQueue.Enqueue(inherit);
+                    }
+                }
+            }
+        }
+        private int InternalGetInterfaceInheritDeep(Type baseType, Type subType)
+        {
+            if (baseType == subType) return 0;
+            if (TryGetDeclaration(subType, out var declaration) && set.Add(declaration) && declaration is AbstractInterface abstractInterface)
+            {
+                var min = -1;
+                foreach (var inherit in abstractInterface.inherits)
+                {
+                    var deep = GetInterfaceInheritDeep(inherit, subType);
+                    if (deep >= 0 && (deep < min || min < 0)) min = deep;
+                }
+                if (min >= 0) min++;
+                return min;
+            }
+            return -1;
+        }
+        public int GetInterfaceInheritDeep(Type baseType, Type subType)
+        {
+            set.Clear();
+            return InternalGetInterfaceInheritDeep(baseType, subType);
+        }
         public bool TryGetDeclaration(Type type, [MaybeNullWhen(false)] out AbstractDeclaration declaration)
         {
             if (type.code == TypeCode.Invalid)

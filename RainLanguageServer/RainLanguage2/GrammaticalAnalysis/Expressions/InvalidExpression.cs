@@ -24,10 +24,10 @@
     internal class InvalidOperationExpression : Expression
     {
         public readonly TextRange symbol;
-        public readonly Expression parameters;
+        public readonly Expression? parameters;
         public override bool Valid => false;
 
-        public InvalidOperationExpression(TextRange range, TextRange symbol, Expression parameters) : base(range, Tuple.Empty)
+        public InvalidOperationExpression(TextRange range, TextRange symbol, Expression? parameters = null) : base(range, Tuple.Empty)
         {
             this.symbol = symbol;
             this.parameters = parameters;
