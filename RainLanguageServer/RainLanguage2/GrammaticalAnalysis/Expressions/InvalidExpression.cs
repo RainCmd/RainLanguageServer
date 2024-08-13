@@ -4,6 +4,11 @@
     {
         public readonly IList<Expression> expressions;
         public override bool Valid => false;
+        public InvalidExpression(TextRange range) : base(range, Tuple.Empty)
+        {
+            expressions = [];
+            attribute = ExpressionAttribute.Invalid;
+        }
         public InvalidExpression(params Expression[] expressions) : this((IList<Expression>)expressions) { }
         public InvalidExpression(IList<Expression> expressions) : base(expressions[0].range & expressions[^1].range, Tuple.Empty)
         {

@@ -41,10 +41,11 @@
         IncrementLeft,      // 左自增( ++X )
         DecrementLeft,		// 左自减( --X )
     }
-    internal readonly struct Token
+    internal readonly struct Token(Lexical lexical, TokenType type)
     {
-        public readonly Lexical lexical;
-        public readonly TokenType type;
+        public readonly Lexical lexical = lexical;
+        public readonly TokenType type = type;
+
         public int Priority => (int)type >> 4;
         public ExpressionAttribute Precondition
         {
