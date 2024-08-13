@@ -2,7 +2,7 @@
 {
     internal static class FileLink
     {
-        private static Type GetType(Context context, Manager manager, FileType type, MessageCollector collector)
+        public static Type GetType(Context context, Manager manager, FileType type, MessageCollector collector)
         {
             Type resultType = default;
             var result = context.FindDeclaration(manager, type.name, collector);

@@ -151,8 +151,9 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
             return true;
         }
     }
-    internal class ConstTypeExpression(TextRange range, FileType file, Type value, Manager.KernelManager manager) : ConstExpression(range, manager.TYPE)
+    internal class ConstTypeExpression(TextRange range, TextRange symbolLeft, TextRange symbolRight, FileType file, Type value, Manager.KernelManager manager) : ConstExpression(range, manager.TYPE)
     {
+        public readonly TextRange symbolLeft = symbolLeft, symbolRight = symbolRight;
         public readonly FileType file = file;
         public readonly Type value = value;
         public override bool TryEvaluate(out Type value)

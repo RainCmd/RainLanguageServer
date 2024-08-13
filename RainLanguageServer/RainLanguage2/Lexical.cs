@@ -454,7 +454,7 @@ namespace RainLanguageServer.RainLanguage2
                 index = lexical.anchor.end - segment.start;
                 if (TryAnalysis(segment, index, out lexical, collector) && lexical.type == LexicalType.Dot)
                     index = lexical.anchor.end - segment.start;
-                else break;
+                else return true;
             }
             return false;
         }

@@ -512,7 +512,39 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                         }
                         else
                         {
-
+                            var left = lexical.anchor;
+                            if (Lexical.TryExtractName(range, left.end, out var names, collector))
+                            {
+                                var name = new QualifiedName(names);
+                                index = name.name.end;
+                                var dimension = Lexical.ExtractDimension(range, ref index);
+                                var file = new FileType(name.Range.start & index, name, dimension);
+                                var type = FileLink.GetType(context, manager, file, collector);
+                                if (Lexical.TryAnalysis(range, index, out lexical, collector) && lexical.type == LexicalType.Greater)
+                                {
+                                    index = lexical.anchor.end;
+                                    var expression = new ConstTypeExpression(left & lexical.anchor, left, lexical.anchor, file, type, manager.kernelManager);
+                                    expressionStack.Push(expression);
+                                    attribute = expression.attribute;
+                                }
+                                else
+                                {
+                                    var msg = new Message(index & index, ErrorLevel.Error, "缺少配对的符号");
+                                    msg.related.Add(new RelatedInfo(left, "缺少配对的符号"));
+                                    collector.Add(msg);
+                                    var expression = new ConstTypeExpression(left.start & index, left, index & index, file, type, manager.kernelManager);
+                                    expressionStack.Push(expression);
+                                    attribute = expression.attribute;
+                                }
+                                goto label_next_lexical;
+                            }
+                            else
+                            {
+                                collector.Add(left, ErrorLevel.Error, "无效的运算符");
+                                var expression = expressionStack.Pop();
+                                expressionStack.Push(new InvalidOperationExpression(expression.range & left, left, expression));
+                                attribute = ExpressionAttribute.Invalid;
+                            }
                         }
                         break;
                     case LexicalType.LessEquals:
@@ -576,6 +608,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                         }
                         break;
                     case LexicalType.RealInvoker:
+                        
                         //todo 实调用
                         break;
                     case LexicalType.MinusAssignment: goto default;
@@ -938,7 +971,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                 return new OperationExpression(range, symbol, callable, parameters, manager.kernelManager);
             }
             else if (parameters.Valid) collector.Add(symbol, ErrorLevel.Error, "操作未找到");
-            return new InvalidOperatorExpression(range, symbol, parameters);
+            return new InvalidOperationExpression(range, symbol, parameters);
         }
         private bool TryGetFunction(TextRange range, List<AbstractDeclaration> declarations, Expression parameters, [MaybeNullWhen(false)] out AbstractCallable result)
         {
