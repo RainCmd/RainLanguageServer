@@ -46,6 +46,7 @@ namespace RainLanguageServer
             }
         }
         public bool Valid => start.document != null && end.document != null;
+        public char this[Index index] => this[index.GetOffset(Count)];
         public char this[int index]
         {
             get

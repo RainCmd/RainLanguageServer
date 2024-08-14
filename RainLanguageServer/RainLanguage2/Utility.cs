@@ -2,6 +2,62 @@
 {
     internal static class Utility
     {
+        public static bool TryToHexNumber(this char value, out int number)
+        {
+            if (value >= '0' && value <= '9')
+            {
+                number = value - '0';
+                return true;
+            }
+            else
+            {
+                number = value | 0x20;
+                if (number is >= 'a' and <= 'f')
+                {
+                    number -= 'a' - 10;
+                    return true;
+                }
+            }
+            number = 0;
+            return false;
+        }
+        public static char EscapeCharacter(TextRange range, ref int index)
+        {
+            if (range[index] != '\\') throw new Exception("需要保留转义字符");
+            var c = range[++index];
+            if (c == 'a') c = '\a';
+            else if (c == 'b') c = '\b';
+            else if (c == 'f') c = '\f';
+            else if (c == 'n') c = '\n';
+            else if (c == 'r') c = '\r';
+            else if (c == 't') c = '\t';
+            else if (c == 'v') c = '\v';
+            else if (c == '0') c = '\0';
+            else if (c == 'x')
+            {
+                if (range[index + 1].TryToHexNumber(out var hNum) && range[index + 2].TryToHexNumber(out var lNum))
+                {
+                    index += 2;
+                    return (char)(hNum * 16 + lNum);
+                }
+            }
+            else if (c == 'u')
+            {
+                if (index + 4 < range.Count)
+                {
+                    var value = 0;
+                    for (int i = 0;i<4;i++)
+                    {
+                        value <<= 4;
+                        if (range[index + i + 1].TryToHexNumber(out var number)) value += number;
+                        else return c;
+                    }
+                    index += 4;
+                    return (char)value;
+                }
+            }
+            return c;
+        }
         public static List<R> Select<T, R>(this List<T> list) where R : T
         {
             var results = new List<R>();

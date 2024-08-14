@@ -126,6 +126,10 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
             return true;
         }
     }
+    internal class ConstCharsExpression(TextRange range, long value, Manager.KernelManager manager) : ConstIntegerExpression(range, value, manager)
+    {
+
+    }
     internal class ConstRealExpression(TextRange range, double value, Manager.KernelManager manager) : ConstExpression(range, manager.REAL)
     {
         public readonly double value = value;

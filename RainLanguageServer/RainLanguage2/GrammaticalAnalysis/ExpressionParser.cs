@@ -1,4 +1,5 @@
-﻿using RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions;
+﻿using Newtonsoft.Json.Linq;
+using RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions;
 using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
@@ -878,23 +879,196 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                     case LexicalType.QuestionNull:
                     case LexicalType.Colon: goto default;
                     case LexicalType.ConstReal:
+                        {
+                            var value = double.Parse(lexical.anchor.ToString().Replace("_", ""));
+                            var expression = new ConstRealExpression(lexical.anchor, value, manager.kernelManager);
+                            if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                            {
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), expression));
+                                else
+                                    expressionStack.Push(expression);
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                        }
                         break;
                     case LexicalType.ConstNumber:
+                        {
+                            var value = long.Parse(lexical.anchor.ToString().Replace("_", ""));
+                            var expression = new ConstIntegerExpression(lexical.anchor, value, manager.kernelManager);
+                            if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                            {
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), expression));
+                                else
+                                    expressionStack.Push(expression);
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                        }
                         break;
                     case LexicalType.ConstBinary:
+                        {
+                            long value = 0;
+                            for (var i = 2; i < lexical.anchor.Count; i++)
+                            {
+                                var c = lexical.anchor[i];
+                                if (c != '_')
+                                {
+                                    value <<= 1;
+                                    if (c == '1') value++;
+                                }
+                            }
+                            var expression = new ConstIntegerExpression(lexical.anchor, value, manager.kernelManager);
+                            if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                            {
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), expression));
+                                else
+                                    expressionStack.Push(expression);
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                        }
                         break;
                     case LexicalType.ConstHexadecimal:
+                        {
+                            long value = 0;
+                            for (var i = 2; i < lexical.anchor.Count; i++)
+                            {
+                                var c = lexical.anchor[i];
+                                if (c != '_')
+                                {
+                                    value <<= 4;
+                                    if (c.TryToHexNumber(out var number)) value += number;
+                                    else throw new Exception($"{c}不是16进制字符");
+                                }
+                            }
+                            var expression = new ConstIntegerExpression(lexical.anchor, value, manager.kernelManager);
+                            if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                            {
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), expression));
+                                else
+                                    expressionStack.Push(expression);
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                        }
                         break;
                     case LexicalType.ConstChars:
+                        {
+                            long value = 0;
+                            var anchor = lexical.anchor;
+                            if (anchor[^1] == '\'') anchor = anchor[1..^2];
+                            else anchor = anchor[1..];
+                            for (var i = 0; i < anchor.Count; i++)
+                            {
+                                var c = anchor[i] & 0xff;
+                                value <<= 8;
+                                if (c == '\\') value += Utility.EscapeCharacter(anchor, ref i);
+                                else value += c;
+                            }
+                            var expression = new ConstCharsExpression(lexical.anchor, value, manager.kernelManager);
+                            if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                            {
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), expression));
+                                else
+                                    expressionStack.Push(expression);
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                        }
                         break;
                     case LexicalType.ConstString:
+                        {
+                            var expression = new ConstStringExpression(lexical.anchor, lexical.anchor.ToString(), manager.kernelManager);
+                            if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                            {
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), expression));
+                                else
+                                    expressionStack.Push(expression);
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                        }
                         break;
                     case LexicalType.TemplateString:
+                        {
+                            var expressions = new List<Expression>();
+                            var anchor = lexical.anchor;
+                            if (anchor[^1] == '\"') anchor = anchor[2..^2];
+                            else anchor = anchor[2..];
+                            for (var i = 0; i < anchor.Count; i++)
+                            {
+                                var c = anchor[i];
+                                if (c == '{')
+                                {
+                                    if (anchor[i + 1] == '{')
+                                    {
+                                        i++;
+                                        continue;
+                                    }
+                                    var bracket = ParseBracket(anchor, anchor[i..(i + 1)], SplitFlag.Bracket2);
+                                    if (!bracket.expression.attribute.ContainAny(ExpressionAttribute.Value))
+                                        collector.Add(bracket.expression.range, ErrorLevel.Error, "内插字符串内的表达式必须是返回单个值");
+                                    expressions.Add(bracket);
+                                    i = bracket.range.end - anchor.start;
+                                }
+                            }
+                            var expression = new ComplexStringExpression(lexical.anchor, expressions, manager.kernelManager);
+                            if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                            {
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), expression));
+                                else
+                                    expressionStack.Push(expression);
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                        }
                         break;
                     case LexicalType.Word:
                         break;
                     case LexicalType.Backslash:
-                        break;
                     default:
                         collector.Add(lexical.anchor, ErrorLevel.Error, "意外的词条");
                         if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
