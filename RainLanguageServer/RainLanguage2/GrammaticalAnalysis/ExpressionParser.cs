@@ -614,24 +614,27 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                         {
                             if (Lexical.TryAnalysis(range, index, out var identifier, collector))
                             {
+                                index = identifier.anchor.end;
                                 var expression = expressionStack.Pop();
                                 if (identifier.type == LexicalType.Word)
                                 {
                                     var type = expression.tuple[0];
                                     if (type.code == TypeCode.Handle || type.dimension > 0)
                                     {
-                                        if (context.TryFindMember(manager, identifier.anchor, type, out var members))
+                                        if (context.TryFindMember(manager, identifier.anchor, type, out List<AbstractClass.Function> functions))
                                         {
-                                            //todo 实调用
+                                            expression = new MethodMemberExpression(expression.range & identifier.anchor, expression, lexical.anchor, identifier.anchor, [.. functions]);
+                                            expressionStack.Push(expression);
+                                            attribute = expression.attribute;
+                                            goto label_next_lexical;
                                         }
-                                        else collector.Add(identifier.anchor, ErrorLevel.Error, $"未找到该成员");
+                                        else collector.Add(identifier.anchor, ErrorLevel.Error, $"未找到该成员函数");
                                     }
                                     else collector.Add(lexical.anchor, ErrorLevel.Error, "只有class才可以使用实调用");
                                 }
                                 else collector.Add(identifier.anchor, ErrorLevel.Error, "无效的标识符");
                                 expressionStack.Push(new InvalidOperationExpression(expression.range & identifier.anchor, lexical.anchor, expression));
                                 attribute = ExpressionAttribute.Invalid;
-                                index = identifier.anchor.end;
                                 goto label_next_lexical;
                             }
                             else
@@ -681,21 +684,199 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                         attribute = ExpressionAttribute.Operator;
                         break;
                     case LexicalType.Dot:
+                        if (attribute.ContainAny(ExpressionAttribute.Type))
+                        {
+                            var type = (TypeExpression)expressionStack.Pop();
+                            if (type.type.code == TypeCode.Enum)
+                            {
+                                if (Lexical.TryAnalysis(range, lexical.anchor.end, out var identifier, collector))
+                                {
+                                    index = identifier.anchor.end;
+                                    if (!manager.TryGetDeclaration(type.type, out var declaration)) throw new Exception("类型错误");
+                                    if (declaration is not AbstractEnum abstractEnum) throw new Exception($"{declaration.GetType()}无法转换为{typeof(AbstractEnum)}");
+                                    var elementName = identifier.ToString();
+                                    foreach (var element in abstractEnum.elements)
+                                        if (element.name == elementName)
+                                        {
+                                            var expression = new EnumElementExpression(type.range & identifier.anchor, lexical.anchor, identifier.anchor, abstractEnum, element, type);
+                                            expressionStack.Push(expression);
+                                            attribute = expression.attribute;
+                                            goto label_next_lexical;
+                                        }
+                                    collector.Add(identifier.anchor, ErrorLevel.Error, "枚举值不存在");
+                                    expressionStack.Push(new InvalidOperationExpression(type.range & identifier.anchor, lexical.anchor, type));
+                                    attribute = ExpressionAttribute.Invalid;
+                                    goto label_next_lexical;
+                                }
+                                else
+                                {
+                                    collector.Add(lexical.anchor, ErrorLevel.Error, "应输入标识符");
+                                    expressionStack.Push(new InvalidOperationExpression(type.range & lexical.anchor, lexical.anchor, type));
+                                }
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                expressionStack.Push(new InvalidOperationExpression(type.range & lexical.anchor, lexical.anchor, type));
+                            }
+                        }
+                        else if (attribute.ContainAny(ExpressionAttribute.Value))
+                        {
+                            var expression = expressionStack.Pop();
+                            if (Lexical.TryAnalysis(range, lexical.anchor.end, out var identifier, collector))
+                            {
+                                index = identifier.anchor.end;
+                                if (context.TryFindMember<AbstractDeclaration>(manager, identifier.anchor, expression.tuple[0], out var members))
+                                {
+                                    if (members[0] is AbstractStruct.Variable structVariable)
+                                        expression = new VariableMemberExpression(expression.range & identifier.anchor, structVariable.type, lexical.anchor, identifier.anchor, expression, members[0], manager.kernelManager);
+                                    else if (members[0] is AbstractClass.Variable classVariable)
+                                        expression = new VariableMemberExpression(expression.range & identifier.anchor, classVariable.type, lexical.anchor, identifier.anchor, expression, members[0], manager.kernelManager);
+                                    else if (members[0] is AbstractStruct.Function || members[0] is AbstractClass.Function || members[0] is AbstractInterface.Function)
+                                        expression = new MethodVirtualExpression(expression.range & identifier.anchor, expression, lexical.anchor, identifier.anchor, members.Select<AbstractDeclaration, AbstractCallable>());
+                                    else throw new Exception("未知的成员类型" + members[0].GetType());
+                                    expressionStack.Push(expression);
+                                    attribute = expression.attribute;
+                                    goto label_next_lexical;
+                                }
+                                else
+                                {
+                                    collector.Add(identifier.anchor, ErrorLevel.Error, "没有找到该成员");
+                                    expressionStack.Push(new InvalidOperationExpression(expression.range & identifier.anchor, lexical.anchor, expression));
+                                }
+                                attribute = ExpressionAttribute.Invalid;
+                                goto label_next_lexical;
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "应输入标识符");
+                                expressionStack.Push(new InvalidOperationExpression(expression.range & lexical.anchor, lexical.anchor, expression));
+                            }
+                        }
+                        else
+                        {
+                            collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                            if (expressionStack.TryPop(out var expression))
+                                expressionStack.Push(new InvalidOperationExpression(expression.range & lexical.anchor, lexical.anchor, expression));
+                            else
+                                expressionStack.Push(new InvalidOperationExpression(lexical.anchor, lexical.anchor));
+                        }
+                        attribute = ExpressionAttribute.Invalid;
                         break;
-                    case LexicalType.Question:
-                        break;
+                    case LexicalType.Question: goto default;
                     case LexicalType.QuestionDot:
+                        {
+                            if (attribute.ContainAny(ExpressionAttribute.Value))
+                            {
+                                if (expressionStack.Peek().tuple[0].Managed || expressionStack.Peek().tuple[0] == manager.kernelManager.ENTITY) goto case LexicalType.Dot;
+                                else collector.Add(lexical.anchor, ErrorLevel.Error, "可为空的类型才能使用此操作符");
+                            }
+                            else collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                            if (expressionStack.TryPop(out var expression))
+                                expressionStack.Push(new InvalidOperationExpression(expression.range & lexical.anchor, lexical.anchor, expression));
+                            else
+                                expressionStack.Push(new InvalidOperationExpression(lexical.anchor, lexical.anchor));
+                            attribute = ExpressionAttribute.Invalid;
+                        }
                         break;
                     case LexicalType.QuestionRealInvoke:
+                        {
+                            if (attribute.ContainAny(ExpressionAttribute.Value))
+                            {
+                                if (expressionStack.Peek().tuple[0].Managed || expressionStack.Peek().tuple[0] == manager.kernelManager.ENTITY) goto case LexicalType.RealInvoker;
+                                else collector.Add(lexical.anchor, ErrorLevel.Error, "可为空的类型才能使用此操作符");
+                            }
+                            else collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                            if (expressionStack.TryPop(out var expression))
+                                expressionStack.Push(new InvalidOperationExpression(expression.range & lexical.anchor, lexical.anchor, expression));
+                            else
+                                expressionStack.Push(new InvalidOperationExpression(lexical.anchor, lexical.anchor));
+                            attribute = ExpressionAttribute.Invalid;
+                        }
                         break;
                     case LexicalType.QuestionInvoke:
-                        break;
+                        {
+                            var bracket = ParseBracket(lexical.anchor.start & range.end, lexical.anchor, SplitFlag.Bracket0);
+                            index = bracket.range.end;
+                            if (attribute.ContainAll(ExpressionAttribute.Value | ExpressionAttribute.Callable))
+                            {
+                                var expression = expressionStack.Pop();
+                                if (!manager.TryGetDeclaration(expression.tuple[0], out var declaration)) throw new Exception("类型错误");
+                                if (declaration is not AbstructDelegate abstructDelegate) throw new Exception("未知的可调用类型：" + declaration.GetType());
+                                bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, abstructDelegate.signature));
+                                expression = new InvokerDelegateExpression(expression.range & bracket.range, abstructDelegate.returns, expression, bracket, manager.kernelManager);
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), bracket));
+                                else
+                                    expressionStack.Push(bracket.ToInvalid());
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                            goto label_next_lexical;
+                        }
                     case LexicalType.QuestionIndex:
-                        break;
+                        {
+                            var bracket = ParseBracket(lexical.anchor.start & range.end, lexical.anchor, SplitFlag.Bracket1);
+                            index = bracket.range.end;
+                            if (attribute.ContainAll(ExpressionAttribute.Value | ExpressionAttribute.Array))
+                            {
+                                if (bracket.Valid)
+                                {
+                                    if (!IsIndies(bracket.tuple))
+                                    {
+                                        var list = new List<Type>();
+                                        foreach (var _ in bracket.tuple) list.Add(manager.kernelManager.INT);
+                                        bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan(list)));
+                                    }
+                                    var expression = expressionStack.Pop();
+                                    if (bracket.tuple.Count == 1)
+                                    {
+                                        if (expression.tuple[0] == manager.kernelManager.STRING)
+                                        {
+                                            collector.Add(expression.range, ErrorLevel.Error, "字符串不是可为空的类型");
+                                            expression = new StringEvaluationExpression(expression.range & bracket.range, expression, bracket, manager.kernelManager);
+                                        }
+                                        else expression = new ArrayEvaluationExpression(expression.range & bracket.range, expression, bracket, manager.kernelManager);
+                                        expressionStack.Push(expression);
+                                        attribute = expression.attribute;
+                                    }
+                                    else if (bracket.tuple.Count == 2)
+                                    {
+                                        expression = new ArraySubExpression(expression.range & bracket.range, expression, bracket, manager.kernelManager);
+                                        expressionStack.Push(expression);
+                                        attribute = expression.attribute;
+                                    }
+                                    else
+                                    {
+                                        collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                        expressionStack.Push(new InvalidExpression(expression, bracket));
+                                        attribute = ExpressionAttribute.Invalid;
+                                    }
+                                }
+                                else
+                                {
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), bracket));
+                                    attribute = ExpressionAttribute.Invalid;
+                                }
+                            }
+                            else
+                            {
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的操作");
+                                if (attribute == ExpressionAttribute.Invalid || attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Type))
+                                    expressionStack.Push(new InvalidExpression(expressionStack.Pop(), bracket));
+                                else
+                                    expressionStack.Push(bracket.ToInvalid());
+                                attribute = ExpressionAttribute.Invalid;
+                            }
+                            goto label_next_lexical;
+                        }
                     case LexicalType.QuestionNull:
-                        break;
-                    case LexicalType.Colon:
-                        break;
+                    case LexicalType.Colon: goto default;
                     case LexicalType.ConstReal:
                         break;
                     case LexicalType.ConstNumber:
@@ -827,12 +1008,6 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             var result = CreateOperation(parameters[0].range & parameters[^1].range, name.ToString(), name, parameters);
             expressionStack.Push(result);
             return result.attribute;
-        }
-        private bool IsIndies(Tuple tuple)
-        {
-            foreach (var type in tuple)
-                if (type != manager.kernelManager.INT) return false;
-            return true;
         }
         private Expression ConvertVectorParameter(Expression parameter, int count)
         {
@@ -1415,6 +1590,12 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                 return true;
             }
             return false;
+        }
+        private bool IsIndies(Tuple tuple)
+        {
+            foreach (var type in tuple)
+                if (type != manager.kernelManager.INT) return false;
+            return true;
         }
         private static bool ContainBlurry(Expression expression)
         {

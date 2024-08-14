@@ -2,6 +2,14 @@
 {
     internal static class Utility
     {
+        public static List<R> Select<T, R>(this List<T> list) where R : T
+        {
+            var results = new List<R>();
+            foreach (var item in list)
+                if (item is R value)
+                    results.Add(value);
+            return results;
+        }
         public static void Fill<T>(this T[] array, T value)
         {
             for (int i = 0; i < array.Length; i++) array[i] = value;

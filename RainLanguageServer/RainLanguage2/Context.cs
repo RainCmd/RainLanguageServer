@@ -149,7 +149,7 @@ namespace RainLanguageServer.RainLanguage2
             result = default;
             return false;
         }
-        public bool TryFindMember(Manager manager, TextRange name, Type type, out List<AbstractDeclaration> members)
+        public bool TryFindMember<T>(Manager manager, TextRange name, Type type, out List<T> members) where T : AbstractDeclaration
         {
             members = [];
             if (type.dimension == 0) type = manager.kernelManager.ARRAY;
@@ -164,28 +164,31 @@ namespace RainLanguageServer.RainLanguage2
                     foreach (var member in abstractStruct.variables)
                         if (member.name == memberName)
                         {
-                            members.Add(member);
+                            if (member is T value)
+                                members.Add(value);
                             return true;
                         }
                     foreach (var member in abstractStruct.functions)
-                        if (member.name == memberName && IsVisiable(manager, member.declaration))
-                            members.Add(member);
+                        if (member.name == memberName && IsVisiable(manager, member.declaration) && member is T value)
+                            members.Add(value);
                 }
                 else if (declaration is AbstractClass abstractClass)
                 {
                     var filter = new HashSet<AbstractCallable>();
                     foreach (var index in manager.GetInheritIterator(abstractClass))
                     {
-                        foreach (var member in index.variables)
-                            if (member.name == memberName && IsVisiable(manager, member.declaration))
-                            {
-                                members.Add(member);
-                                return true;
-                            }
+                        if (members.Count == 0)
+                            foreach (var member in index.variables)
+                                if (member.name == memberName && IsVisiable(manager, member.declaration))
+                                {
+                                    if (member is T value)
+                                        members.Add(value);
+                                    return true;
+                                }
                         foreach (var member in index.functions)
-                            if (member.name == memberName && IsVisiable(manager, member.declaration) && filter.Add(member))
+                            if (member.name == memberName && IsVisiable(manager, member.declaration) && filter.Add(member) && member is T value)
                             {
-                                members.Add(member);
+                                members.Add(value);
                                 filter.AddRange(member.overrides);
                             }
                     }
@@ -194,11 +197,11 @@ namespace RainLanguageServer.RainLanguage2
                 {
                     var filter = new HashSet<AbstractCallable>();
                     foreach (var index in manager.GetInheritIterator(abstractInterface))
-                        foreach (var function in index.functions)
-                            if (filter.Add(function))
+                        foreach (var member in index.functions)
+                            if (filter.Add(member) && member is T value)
                             {
-                                members.Add(function);
-                                filter.AddRange(function.overrides);
+                                members.Add(value);
+                                filter.AddRange(member.overrides);
                             }
                 }
             }
