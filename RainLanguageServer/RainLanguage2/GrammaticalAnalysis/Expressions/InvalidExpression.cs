@@ -21,6 +21,10 @@
             attribute = ExpressionAttribute.Invalid;
         }
     }
+    internal class InvalidKeyworldExpression(TextRange range) : InvalidExpression(range)
+    {
+
+    }
     internal class InvalidOperationExpression : Expression
     {
         public readonly TextRange symbol;

@@ -3,17 +3,22 @@
     internal class VariableLocalExpression : Expression
     {
         public readonly Local local;
-        public readonly TextRange? declaration;
         public readonly TextRange identifier;
         public override bool Valid => true;
-
-        public VariableLocalExpression(TextRange range, Local local, TextRange? declaration, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : base(range, local.type)
+        public VariableLocalExpression(TextRange range, Local local, Type type, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : base(range, type)
         {
             this.local = local;
-            this.declaration = declaration;
             this.identifier = identifier;
             this.attribute = attribute | local.type.GetAttribute(manager);
         }
+        public VariableLocalExpression(TextRange range, Local local, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : this(range, local, local.type, identifier, attribute, manager) { }
+    }
+    internal class VariableDeclarationLocalExpression(TextRange range, Local local, TextRange identifier, TextRange declaration, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, identifier, attribute, manager)
+    {
+        public readonly TextRange declaration = declaration;
+    }
+    internal class VariableKeyworldLocalExpression(TextRange range, Local local, Type type, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, type, identifier, attribute, manager)
+    {
     }
     internal class VariableGlobalExpression : Expression
     {

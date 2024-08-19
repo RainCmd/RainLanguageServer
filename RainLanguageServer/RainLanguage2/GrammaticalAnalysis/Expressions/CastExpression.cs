@@ -28,4 +28,38 @@
             attribute |= expression.attribute & ~ExpressionAttribute.Assignable;
         }
     }
+    internal class IsCastExpression : Expression
+    {
+        public readonly TextRange symbol;
+        public readonly TextRange? identifier;
+        public readonly Expression source;
+        public readonly TypeExpression type;
+        public readonly Local? local;
+        public override bool Valid => true;
+
+        public IsCastExpression(TextRange range, TextRange symbol, TextRange? identifier, Expression source, TypeExpression type, Local? local, Manager.KernelManager manager) : base(range, manager.BOOL)
+        {
+            this.symbol = symbol;
+            this.identifier = identifier;
+            this.source = source;
+            this.type = type;
+            this.local = local;
+            attribute = ExpressionAttribute.Value;
+        }
+    }
+    internal class AsCastExpression : Expression
+    {
+        public readonly TextRange symbol;
+        public readonly Expression source;
+        public readonly TypeExpression type;
+        public override bool Valid => true;
+
+        public AsCastExpression(TextRange range, TextRange symbol, Expression source, TypeExpression type) : base(range, type.type)
+        {
+            this.symbol = symbol;
+            this.source = source;
+            this.type = type;
+            attribute = ExpressionAttribute.Value;
+        }
+    }
 }
