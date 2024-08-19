@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace RainLanguageServer.RainLanguage2
@@ -207,41 +206,61 @@ namespace RainLanguageServer.RainLanguage2
             }
             return members.Count > 0;
         }
-        public List<AbstractDeclaration> FindDeclaration(Manager manager, TextRange name, MessageCollector collector)
+        public bool TryFindDeclaration(Manager manager, string name, [MaybeNullWhen(false)] out List<AbstractDeclaration> results)
         {
-            var results = new List<AbstractDeclaration>();
-            var targetName = name.ToString();
             if (declaration != null)
             {
+                results = [];
                 if (declaration is AbstractStruct abstractStruct)
                 {
                     foreach (var variable in abstractStruct.variables)
-                        if (variable.name == targetName)
+                        if (variable.name == name && IsVisiable(manager, variable.declaration))
                             results.Add(variable);
                     foreach (var function in abstractStruct.functions)
-                        if (function.name == targetName)
+                        if (function.name == name && IsVisiable(manager, function.declaration))
                             results.Add(function);
                 }
                 else if (declaration is AbstractClass abstractClass)
                     foreach (var index in manager.GetInheritIterator(abstractClass))
                     {
                         foreach (var variable in index.variables)
-                            if (variable.name == targetName)
+                            if (variable.name == name && IsVisiable(manager, variable.declaration))
                                 results.Add(variable);
                         foreach (var function in index.functions)
-                            if (function.name == targetName)
+                            if (function.name == name && IsVisiable(manager, function.declaration))
                                 results.Add(function);
                     }
-                if (results.Count > 0) return results;
+                return results.Count > 0;
             }
             for (var index = space; index != null; index = index.parent)
-                if (index.declarations.TryGetValue(targetName, out var declarations))
-                    return manager.ToDeclarations(declarations);
+                if (index.declarations.TryGetValue(name, out var declarations))
+                {
+                    results = [];
+                    foreach (var declaration in declarations)
+                        if (IsVisiable(manager, declaration) && manager.TryGetDeclaration(declaration, out var result))
+                            results.Add(result);
+                    return results.Count > 0;
+                }
             foreach (var rely in relies)
-                if (rely.declarations.TryGetValue(targetName, out var declarations))
-                    return manager.ToDeclarations(declarations);
-            collector.Add(name, ErrorLevel.Error, "声明未找到");
-            return [];
+                if (rely.declarations.TryGetValue(name, out var declarations))
+                {
+                    results = [];
+                    foreach (var declaration in declarations)
+                        if (IsVisiable(manager, declaration) && manager.TryGetDeclaration(declaration, out var result))
+                            results.Add(result);
+                    return results.Count > 0;
+                }
+            results = default;
+            return false;
+        }
+        public List<AbstractDeclaration> FindDeclaration(Manager manager, TextRange name, MessageCollector collector)
+        {
+            if (TryFindDeclaration(manager, name.ToString(), out var results)) return results;
+            else
+            {
+                collector.Add(name, ErrorLevel.Error, "声明未找到");
+                return [];
+            }
         }
         public List<AbstractDeclaration> FindDeclaration(Manager manager, List<TextRange> names, MessageCollector collector)
         {

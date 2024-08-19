@@ -21,18 +21,14 @@
         public readonly TextRange method = method;
         public readonly AbstractCallable callable = callable;
     }
-    internal class InvokerMemberExpression(TextRange range, Tuple tuple, Expression target, TextRange symbol, TextRange method, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
+    internal class InvokerMemberExpression(TextRange range, Tuple tuple, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
     {
-        public readonly Expression target = target;
-        public readonly TextRange symbol = symbol;
+        public readonly TextRange? symbol = symbol;
         public readonly TextRange method = method;
+        public readonly Expression? target = target;
         public readonly AbstractCallable callable = callable;
     }
-    internal class InvokerVirtualExpression(TextRange range, Tuple tuple, Expression target, TextRange symbol, TextRange method, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
+    internal class InvokerVirtualExpression(TextRange range, Tuple tuple, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerMemberExpression(range, tuple, symbol, method, target, callable, parameters, manager)
     {
-        public readonly Expression target = target;
-        public readonly TextRange symbol = symbol;
-        public readonly TextRange method = method;
-        public readonly AbstractCallable callable = callable;
     }
 }

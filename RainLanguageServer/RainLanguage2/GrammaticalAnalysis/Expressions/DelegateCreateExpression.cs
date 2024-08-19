@@ -11,16 +11,16 @@
         }
     }
     internal class FunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager) : DelegateCreateExpression(range, type, callable, manager) { }
-    internal class MemberFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression target, TextRange symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
+    internal class MemberFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
     {
-        public readonly Expression target = target;
-        public readonly TextRange symbol = symbol;
+        public readonly Expression? target = target;
+        public readonly TextRange? symbol = symbol;
         public readonly TextRange member = member;
     }
-    internal class VirtualFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression target, TextRange symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
+    internal class VirtualFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
     {
-        public readonly Expression target = target;
-        public readonly TextRange symbol = symbol;
+        public readonly Expression? target = target;
+        public readonly TextRange? symbol = symbol;
         public readonly TextRange member = member;
     }
     internal class LambdaDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, List<Local> parmeters, TextRange symbol, Expression body) : DelegateCreateExpression(range, type, callable, manager)

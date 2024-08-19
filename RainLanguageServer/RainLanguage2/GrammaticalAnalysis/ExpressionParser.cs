@@ -1,5 +1,11 @@
-﻿using RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions;
+﻿using LanguageServer.Parameters;
+using RainLanguageServer.RainLanguage;
+using RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions;
+using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Xml.Linq;
 
 namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
 {
@@ -64,7 +70,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                         if (TryGetFunction(methodMember.range, methodMember.callables, bracket.tuple, out var callable))
                                         {
                                             bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, callable.signature));
-                                            expression = new InvokerMemberExpression(methodMember.range & bracket.range, callable.returns, methodMember.target, methodMember.symbol, methodMember.range, callable, bracket, manager.kernelManager);
+                                            expression = new InvokerMemberExpression(methodMember.range & bracket.range, callable.returns, methodMember.symbol, methodMember.range, methodMember.target, callable, bracket, manager.kernelManager);
                                             expressionStack.Push(expression);
                                             attribute = expression.attribute;
                                             goto label_next_lexical;
@@ -79,7 +85,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                         if (TryGetFunction(methodVirtual.range, methodVirtual.callables, bracket.tuple, out var callable))
                                         {
                                             bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, callable.signature));
-                                            expression = new InvokerVirtualExpression(methodVirtual.range & bracket.range, callable.returns, methodVirtual.target, methodVirtual.symbol, methodVirtual.range, callable, bracket, manager.kernelManager);
+                                            expression = new InvokerVirtualExpression(methodVirtual.range & bracket.range, callable.returns, methodVirtual.symbol, methodVirtual.range, methodVirtual.target, callable, bracket, manager.kernelManager);
                                             expressionStack.Push(expression);
                                             attribute = expression.attribute;
                                             goto label_next_lexical;
@@ -195,7 +201,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "无效的操作", bracket);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", bracket);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                             goto label_next_lexical;
@@ -421,7 +427,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "无效的操作", bracket);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", bracket);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                             goto label_next_lexical;
@@ -452,7 +458,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "无效的操作", bracket);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", bracket);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                             goto label_next_lexical;
@@ -528,7 +534,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidOperationExpression(expressionStack, left, "无效的操作");
+                                PushInvalidOperationExpression(expressionStack, left, attribute, "无效的操作");
                                 attribute = ExpressionAttribute.Invalid;
                             }
                         }
@@ -607,7 +613,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                     {
                                         if (context.TryFindMember(manager, identifier.anchor, type, out List<AbstractClass.Function> functions))
                                         {
-                                            expression = new MethodMemberExpression(expression.range & identifier.anchor, expression, lexical.anchor, identifier.anchor, [.. functions]);
+                                            expression = new MethodMemberExpression(expression.range & identifier.anchor, lexical.anchor, identifier.anchor, expression, [.. functions]);
                                             expressionStack.Push(expression);
                                             attribute = expression.attribute;
                                             goto label_next_lexical;
@@ -628,7 +634,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                 expressionStack.Push(new InvalidOperationExpression(expression.range & lexical.anchor, lexical.anchor, expression));
                             }
                         }
-                        else PushInvalidOperationExpression(expressionStack, lexical.anchor, "无效的操作");
+                        else PushInvalidOperationExpression(expressionStack, lexical.anchor, attribute, "无效的操作");
                         attribute = ExpressionAttribute.Invalid;
                         break;
                     case LexicalType.MinusAssignment: goto default;
@@ -710,7 +716,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                     else if (members[0] is AbstractClass.Variable classVariable)
                                         expression = new VariableMemberExpression(expression.range & identifier.anchor, classVariable.type, lexical.anchor, identifier.anchor, expression, members[0], manager.kernelManager);
                                     else if (members[0] is AbstractStruct.Function || members[0] is AbstractClass.Function || members[0] is AbstractInterface.Function)
-                                        expression = new MethodVirtualExpression(expression.range & identifier.anchor, expression, lexical.anchor, identifier.anchor, members.Select<AbstractDeclaration, AbstractCallable>());
+                                        expression = new MethodVirtualExpression(expression.range & identifier.anchor, lexical.anchor, identifier.anchor, expression, members.Select<AbstractDeclaration, AbstractCallable>());
                                     else throw new Exception("未知的成员类型" + members[0].GetType());
                                     expressionStack.Push(expression);
                                     attribute = expression.attribute;
@@ -730,7 +736,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                 expressionStack.Push(new InvalidOperationExpression(expression.range & lexical.anchor, lexical.anchor, expression));
                             }
                         }
-                        else PushInvalidOperationExpression(expressionStack, lexical.anchor, "无效的操作");
+                        else PushInvalidOperationExpression(expressionStack, lexical.anchor, attribute, "无效的操作");
                         attribute = ExpressionAttribute.Invalid;
                         break;
                     case LexicalType.Question: goto default;
@@ -739,9 +745,9 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             if (attribute.ContainAny(ExpressionAttribute.Value))
                             {
                                 if (expressionStack.Peek().tuple[0].Managed || expressionStack.Peek().tuple[0] == manager.kernelManager.ENTITY) goto case LexicalType.Dot;
-                                else PushInvalidOperationExpression(expressionStack, lexical.anchor, "可为空的类型才能使用此操作符");
+                                else PushInvalidOperationExpression(expressionStack, lexical.anchor, attribute, "可为空的类型才能使用此操作符");
                             }
-                            else PushInvalidOperationExpression(expressionStack, lexical.anchor, "无效的操作");
+                            else PushInvalidOperationExpression(expressionStack, lexical.anchor, attribute, "无效的操作");
                             attribute = ExpressionAttribute.Invalid;
                         }
                         break;
@@ -750,9 +756,9 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             if (attribute.ContainAny(ExpressionAttribute.Value))
                             {
                                 if (expressionStack.Peek().tuple[0].Managed || expressionStack.Peek().tuple[0] == manager.kernelManager.ENTITY) goto case LexicalType.RealInvoker;
-                                else PushInvalidOperationExpression(expressionStack, lexical.anchor, "可为空的类型才能使用此操作符");
+                                else PushInvalidOperationExpression(expressionStack, lexical.anchor, attribute, "可为空的类型才能使用此操作符");
                             }
-                            else PushInvalidOperationExpression(expressionStack, lexical.anchor, "无效的操作");
+                            else PushInvalidOperationExpression(expressionStack, lexical.anchor, attribute, "无效的操作");
                             attribute = ExpressionAttribute.Invalid;
                         }
                         break;
@@ -772,7 +778,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "无效的操作", bracket);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", bracket);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                             goto label_next_lexical;
@@ -824,7 +830,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "无效的操作", bracket);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", bracket);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                             goto label_next_lexical;
@@ -842,7 +848,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "应输入 , 或 ;", expression);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", expression);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                         }
@@ -858,7 +864,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "应输入 , 或 ;", expression);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", expression);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                         }
@@ -883,7 +889,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "应输入 , 或 ;", expression);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", expression);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                         }
@@ -909,7 +915,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "应输入 , 或 ;", expression);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", expression);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                         }
@@ -935,7 +941,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "应输入 , 或 ;", expression);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", expression);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                         }
@@ -950,7 +956,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "应输入 , 或 ;", expression);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", expression);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                         }
@@ -986,7 +992,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "应输入 , 或 ;", expression);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", expression);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                         }
@@ -1000,16 +1006,16 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                 {
                                     //todo 全局的定义
                                 }
-                                else PushInvalidExpression(expressionStack, lexical, "应输入标识符", new InvalidKeyworldExpression(lexical.anchor));
+                                else PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入标识符", new InvalidKeyworldExpression(lexical.anchor));
                             }
-                            else PushInvalidExpression(expressionStack, lexical, "应输入标识符", new InvalidKeyworldExpression(lexical.anchor));
+                            else PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入标识符", new InvalidKeyworldExpression(lexical.anchor));
                             attribute = ExpressionAttribute.Invalid;
                         }
                         else if (lexical.anchor == KeyWords.BASE)
                         {
                             if (context.declaration == null || context.declaration is not AbstractClass abstractClass)
                             {
-                                PushInvalidExpression(expressionStack, lexical, "当前上下文中不可用", new InvalidKeyworldExpression(lexical.anchor));
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "当前上下文中不可用", new InvalidKeyworldExpression(lexical.anchor));
                                 attribute = ExpressionAttribute.Invalid;
                             }
                             else
@@ -1023,7 +1029,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                 }
                                 else
                                 {
-                                    PushInvalidExpression(expressionStack, lexical, "应输入 , 或 ;", expression);
+                                    PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", expression);
                                     attribute = ExpressionAttribute.Invalid;
                                 }
                             }
@@ -1032,7 +1038,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                         {
                             if (context.declaration == null || context.declaration is not AbstractClass)
                             {
-                                PushInvalidExpression(expressionStack, lexical, "当前上下文中不可用", new InvalidKeyworldExpression(lexical.anchor));
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "当前上下文中不可用", new InvalidKeyworldExpression(lexical.anchor));
                                 attribute = ExpressionAttribute.Invalid;
                             }
                             else
@@ -1045,7 +1051,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                 }
                                 else
                                 {
-                                    PushInvalidExpression(expressionStack, lexical, "应输入 , 或 ;", expression);
+                                    PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", expression);
                                     attribute = ExpressionAttribute.Invalid;
                                 }
                             }
@@ -1060,7 +1066,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "应输入 , 或 ;", expression);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", expression);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                         }
@@ -1074,7 +1080,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "应输入 , 或 ;", expression);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", expression);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                         }
@@ -1088,7 +1094,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             else
                             {
-                                PushInvalidExpression(expressionStack, lexical, "应输入 , 或 ;", expression);
+                                PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", expression);
                                 attribute = ExpressionAttribute.Invalid;
                             }
                         }
@@ -1105,7 +1111,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                     goto label_next_lexical;
                                 }
                             }
-                            PushInvalidExpression(expressionStack, lexical, "应输入 , 或 ;", new InvalidKeyworldExpression(lexical.anchor));
+                            PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", new InvalidKeyworldExpression(lexical.anchor));
                             attribute = ExpressionAttribute.Invalid;
                         }
                         else if (lexical.anchor == KeyWords.IS)
@@ -1138,7 +1144,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                     goto label_next_lexical;
                                 }
                             }
-                            PushInvalidExpression(expressionStack, lexical, "无效的操作", new InvalidKeyworldExpression(lexical.anchor));
+                            PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", new InvalidKeyworldExpression(lexical.anchor));
                         }
                         else if (lexical.anchor == KeyWords.AS)
                         {
@@ -1159,7 +1165,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                     goto label_next_lexical;
                                 }
                             }
-                            PushInvalidExpression(expressionStack, lexical, "无效的操作", new InvalidKeyworldExpression(lexical.anchor));
+                            PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", new InvalidKeyworldExpression(lexical.anchor));
                         }
                         else if (lexical.anchor == KeyWords.START || lexical.anchor == KeyWords.NEW)
                         {
@@ -1173,21 +1179,55 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                     expressionStack.Push(expression);
                                     attribute = expression.attribute;
                                 }
-                                else PushInvalidExpression(expressionStack, lexical, "无效的操作", new InvalidExpression(new InvalidKeyworldExpression(lexical.anchor), expression));
+                                else PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", new InvalidExpression(new InvalidKeyworldExpression(lexical.anchor), expression));
                                 goto label_next_lexical;
                             }
-                            PushInvalidExpression(expressionStack, lexical, "无效的操作", new InvalidKeyworldExpression(lexical.anchor));
+                            PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", new InvalidKeyworldExpression(lexical.anchor));
+                        }
+                        else if (TryMatchBaseType(lexical.anchor, out var type))
+                        {
+                            if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                            {
+                                index = lexical.anchor.end;
+                                var dimension = Lexical.ExtractDimension(range, ref index);
+                                var file = new FileType(lexical.anchor.start & index, new QualifiedName([lexical.anchor]), dimension);
+                                var expression = new TypeKeyworldExpression(lexical.anchor, file, type);
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
+                                goto label_next_lexical;
+                            }
+                            else PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", new InvalidKeyworldExpression(lexical.anchor));
+                        }
+                        else if (KeyWords.IsKeyWorld(lexical.anchor.ToString())) PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", new InvalidKeyworldExpression(lexical.anchor));
+                        else if (attribute.ContainAny(ExpressionAttribute.Type))
+                        {
+                            var typeExpression = (TypeExpression)expressionStack.Pop();
+                            var local = localContext.Add(lexical.anchor, typeExpression.type);
+                            var expression = new VariableDeclarationLocalExpression(typeExpression.range & lexical.anchor, local, lexical.anchor, typeExpression, ExpressionAttribute.Value, manager.kernelManager);
+                            expressionStack.Push(expression);
+                            attribute = expression.attribute;
+                        }
+                        else if (localContext.TryGetLocal(lexical.anchor.ToString(), out var local))
+                        {
+                            var expression = new VariableLocalExpression(lexical.anchor, local, lexical.anchor, ExpressionAttribute.Value | ExpressionAttribute.Assignable, manager.kernelManager);
+                            if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                            {
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
+                            }
+                            else PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", expression);
                         }
                         else
                         {
-                            //todo 还有一些kernel类型
-                            if (KeyWords.IsKeyWorld(lexical.anchor.ToString())) PushInvalidExpression(expressionStack, lexical, "无效的操作", new InvalidKeyworldExpression(lexical.anchor));
-
+                            if (TryFindDeclaration(range, ref index, expressionStack, attribute, out var results, out var name))
+                                PushDeclarationsExpression(range, ref index, ref attribute, expressionStack, results, name);
+                            else attribute = ExpressionAttribute.Invalid;
+                            goto label_next_lexical;
                         }
                         break;
                     case LexicalType.Backslash:
                     default:
-                        PushInvalidExpression(expressionStack, lexical, "意外的词条", new InvalidExpression(lexical.anchor));
+                        PushInvalidExpression(expressionStack, lexical.anchor, attribute, "意外的词条", new InvalidExpression(lexical.anchor));
                         attribute = ExpressionAttribute.Invalid;
                         break;
                 }
@@ -1213,17 +1253,316 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             else if (expressionStack.Count > 0) return expressionStack.Pop();
             else return new TupleExpression(range);
         }
-        private void PushInvalidOperationExpression(Stack<Expression> expressionStack, TextRange symbol, string message)
+        private void PushDeclarationsExpression(TextRange range, ref TextPosition index, ref ExpressionAttribute attribute, Stack<Expression> expressionStack, List<AbstractDeclaration> declarations, QualifiedName name)
         {
-            collector.Add(symbol, ErrorLevel.Error, message);
+            switch (declarations[0].declaration.category)
+            {
+                case DeclarationCategory.Invalid: throw new Exception("未知的错误");
+                case DeclarationCategory.Variable:
+                    {
+                        CheckAmbiguity(attribute, declarations, name);
+                        var expression = new VariableGlobalExpression(name, (AbstractVariable)declarations[0], manager.kernelManager);
+                        if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                        {
+                            expressionStack.Push(expression);
+                            attribute = expression.attribute;
+                        }
+                        else
+                        {
+                            PushInvalidExpression(expressionStack, name.Range, attribute, "应输入 , 或 ;", expression);
+                            attribute = ExpressionAttribute.Invalid;
+                        }
+                    }
+                    break;
+                case DeclarationCategory.Function:
+                    PushMethodsExpression(ref attribute, expressionStack, declarations, name);
+                    break;
+                case DeclarationCategory.Enum:
+                    PushTypeExpression(range, ref index, ref attribute, expressionStack, declarations, name);
+                    break;
+                case DeclarationCategory.EnumElement: throw new Exception("枚举内没有代码，不会走到这里");
+                case DeclarationCategory.Struct:
+                    PushTypeExpression(range, ref index, ref attribute, expressionStack, declarations, name);
+                    break;
+                case DeclarationCategory.StructVariable:
+                    {
+                        CheckAmbiguity(attribute, declarations, name);
+                        var expression = new VariableMemberExpression(name.Range, ((AbstractStruct.Variable)declarations[0]).type, name.Range, declarations[0], manager.kernelManager);
+                        if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                        {
+                            expressionStack.Push(expression);
+                            attribute = expression.attribute;
+                        }
+                        else
+                        {
+                            PushInvalidExpression(expressionStack, name.Range, attribute, "应输入 , 或 ;", expression);
+                            attribute = ExpressionAttribute.Invalid;
+                        }
+                    }
+                    break;
+                case DeclarationCategory.StructFunction:
+                    {
+                        var callables = new List<AbstractCallable>();
+                        var ambiguity = false;
+                        foreach (var declaration in declarations)
+                            if (declaration is AbstractStruct.Function function) callables.Add(function);
+                            else ambiguity = true;
+                        if (ambiguity) CheckAmbiguity(attribute, declarations, name);
+                        var expression = new MethodMemberExpression(name.Range, name.Range, callables);
+                        if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                        {
+                            expressionStack.Push(expression);
+                            attribute = expression.attribute;
+                        }
+                        else
+                        {
+                            PushInvalidExpression(expressionStack, name.Range, attribute, "应输入 , 或 ;", expression);
+                            attribute = ExpressionAttribute.Invalid;
+                        }
+                    }
+                    break;
+                case DeclarationCategory.Class:
+                    PushTypeExpression(range, ref index, ref attribute, expressionStack, declarations, name);
+                    break;
+                case DeclarationCategory.Constructor: throw new Exception("构造函数不参与重载决议");
+                case DeclarationCategory.ClassVariable:
+                    {
+                        CheckAmbiguity(attribute, declarations, name);
+                        var expression = new VariableMemberExpression(name.Range, ((AbstractClass.Variable)declarations[0]).type, name.Range, declarations[0], manager.kernelManager);
+                        if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                        {
+                            expressionStack.Push(expression);
+                            attribute = expression.attribute;
+                        }
+                        else
+                        {
+                            PushInvalidExpression(expressionStack, name.Range, attribute, "应输入 , 或 ;", expression);
+                            attribute = ExpressionAttribute.Invalid;
+                        }
+                    }
+                    break;
+                case DeclarationCategory.ClassFunction:
+                    {
+                        var callables = new List<AbstractCallable>();
+                        var ambiguity = false;
+                        foreach (var declaration in declarations)
+                            if (declaration is AbstractClass.Function function) callables.Add(function);
+                            else ambiguity = true;
+                        if (ambiguity) CheckAmbiguity(attribute, declarations, name);
+                        var expression = new MethodMemberExpression(name.Range, name.Range, callables);
+                        if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+                        {
+                            expressionStack.Push(expression);
+                            attribute = expression.attribute;
+                        }
+                        else
+                        {
+                            PushInvalidExpression(expressionStack, name.Range, attribute, "应输入 , 或 ;", expression);
+                            attribute = ExpressionAttribute.Invalid;
+                        }
+                    }
+                    break;
+                case DeclarationCategory.Interface:
+                    PushTypeExpression(range, ref index, ref attribute, expressionStack, declarations, name);
+                    break;
+                case DeclarationCategory.InterfaceFunction: throw new Exception("接口内没有代码，不会走到这里");
+                case DeclarationCategory.Delegate:
+                case DeclarationCategory.Task:
+                    PushTypeExpression(range, ref index, ref attribute, expressionStack, declarations, name);
+                    break;
+                case DeclarationCategory.Native:
+                    PushMethodsExpression(ref attribute, expressionStack, declarations, name);
+                    break;
+            }
+        }
+        private void PushTypeExpression(TextRange range, ref TextPosition index, ref ExpressionAttribute attribute, Stack<Expression> expressionStack, List<AbstractDeclaration> declarations, QualifiedName name)
+        {
+            CheckAmbiguity(attribute, declarations, name);
+            var dimension = Lexical.ExtractDimension(range, ref index);
+            var file = new FileType(name.Range.start & index, name, dimension);
+            var expression = new TypeExpression(file.range, file, new Type(declarations[0].declaration.DefineType, dimension));
+            if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+            {
+                expressionStack.Push(expression);
+                attribute = expression.attribute;
+            }
+            else
+            {
+                PushInvalidExpression(expressionStack, name.Range, attribute, "应输入 , 或 ;", expression);
+                attribute = ExpressionAttribute.Invalid;
+            }
+        }
+        private void PushMethodsExpression(ref ExpressionAttribute attribute, Stack<Expression> expressionStack, List<AbstractDeclaration> declarations, QualifiedName name)
+        {
+            var callables = new List<AbstractCallable>();
+            var ambiguity = false;
+            foreach (var declaration in declarations)
+                if (declaration is AbstractFunction function) callables.Add(function);
+                else if (declaration is AbstructNative native) callables.Add(native);
+                else ambiguity = true;
+            if (ambiguity) CheckAmbiguity(attribute, declarations, name);
+            var expression = new MethodExpression(name, callables);
+            if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
+            {
+                expressionStack.Push(expression);
+                attribute = expression.attribute;
+            }
+            else
+            {
+                PushInvalidExpression(expressionStack, name.Range, attribute, "应输入 , 或 ;", expression);
+                attribute = ExpressionAttribute.Invalid;
+            }
+        }
+        private void CheckAmbiguity(ExpressionAttribute attribute, List<AbstractDeclaration> declarations, QualifiedName name)
+        {
+            if (declarations.Count > 1 && attribute != ExpressionAttribute.Invalid)
+            {
+                var msg = new Message(name.Range, ErrorLevel.Error, "有多个符合名称的声明");
+                foreach (var declaration in declarations)
+                    msg.related.Add(new RelatedInfo(declaration.name, declaration.FullName));
+                collector.Add(msg);
+            }
+        }
+        private bool TryFindDeclaration(TextRange range, ref TextPosition index, Stack<Expression> expressionStack, ExpressionAttribute attribute, [MaybeNullWhen(false)] out List<AbstractDeclaration> results, out QualifiedName name)
+        {
+            if (Lexical.TryAnalysis(range, index, out var lexical, collector))
+            {
+                index = lexical.anchor.end;
+                if (lexical.type == LexicalType.Word)
+                {
+                    if (context.TryFindDeclaration(manager, lexical.anchor.ToString(), out results))
+                    {
+                        name = new QualifiedName([], lexical.anchor);
+                        return true;
+                    }
+                    else if (context.TryFindSpace(manager, lexical.anchor, out var space, collector))
+                        return TryFindDeclaration(range, ref index, expressionStack, attribute, space, [lexical.anchor], out results, out name);
+                    else PushInvalidExpression(expressionStack, lexical.anchor, attribute, "声明未找到", new InvalidExpression(lexical.anchor));
+                }
+                else PushInvalidExpression(expressionStack, lexical.anchor, attribute, "意外的词条", new InvalidExpression(lexical.anchor));
+            }
+            else collector.Add(index & index, ErrorLevel.Error, "应输入标识符");
+            results = default;
+            name = default;
+            return false;
+        }
+        private bool TryFindDeclaration(TextRange range, ref TextPosition index, Stack<Expression> expressionStack, ExpressionAttribute attribute, AbstractSpace space, List<TextRange> spaceName, [MaybeNullWhen(false)] out List<AbstractDeclaration> results, out QualifiedName name)
+        {
+            if (Lexical.TryAnalysis(range, index, out var lexical, collector) && lexical.type == LexicalType.Dot)
+            {
+                var dot = lexical.anchor;
+                if (Lexical.TryAnalysis(range, dot.end, out lexical, collector) && lexical.type == LexicalType.Word)
+                {
+                    index = lexical.anchor.end;
+                    if (space.declarations.TryGetValue(lexical.anchor.ToString(), out var declarations))
+                    {
+                        results = [];
+                        foreach (var declaration in declarations)
+                            if (context.IsVisiable(manager, declaration) && manager.TryGetDeclaration(declaration, out var result))
+                                results.Add(result);
+                        if (results.Count > 0)
+                        {
+                            name = new QualifiedName(spaceName, lexical.anchor);
+                            return true;
+                        }
+                    }
+                    else if (space.children.TryGetValue(lexical.anchor.ToString(), out var children))
+                    {
+                        spaceName.Add(lexical.anchor);
+                        return TryFindDeclaration(range, ref index, expressionStack, attribute, children, spaceName, out results, out name);
+                    }
+                    PushInvalidExpression(expressionStack, spaceName[0] & lexical.anchor, attribute, "声明未找到", new InvalidExpression(spaceName[0] & lexical.anchor));
+                    results = default;
+                    name = default;
+                    return false;
+                }
+            }
+            PushInvalidExpression(expressionStack, spaceName[0] & spaceName[^1], attribute, "声明未找到", new InvalidExpression(spaceName[0] & spaceName[^1]));
+            results = default;
+            name = default;
+            return false;
+        }
+        private bool TryMatchBaseType(TextRange anchor, out Type type)
+        {
+            if (anchor == KeyWords.BOOL)
+            {
+                type = manager.kernelManager.BOOL;
+                return true;
+            }
+            else if (anchor == KeyWords.BYTE)
+            {
+                type = manager.kernelManager.BYTE;
+                return true;
+            }
+            else if (anchor == KeyWords.CHAR)
+            {
+                type = manager.kernelManager.CHAR;
+                return true;
+            }
+            else if (anchor == KeyWords.INTEGER)
+            {
+                type = manager.kernelManager.INT;
+                return true;
+            }
+            else if (anchor == KeyWords.REAL)
+            {
+                type = manager.kernelManager.REAL;
+                return true;
+            }
+            else if (anchor == KeyWords.REAL2)
+            {
+                type = manager.kernelManager.REAL2;
+                return true;
+            }
+            else if (anchor == KeyWords.REAL3)
+            {
+                type = manager.kernelManager.REAL3;
+                return true;
+            }
+            else if (anchor == KeyWords.REAL4)
+            {
+                type = manager.kernelManager.REAL4;
+                return true;
+            }
+            else if (anchor == KeyWords.TYPE)
+            {
+                type = manager.kernelManager.TYPE;
+                return true;
+            }
+            else if (anchor == KeyWords.STRING)
+            {
+                type = manager.kernelManager.STRING;
+                return true;
+            }
+            else if (anchor == KeyWords.HANDLE)
+            {
+                type = manager.kernelManager.HANDLE;
+                return true;
+            }
+            else if (anchor == KeyWords.ENTITY)
+            {
+                type = manager.kernelManager.ENTITY;
+                return true;
+            }
+            else if (anchor == KeyWords.ARRAY)
+            {
+                type = manager.kernelManager.ARRAY;
+                return true;
+            }
+            type = default;
+            return false;
+        }
+        private void PushInvalidOperationExpression(Stack<Expression> expressionStack, TextRange symbol, ExpressionAttribute attribute, string message)
+        {
+            if (attribute != ExpressionAttribute.Invalid) collector.Add(symbol, ErrorLevel.Error, message);
             if (expressionStack.TryPop(out var expression))
                 expressionStack.Push(new InvalidOperationExpression(expression.range & symbol, symbol, expression));
             else
                 expressionStack.Push(new InvalidOperationExpression(symbol, symbol));
         }
-        private void PushInvalidExpression(Stack<Expression> expressionStack, Lexical lexical, string message, Expression expression)
+        private void PushInvalidExpression(Stack<Expression> expressionStack, TextRange anchor, ExpressionAttribute attribute, string message, Expression expression)
         {
-            collector.Add(lexical.anchor, ErrorLevel.Error, message);
+            if (attribute != ExpressionAttribute.Invalid) collector.Add(anchor, ErrorLevel.Error, message);
             if (expressionStack.TryPop(out var prevExpression))
                 expressionStack.Push(new InvalidExpression(prevExpression, expression));
             else
@@ -1483,7 +1822,9 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                 collector.Add(blurry.range, ErrorLevel.Error, "表达式类型不明确");
                 return new InvalidExpression(blurry, type);
             }
-            return new VariableDeclarationLocalExpression(blurry.range, localContext.Add(blurry.identifier, type), blurry.declaration, blurry.identifier, ExpressionAttribute.Assignable | ExpressionAttribute.Value, manager.kernelManager);
+            var typeExpression = new TypeKeyworldExpression(blurry.declaration, new FileType(blurry.declaration, new QualifiedName([blurry.declaration]), type.dimension), type);
+            var local = localContext.Add(blurry.identifier, type);
+            return new VariableDeclarationLocalExpression(blurry.range, local, blurry.identifier, typeExpression, ExpressionAttribute.Assignable | ExpressionAttribute.Value, manager.kernelManager);
         }
         private Expression CreateOperation(TextRange range, string operation, TextRange symbol, params Expression[] expressions)
         {

@@ -15,22 +15,24 @@
     }
     internal class MethodExpression : Expression//global & native
     {
+        public readonly QualifiedName name;
         public readonly List<AbstractCallable> callables;
         public override bool Valid => true;
-        public MethodExpression(TextRange range, List<AbstractCallable> callables) : base(range, TUPLE_BLURRY)
+        public MethodExpression(QualifiedName name, List<AbstractCallable> callables) : base(name.Range, TUPLE_BLURRY)
         {
+            this.name = name;
             this.callables = callables;
             attribute = ExpressionAttribute.Method | ExpressionAttribute.Value;
         }
     }
     internal class MethodMemberExpression : Expression
     {
-        public readonly Expression target;
-        public readonly TextRange symbol;
+        public readonly TextRange? symbol;
         public readonly TextRange member;
+        public readonly Expression? target;
         public readonly List<AbstractCallable> callables;
         public override bool Valid => true;
-        public MethodMemberExpression(TextRange range, Expression target, TextRange symbol, TextRange member, List<AbstractCallable> callables) : base(range, TUPLE_BLURRY)
+        public MethodMemberExpression(TextRange range, TextRange? symbol, TextRange member, Expression? target, List<AbstractCallable> callables) : base(range, TUPLE_BLURRY)
         {
             this.target = target;
             this.symbol = symbol;
@@ -38,9 +40,12 @@
             this.callables = callables;
             attribute = ExpressionAttribute.Method | ExpressionAttribute.Value;
         }
+        public MethodMemberExpression(TextRange range, TextRange member, List<AbstractCallable> callables) : this(range, null, member, null, callables) { }
     }
-    internal class MethodVirtualExpression(TextRange range, Expression target, TextRange symbol, TextRange member, List<AbstractCallable> callables) : MethodMemberExpression(range, target, symbol, member, callables)
+    internal class MethodVirtualExpression : MethodMemberExpression
     {
+        public MethodVirtualExpression(TextRange range, TextRange? symbol, TextRange member, Expression? target, List<AbstractCallable> callables) : base(range, symbol, member, target, callables) { }
+        public MethodVirtualExpression(TextRange range, TextRange member, List<AbstractCallable> callables) : base(range, member, callables) { }
     }
     internal class BlurryTaskExpression : Expression
     {

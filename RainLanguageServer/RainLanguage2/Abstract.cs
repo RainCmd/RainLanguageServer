@@ -18,6 +18,19 @@ namespace RainLanguageServer.RainLanguage2
             this.declaration = declaration;
             file.abstractDeclaration = this;
         }
+        public string FullName
+        {
+            get
+            {
+                var sb = new StringBuilder(name.ToString());
+                for (var index = space; index != null; index = index.parent)
+                {
+                    sb.Insert(0, '.');
+                    sb.Append(index.name);
+                }
+                return sb.ToString();
+            }
+        }
     }
     internal class AbstractVariable(FileVariable file, AbstractSpace space, TextRange name, Declaration declaration, bool isReadonly, Type type)
         : AbstractDeclaration(file, space, name, declaration)

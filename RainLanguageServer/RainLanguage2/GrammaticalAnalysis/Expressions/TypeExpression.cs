@@ -12,4 +12,5 @@
             attribute = ExpressionAttribute.Type;
         }
     }
+    internal class TypeKeyworldExpression(TextRange range, FileType file, Type type) : TypeExpression(range, file, type) { }
 }
