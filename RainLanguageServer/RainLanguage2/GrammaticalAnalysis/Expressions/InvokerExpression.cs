@@ -16,9 +16,10 @@
     {
         public readonly Expression invoker = invoker;
     }
-    internal class InvokerFunctionExpression(TextRange range, Tuple tuple, TextRange method, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
+    internal class InvokerFunctionExpression(TextRange range, Tuple tuple, TextRange? qualifier, QualifiedName name, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
     {
-        public readonly TextRange method = method;
+        public readonly TextRange? qualifier = qualifier;
+        public readonly QualifiedName name = name;
         public readonly AbstractCallable callable = callable;
     }
     internal class InvokerMemberExpression(TextRange range, Tuple tuple, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)

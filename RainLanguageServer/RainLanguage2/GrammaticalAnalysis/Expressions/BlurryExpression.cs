@@ -15,11 +15,13 @@
     }
     internal class MethodExpression : Expression//global & native
     {
+        public readonly TextRange? qualifier;
         public readonly QualifiedName name;
         public readonly List<AbstractCallable> callables;
         public override bool Valid => true;
-        public MethodExpression(QualifiedName name, List<AbstractCallable> callables) : base(name.Range, TUPLE_BLURRY)
+        public MethodExpression(TextRange range, TextRange? qualifier, QualifiedName name, List<AbstractCallable> callables) : base(range, TUPLE_BLURRY)
         {
+            this.qualifier = qualifier;
             this.name = name;
             this.callables = callables;
             attribute = ExpressionAttribute.Method | ExpressionAttribute.Value;

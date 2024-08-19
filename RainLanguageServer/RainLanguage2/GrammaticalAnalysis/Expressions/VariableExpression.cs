@@ -22,11 +22,13 @@
     }
     internal class VariableGlobalExpression : Expression
     {
+        public readonly TextRange? qualifier;// global
         public readonly QualifiedName name;
         public readonly AbstractVariable variable;
         public override bool Valid => true;
-        public VariableGlobalExpression(QualifiedName name, AbstractVariable variable, Manager.KernelManager manager) : base(name.Range, variable.type)
+        public VariableGlobalExpression(TextRange range, TextRange? qualifier, QualifiedName name, AbstractVariable variable, Manager.KernelManager manager) : base(range, variable.type)
         {
+            this.qualifier = qualifier;
             this.name = name;
             this.variable = variable;
             attribute = ExpressionAttribute.Value | variable.type.GetAttribute(manager);

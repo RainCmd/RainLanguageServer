@@ -10,7 +10,11 @@
             attribute = ExpressionAttribute.Value | type.GetAttribute(manager);
         }
     }
-    internal class FunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager) : DelegateCreateExpression(range, type, callable, manager) { }
+    internal class FunctionDelegateCreateExpression(TextRange range, TextRange? qualifier, QualifiedName name, Type type, AbstractCallable callable, Manager.KernelManager manager) : DelegateCreateExpression(range, type, callable, manager)
+    {
+        public readonly TextRange? qualifier = qualifier;
+        public readonly QualifiedName name = name;
+    }
     internal class MemberFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
     {
         public readonly Expression? target = target;
