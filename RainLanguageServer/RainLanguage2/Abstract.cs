@@ -68,7 +68,7 @@ namespace RainLanguageServer.RainLanguage2
         : AbstractCallable(file, space, name, declaration, parameters, returns)
     {
         public readonly FileFunction fileFunction = file;
-        //todo logicBlock
+        public readonly LogicBlock logicBlock = new();
     }
     internal class AbstractEnum(FileEnum file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
@@ -101,7 +101,7 @@ namespace RainLanguageServer.RainLanguage2
         {
             public readonly FileStruct.Function fileFunction = file;
             public readonly bool valid = valid;
-            //todo logicBlock
+            public readonly LogicBlock logicBlock = new();
         }
         public readonly FileStruct fileStruct = file;
         public readonly List<Variable> variables = [];
@@ -132,22 +132,22 @@ namespace RainLanguageServer.RainLanguage2
             public readonly FileClass.Variable fileVariable = file;
             public readonly bool valid = valid;
             public readonly Type type = type;
-            //todo expression
+            public readonly LogicBlock logicBlock = new();
             public readonly HashSet<TextRange> write = [];
         }
         internal class Constructor(FileClass.Constructor file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
             public readonly FileClass.Constructor fileConstructor = file;
-            //todo expression
-            //todo logicBlock
+            //todo 调用父构造函数的 expression
+            public readonly LogicBlock logicBlock = new();
         }
         internal class Function(FileClass.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
             public readonly FileClass.Function fileFunction = file;
             public readonly bool valid = valid;
-            //todo logicBlock
+            public readonly LogicBlock logicBlock = new();
             public readonly List<AbstractCallable> overrides = [];
             public readonly List<Function> implements = [];
         }
@@ -157,7 +157,7 @@ namespace RainLanguageServer.RainLanguage2
         public readonly List<Variable> variables = [];
         public readonly List<Constructor> constructors = [];
         public readonly List<Function> functions = [];
-        //todo descontructor
+        public readonly LogicBlock descontructorLogicBlock = new();
         public readonly List<AbstractClass> implements = [];
     }
     internal class AbstructDelegate(FileDelegate file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
