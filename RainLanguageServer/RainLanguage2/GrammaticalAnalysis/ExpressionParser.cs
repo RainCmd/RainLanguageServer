@@ -999,7 +999,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                 if (identifier.type == LexicalType.Word)
                                 {
                                     index = lexical.anchor.end;
-                                    var globalContext = new Context(context.document, context.space, context.relies, null);
+                                    var globalContext = new Context(context, null);
                                     if (TryFindDeclaration(range, ref index, expressionStack, attribute, out var results, out var name, globalContext))
                                         PushDeclarationsExpression(range, ref index, ref attribute, expressionStack, results, lexical.anchor, name);
                                     else attribute = ExpressionAttribute.Invalid;

@@ -9,6 +9,7 @@ namespace RainLanguageServer.RainLanguage2
         public readonly AbstractSpace space = space;
         public readonly HashSet<AbstractSpace> relies = relies;
         public readonly AbstractDeclaration? declaration = declaration;
+        public Context(Context context, AbstractDeclaration? declaration) : this(context.document, context.space, context.relies, declaration) { }
         private bool IsVisiable(Manager manager, Declaration declaration, bool isMember)
         {
             if (isMember)

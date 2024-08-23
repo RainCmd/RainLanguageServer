@@ -1,4 +1,5 @@
 ﻿using LanguageServer;
+using RainLanguageServer.RainLanguage2.GrammaticalAnalysis;
 using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage2
@@ -61,7 +62,7 @@ namespace RainLanguageServer.RainLanguage2
             using var reader = File.OpenText(kernelPath);
             kernel = new AbstractLibrary(LIBRARY_KERNEL, KERNEL);
             kernelDocuments = [new TextDocument(ToRainScheme(KERNEL), reader.ReadToEnd())];
-            Reparse();
+            Reparse(true);
             kernelManager = new KernelManager(kernel);
             this.documentLoader = documentLoader;
             this.opendDocumentLoader = opendDocumentLoader;
@@ -312,7 +313,7 @@ namespace RainLanguageServer.RainLanguage2
                 if (TryGetDeclaration(declaration, out var result))
                     results.Add(result);
         }
-        public void Reparse()
+        public void Reparse(bool onlyOpened)
         {
             library.Clear();
             fileSpaces.Clear();
@@ -335,13 +336,94 @@ namespace RainLanguageServer.RainLanguage2
                     FileLink.Link(this, library, item.Value);
                 CheckDeclarationValidity.CheckValidity(this, library);
                 CheckImplements.Check(this);
-                //todo 常量和枚举的表达式解析
-                if (opendDocumentLoader != null)
-                    foreach (var document in opendDocumentLoader())
+                var constants = new List<AbstractVariable>();
+                foreach (var item in library.variables)
+                    if (item.isReadonly && item.type.code != TypeCode.Invalid && item.fileVariable.expression != null)
                     {
-                        //todo 其他表达式的解析
+                        var context = new Context(item.file.space.document, item.space, item.file.space.relies, null);
+                        var localContext = new LocalContext(item.file.space.collector, null);
+                        var parser = new ExpressionParser(this, context, localContext, item.file.space.collector, false);
+                        item.expression = parser.Parse(item.fileVariable.expression.Value);
+                        var parameter = new ExpressionParameter(this, item.file.space.collector);
+                        item.expression.Read(parameter);
+                        constants.Add(item);
                     }
+                while (constants.Count > 0)
+                {
+                    var count = constants.Count;
+                    for (var i = 0; i < count; i++)
+                        if (constants[i].expression!.Calculability())
+                        {
+                            constants[i].calculated = true;
+                            count--;
+                            constants[i] = constants[count];
+                            constants.RemoveAt(count);
+                        }
+                    if (count == constants.Count)
+                    {
+                        foreach (var item in constants)
+                            item.file.space.collector.Add(item.name, ErrorLevel.Error, "无法计算常量值");
+                        break;
+                    }
+                }
+                foreach (var item in library.enums)
+                {
+                    var context = new Context(item.file.space.document, item.space, item.file.space.relies, null);
+                    var localContext = new LocalContext(item.file.space.collector);
+                    var parser = new ExpressionParser(this, context, localContext, item.file.space.collector, false);
+                    var parameter = new ExpressionParameter(this, item.file.space.collector);
+                    var value = 0L;
+                    foreach (var element in item.elements)
+                        if (element.fileElement.expression == null)
+                        {
+                            element.value = value++;
+                            element.calculated = true;
+                        }
+                        else
+                        {
+                            localContext.PushBlock();
+                            element.expression = parser.Parse(element.fileElement.expression.Value);
+                            element.expression.Read(parameter);
+                            if (element.expression.Calculability()) element.calculated = true;
+                            else item.file.space.collector.Add(item.name, ErrorLevel.Error, "无法计算常量值，可能存在循环定义");
+                            localContext.PopBlock();
+                        }
+                }
+                if (opendDocumentLoader == null || !onlyOpened)
+                    foreach (var file in fileSpaces.Values)
+                        Parse(file);
+                else
+                    foreach (var document in opendDocumentLoader())
+                        if (fileSpaces.TryGetValue(document.path, out var file))
+                            Parse(file);
             }
+        }
+        private void Parse(FileSpace space)
+        {
+            foreach (var child in space.children)
+                Parse(child);
+            var parameter = new ExpressionParameter(this, space.collector);
+            var context = new Context(space.document, space.space, space.relies, null);
+            foreach (var file in space.variables)
+                if (!file.isReadonly && file.expression != null && file.abstractDeclaration is AbstractVariable variable && variable.type.code != TypeCode.Invalid)
+                {
+                    var localContext = new LocalContext(space.collector);
+                    var parser = new ExpressionParser(this, context, localContext, space.collector, false);
+                    variable.expression = parser.Parse(file.expression.Value);
+                    variable.expression.Read(parameter);
+                    if (variable.expression.Valid)
+                    {
+                        if (!variable.expression.attribute.ContainAny(ExpressionAttribute.Value))
+                            space.collector.Add(variable.expression.range, ErrorLevel.Error, "不是一个值表达式");
+                        else if (ExpressionParser.Convert(this, variable.expression.tuple[0], variable.type) < 0)
+                            space.collector.Add(variable.expression.range, ErrorLevel.Error, "类型不匹配");
+                    }
+                }
+            foreach (var file in space.functions)
+                if (file.abstractDeclaration is AbstractFunction function)
+                {
+
+                }
         }
         public static string ToRainScheme(string library, string? path = null)
         {

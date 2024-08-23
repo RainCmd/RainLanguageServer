@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using RainLanguageServer.RainLanguage2.GrammaticalAnalysis;
+using System.Text;
 
 namespace RainLanguageServer.RainLanguage2
 {
@@ -35,9 +36,11 @@ namespace RainLanguageServer.RainLanguage2
     internal class AbstractVariable(FileVariable file, AbstractSpace space, TextRange name, Declaration declaration, bool isReadonly, Type type)
         : AbstractDeclaration(file, space, name, declaration)
     {
+        public readonly FileVariable fileVariable = file;
         public readonly bool isReadonly = isReadonly;
         public readonly Type type = type;
-        //todo expression
+        public Expression? expression;
+        public bool calculated = false;
         public readonly HashSet<TextRange> write = [];
     }
     internal class AbstractCallable : AbstractDeclaration
@@ -64,6 +67,7 @@ namespace RainLanguageServer.RainLanguage2
     internal class AbstractFunction(FileFunction file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
     {
+        public readonly FileFunction fileFunction = file;
         //todo logicBlock
     }
     internal class AbstractEnum(FileEnum file, AbstractSpace space, TextRange name, Declaration declaration)
@@ -72,10 +76,13 @@ namespace RainLanguageServer.RainLanguage2
         internal class Element(FileEnum.Element file, AbstractSpace space, TextRange name, Declaration declaration, bool valid)
             : AbstractDeclaration(file, space, name, declaration)
         {
+            public readonly FileEnum.Element fileElement = file;
             public readonly bool valid = valid;
-            public long? value;
-            //todo expression
+            public long value;
+            public Expression? expression;
+            public bool calculated = false;
         }
+        public readonly FileEnum fileEnum = file;
         public readonly List<Element> elements = [];
     }
     internal class AbstractStruct(FileStruct file, AbstractSpace space, TextRange name, Declaration declaration)
@@ -84,6 +91,7 @@ namespace RainLanguageServer.RainLanguage2
         internal class Variable(FileStruct.Variable file, AbstractSpace space, TextRange name, Declaration declaration, Type type, bool valid)
             : AbstractDeclaration(file, space, name, declaration)
         {
+            public readonly FileStruct.Variable fileVariable = file;
             public readonly bool valid = valid;
             public readonly Type type = type;
             public readonly HashSet<TextRange> write = [];
@@ -91,9 +99,11 @@ namespace RainLanguageServer.RainLanguage2
         internal class Function(FileStruct.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
+            public readonly FileStruct.Function fileFunction = file;
             public readonly bool valid = valid;
             //todo logicBlock
         }
+        public readonly FileStruct fileStruct = file;
         public readonly List<Variable> variables = [];
         public readonly List<Function> functions = [];
     }
@@ -103,10 +113,12 @@ namespace RainLanguageServer.RainLanguage2
         internal class Function(FileInterface.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
+            public readonly FileInterface.Function fileFunction = file;
             public readonly bool valid = valid;
             public readonly List<AbstractClass.Function> implements = [];
             public readonly List<AbstractCallable> overrides = [];//父接口中同名同参的函数
         }
+        public readonly FileInterface fileInterface = file;
         public readonly List<Type> inherits = [];
         public readonly List<Function> functions = [];
         public readonly List<AbstractDeclaration> implements = [];
@@ -117,6 +129,7 @@ namespace RainLanguageServer.RainLanguage2
         internal class Variable(FileClass.Variable file, AbstractSpace space, TextRange name, Declaration declaration, Type type, bool valid)
             : AbstractDeclaration(file, space, name, declaration)
         {
+            public readonly FileClass.Variable fileVariable = file;
             public readonly bool valid = valid;
             public readonly Type type = type;
             //todo expression
@@ -125,17 +138,20 @@ namespace RainLanguageServer.RainLanguage2
         internal class Constructor(FileClass.Constructor file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
+            public readonly FileClass.Constructor fileConstructor = file;
             //todo expression
             //todo logicBlock
         }
         internal class Function(FileClass.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
+            public readonly FileClass.Function fileFunction = file;
             public readonly bool valid = valid;
             //todo logicBlock
             public readonly List<AbstractCallable> overrides = [];
             public readonly List<Function> implements = [];
         }
+        public readonly FileClass fileClass = file;
         public Type parent;
         public readonly List<Type> inherits = [];
         public readonly List<Variable> variables = [];
@@ -147,15 +163,18 @@ namespace RainLanguageServer.RainLanguage2
     internal class AbstructDelegate(FileDelegate file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
     {
+        public readonly FileDelegate fileDelegate = file;
     }
     internal class AbstructTask(FileTask file, AbstractSpace space, TextRange name, Declaration declaration, Tuple returns)
         : AbstractDeclaration(file, space, name, declaration)
     {
+        public readonly FileTask fileTask = file;
         public readonly Tuple returns = returns;
     }
     internal class AbstructNative(FileNative file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
     {
+        public readonly FileNative fileNative = file;
     }
     internal class AbstractSpace(AbstractSpace? parent, string name)
     {
@@ -185,7 +204,7 @@ namespace RainLanguageServer.RainLanguage2
         }
         public bool Contain(AbstractSpace? space)
         {
-            while(space!=null)
+            while (space != null)
             {
                 if (space == this) return true;
                 space = space.parent;
