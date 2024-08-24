@@ -48,8 +48,15 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             else if (statement is JumpStatement jumpStatement) return jumpStatement.condition == null;
             else if (statement is BlockStatement blockStatement)
             {
-                foreach (var subStatement in blockStatement.statements)
-                    if (CheckReturn(subStatement)) return true;
+                for (var i = 0; i < blockStatement.statements.Count; i++)
+                {
+                    var subStatement = blockStatement.statements[i];
+                    if (CheckReturn(subStatement))
+                    {
+                        InaccessibleCodeWarning(blockStatement.statements, i);
+                        return true;
+                    }
+                }
             }
             else if (statement is BranchStatement branchStatement) return CheckReturn(branchStatement.trueBranch) && CheckReturn(branchStatement.falseBranch);
             else if (statement is LoopStatement loopStatement)
@@ -57,26 +64,51 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                 if (loopStatement.loopBlock != null && loopStatement.condition == null)
                 {
                     var hasContinue = false;
-                    foreach (var subStatement in loopStatement.loopBlock.statements)
-                        if (subStatement is BreakStatement) return false;
+                    for (int i = 0; i < loopStatement.loopBlock.statements.Count; i++)
+                    {
+                        var subStatement = loopStatement.loopBlock.statements[i];
+                        if (subStatement is BreakStatement breakStatement)
+                        {
+                            if (breakStatement.condition == null)
+                                InaccessibleCodeWarning(loopStatement.loopBlock.statements, i);
+                            return false;
+                        }
                         else if (!hasContinue)
                         {
                             if (subStatement is ContinueStatement continueStatement)
                             {
-                                if (continueStatement.condition == null) return true;
+                                if (continueStatement.condition == null)
+                                {
+                                    InaccessibleCodeWarning(loopStatement.loopBlock.statements, i);
+                                    return true;
+                                }
                                 else hasContinue = true;
                             }
-                            if (CheckReturn(subStatement)) return true;
+                            if (CheckReturn(subStatement))
+                            {
+                                InaccessibleCodeWarning(loopStatement.loopBlock.statements, i);
+                                return true;
+                            }
                         }
+                    }
                 }
                 if (loopStatement.elseBlock != null)
                 {
-                    if (loopStatement.condition == null) return true;//todo 警告无法访问的代码
+                    if (loopStatement.condition == null)
+                    {
+                        collector.Add(loopStatement.elseBlock.statements[0].range, ErrorLevel.Warning, "无法访问的代码");
+                        return true;
+                    }
                     else return CheckReturn(loopStatement.elseBlock);
                 }
             }
-            //todo try statement
+            if(statement is TryStatement tryStatement) return CheckReturn(tryStatement.tryBlock);
             return false;
+        }
+        private void InaccessibleCodeWarning(List<Statement> statements, int index)
+        {
+            if (index + 1 < statements.Count)
+                collector.Add(statements[index].range, ErrorLevel.Warning, "无法访问的代码");
         }
     }
 }
