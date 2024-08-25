@@ -2240,7 +2240,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                 if (type != manager.kernelManager.INT) return false;
             return true;
         }
-        private static bool ContainBlurry(Expression expression)
+        public static bool ContainBlurry(Expression expression)
         {
             if (expression is TupleExpression tuple)
             {

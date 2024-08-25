@@ -4,12 +4,15 @@
     {
         public readonly struct CatchBlock(Expression condition, BlockStatement block)
         {
+            public readonly TextRange catchSymbol;
             public readonly Expression condition = condition;
             public readonly BlockStatement block = block;
         }
-        public readonly BlockStatement? tryBlock;
+        public readonly TextRange trySymbol;
+        public readonly TextRange? finallySymbol;
+        public BlockStatement? tryBlock;
         public readonly List<CatchBlock> catchBlocks=[];
-        public readonly BlockStatement? finallyBlock;
+        public BlockStatement? finallyBlock;
         public readonly List<TextRange> group = [];
     }
 }

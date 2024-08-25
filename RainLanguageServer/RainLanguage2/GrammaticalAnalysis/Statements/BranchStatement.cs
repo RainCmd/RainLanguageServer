@@ -7,5 +7,12 @@
         public readonly Expression condition;
         public BlockStatement? trueBranch, falseBranch;
         public readonly List<TextRange> group;
+
+        public BranchStatement(TextRange ifSymbol, Expression condition, List<TextRange> group)
+        {
+            this.ifSymbol = ifSymbol;
+            this.condition = condition;
+            this.group = group;
+        }
     }
 }
