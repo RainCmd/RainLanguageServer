@@ -48,6 +48,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
         {
             if (body.Count > 0)
             {
+                var symbolGroup = new List<TextRange>();
                 var parser = new ExpressionParser(manager, context, localContext, collector, destructor);
                 var stack = new Stack<List<Statement>>();
                 stack.Push(logicBlock.statements);
@@ -68,19 +69,22 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             var prev = stack.Peek()[^1];
                             if (prev is BranchStatement branchStatement)
                             {
-                                branchStatement.trueBranch = new BlockStatement();
+                                var branchLine = branchStatement.ifSymbol.start.Line;
+                                branchStatement.trueBranch = new BlockStatement(branchLine.end & branchLine.end);
                                 statements = branchStatement.trueBranch.statements;
                             }
                             else if (prev is LoopStatement loopStatement)
                             {
-                                loopStatement.loopBlock = new BlockStatement();
+                                var loopLine = loopStatement.symbol.start.Line;
+                                loopStatement.loopBlock = new BlockStatement(loopLine.end & loopLine.end);
                                 statements = loopStatement.loopBlock.statements;
                             }
                             else if (prev is TryStatement tryStatement)
                             {
                                 if (tryStatement.tryBlock == null)
                                 {
-                                    tryStatement.tryBlock = new BlockStatement();
+                                    var tryLine = tryStatement.trySymbol.start.Line;
+                                    tryStatement.tryBlock = new BlockStatement(tryLine.end & tryLine.end);
                                     statements = tryStatement.tryBlock.statements;
                                 }
                                 else statements = tryStatement.catchBlocks[^1].block.statements;
@@ -89,7 +93,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                         }
                         if (statements == null)
                         {
-                            var block = new BlockStatement();
+                            var block = new BlockStatement(line.start & line.start);
                             stack.Peek().Add(block);
                             statements = block.statements;
                         }
@@ -144,7 +148,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                 if (stack.Peek()[^1] is BranchStatement branch)
                                 {
                                     branch.elseSymbol = lexical.anchor;
-                                    branch.falseBranch = new BlockStatement();
+                                    branch.falseBranch = new BlockStatement(line.end & line.end);
                                     stack.Push(branch.falseBranch.statements);
                                     indents.Push(line.indent);
                                     localContext.PushBlock();
@@ -154,7 +158,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                 else if (stack.Peek()[^1] is LoopStatement loop)
                                 {
                                     loop.elseSymbol = lexical.anchor;
-                                    loop.elseBlock = new BlockStatement();
+                                    loop.elseBlock = new BlockStatement(line.end & line.end);
                                     stack.Push(loop.elseBlock.statements);
                                     indents.Push(line.indent);
                                     localContext.PushBlock();
@@ -252,7 +256,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             if (!TryGetLoopStatement(stack, out var loop))
                                 collector.Add(lexical.anchor, ErrorLevel.Error, "brack语句必须while或for循环中");
-                            var jump = new BreakStatement(loop, condition);
+                            var jump = new BreakStatement(lexical.anchor, loop, condition);
                             loop?.group.Add(lexical.anchor);
                             stack.Peek().Add(jump);
                         }
@@ -271,27 +275,93 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             }
                             if (!TryGetLoopStatement(stack, out var loop))
                                 collector.Add(lexical.anchor, ErrorLevel.Error, "continue语句必须while或for循环中");
-                            var jump = new ContinueStatement(loop, condition);
+                            var jump = new ContinueStatement(lexical.anchor, loop, condition);
                             loop?.group.Add(lexical.anchor);
                             stack.Peek().Add(jump);
                         }
                         else if (lexical.anchor == KeyWords.RETURN)
                         {
+                            var result = parser.Parse(lexical.anchor.end & line.end);
+                            if (result.Valid)
+                            {
+                                if (result.tuple.Count != returns.Count) collector.Add(result.range, ErrorLevel.Error, "表达式返回值数量与函数返回值数量不一致");
+                                else for (var i = 0; i < returns.Count; i++)
+                                        if (ExpressionParser.Convert(manager, result.tuple[i], returns[i]) < 0)
+                                            collector.Add(result.range, ErrorLevel.Error, $"表达式第 {i + 1} 个返回值无法转换为函数的返回值类型");
+                            }
+                            stack.Peek().Add(new ReturnStatement(lexical.anchor, result, symbolGroup));
                         }
                         else if (lexical.anchor == KeyWords.WAIT)
                         {
+                            var range = (lexical.anchor.end & line.end).Trim;
+                            Expression? expression = null;
+                            if (range.Count > 0)
+                            {
+                                expression = parser.Parse(range);
+                                if (!expression.attribute.ContainAny(ExpressionAttribute.Value)) collector.Add(expression.range, ErrorLevel.Error, "表达式返回值不是一个有效值");
+                                else if (expression.tuple[0] != manager.kernelManager.BOOL && expression.tuple[0] != manager.kernelManager.INT && expression.tuple[0].code != TypeCode.Task)
+                                    collector.Add(expression.range, ErrorLevel.Error, "wait语句的等待目标类型必须是bool、integer或task");
+                            }
+                            stack.Peek().Add(new WaitStatement(lexical.anchor, expression, symbolGroup));
                         }
                         else if (lexical.anchor == KeyWords.EXIT)
                         {
+                            var expression = parser.Parse(lexical.anchor.end & line.end);
+                            if (expression.Valid)
+                            {
+                                if (!expression.attribute.ContainAny(ExpressionAttribute.Value)) collector.Add(expression.range, ErrorLevel.Error, "表达式返回值不是一个有效值");
+                                else if (expression.tuple[0] != manager.kernelManager.STRING)
+                                    collector.Add(expression.range, ErrorLevel.Error, "exit语句的参数必须是字符串");
+                            }
+                            stack.Peek().Add(new ExitStatement(lexical.anchor, expression, symbolGroup));
                         }
                         else if (lexical.anchor == KeyWords.TRY)
                         {
+                            stack.Peek().Add(new TryStatement(lexical.anchor));
+                            if (Lexical.TryAnalysis(line, lexical.anchor.end, out lexical, collector))
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的表达式");
                         }
                         else if (lexical.anchor == KeyWords.CATCH)
                         {
+                            if (stack.Peek().Count > 0 && stack.Peek()[^1] is TryStatement tryStatement)
+                            {
+                                if (tryStatement.tryBlock == null)
+                                {
+                                    var tryLine = tryStatement.trySymbol.start.Line;
+                                    tryStatement.tryBlock = new BlockStatement(tryLine.end & tryLine.end);
+                                }
+                                tryStatement.group.Add(lexical.anchor);
+                                var range = (lexical.anchor.end & line.end).Trim;
+                                Expression? expression = null;
+                                if (range.Count > 0)
+                                {
+                                    expression = parser.Parse(range);
+                                    if (expression.Valid)
+                                    {
+                                        if (expression is BlurryVariableDeclarationExpression blurryVariable) expression = parser.InferLeftValueType(blurryVariable, manager.kernelManager.STRING);
+                                        if (!expression.attribute.ContainAny(ExpressionAttribute.Value)) collector.Add(expression.range, ErrorLevel.Error, "表达式返回值不是一个有效值");
+                                        else if (expression.tuple[0] != manager.kernelManager.STRING) collector.Add(expression.range, ErrorLevel.Error, "catch语句的表达式必须是字符串类型");
+                                    }
+                                }
+                                tryStatement.catchBlocks.Add(new TryStatement.CatchBlock(lexical.anchor, expression, new BlockStatement(line.end & line.end)));
+                            }
+                            else collector.Add(lexical.anchor, ErrorLevel.Error, "catch语句必须在try或catch语句之后");
                         }
                         else if (lexical.anchor == KeyWords.FINALLY)
                         {
+                            if (stack.Peek().Count > 0 && stack.Peek()[^1] is TryStatement tryStatement)
+                            {
+                                if (tryStatement.tryBlock == null)
+                                {
+                                    var tryLine = tryStatement.trySymbol.start.Line;
+                                    tryStatement.tryBlock = new BlockStatement(tryLine.end & tryLine.end);
+                                }
+                                tryStatement.group.Add(lexical.anchor);
+                                stack.Peek().Add(new SubStatement(tryStatement));
+                            }
+                            else collector.Add(lexical.anchor, ErrorLevel.Error, "finally语句必须在try或catch语句之后");
+                            if (Lexical.TryAnalysis(line, lexical.anchor.end, out lexical, collector))
+                                collector.Add(lexical.anchor, ErrorLevel.Error, "无效的表达式");
                         }
                         else
                         {
@@ -312,7 +382,98 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             if (returns.Count > 0)
                 collector.Add(name, ErrorLevel.Error, "不是所有路径都有返回值");
         }
-        private bool TryGetLoopStatement(IEnumerable<List<Statement>> statements, [MaybeNullWhen(false)] out LoopStatement result)
+        private static void Trim(List<Statement> statements)
+        {
+            for (var i = statements.Count - 1; i >= 0; i--)
+            {
+                var statement = statements[i];
+                if (statement is BlockStatement blockStatement)
+                {
+                    Trim(blockStatement.statements);
+                    TryTidyBlockRange(blockStatement);
+                }
+                else if (statement is BranchStatement branchStatement)
+                {
+                    branchStatement.range = branchStatement.ifSymbol & branchStatement.condition.range;
+                    if (branchStatement.trueBranch != null)
+                    {
+                        Trim(branchStatement.trueBranch.statements);
+                        if (TryTidyBlockRange(branchStatement.trueBranch))
+                            branchStatement.range &= branchStatement.trueBranch.range;
+                    }
+                    if (branchStatement.falseBranch != null)
+                    {
+                        Trim(branchStatement.falseBranch.statements);
+                        if (TryTidyBlockRange(branchStatement.falseBranch))
+                            branchStatement.range &= branchStatement.falseBranch.range;
+                        else if (branchStatement.elseSymbol != null) branchStatement.range &= branchStatement.elseSymbol.Value;
+                    }
+                }
+                else if (statement is LoopStatement loopStatement)
+                {
+                    if (loopStatement is ForStatement forStatement)
+                    {
+                        if (forStatement.back != null) forStatement.range = forStatement.symbol & forStatement.back.range;
+                        else if (forStatement.separator2 != null) forStatement.range = forStatement.symbol & forStatement.separator2.Value;
+                        else if (forStatement.condition != null) forStatement.range = forStatement.symbol & forStatement.condition.range;
+                        else if (forStatement.separator1 != null) forStatement.range = forStatement.symbol & forStatement.separator1.Value;
+                        else if (forStatement.front != null) forStatement.range = forStatement.symbol & forStatement.front.range;
+                        else forStatement.range = forStatement.symbol;
+                    }
+                    else loopStatement.range = loopStatement.condition == null ? loopStatement.symbol : loopStatement.symbol & loopStatement.condition.range;
+                    if (loopStatement.loopBlock != null)
+                    {
+                        Trim(loopStatement.loopBlock.statements);
+                        if (TryTidyBlockRange(loopStatement.loopBlock))
+                            loopStatement.range &= loopStatement.loopBlock.range;
+                    }
+                    if (loopStatement.elseBlock != null)
+                    {
+                        Trim(loopStatement.elseBlock.statements);
+                        if (TryTidyBlockRange(loopStatement.elseBlock))
+                            loopStatement.range &= loopStatement.elseBlock.range;
+                        else if (loopStatement.elseSymbol != null) loopStatement.range &= loopStatement.elseSymbol.Value;
+                    }
+                }
+                else if (statement is TryStatement tryStatement)
+                {
+                    tryStatement.range = tryStatement.trySymbol;
+                    if (tryStatement.tryBlock != null)
+                    {
+                        Trim(tryStatement.tryBlock.statements);
+                        if (TryTidyBlockRange(tryStatement.tryBlock))
+                            tryStatement.range &= tryStatement.tryBlock.range;
+                    }
+                    foreach (var catchBlock in tryStatement.catchBlocks)
+                    {
+                        Trim(catchBlock.block.statements);
+                        if (TryTidyBlockRange(catchBlock.block))
+                            tryStatement.range &= catchBlock.block.range;
+                        else if (catchBlock.expression != null)
+                            tryStatement.range &= catchBlock.expression.range;
+                        else tryStatement.range &= catchBlock.catchSymbol;
+                    }
+                    if (tryStatement.finallyBlock != null)
+                    {
+                        Trim(tryStatement.finallyBlock.statements);
+                        if (TryTidyBlockRange(tryStatement.finallyBlock))
+                            tryStatement.range &= tryStatement.finallyBlock.range;
+                        else if (tryStatement.finallySymbol != null) tryStatement.range &= tryStatement.finallySymbol.Value;
+                    }
+                }
+                else if (statement is SubStatement) statements.RemoveAt(i);
+            }
+        }
+        private static bool TryTidyBlockRange(BlockStatement blockStatement)
+        {
+            if (blockStatement.statements.Count > 0)
+            {
+                blockStatement.range = blockStatement.statements[0].range & blockStatement.statements[^1].range;
+                return true;
+            }
+            return false;
+        }
+        private static bool TryGetLoopStatement(IEnumerable<List<Statement>> statements, [MaybeNullWhen(false)] out LoopStatement result)
         {
             foreach (var list in statements)
                 if (list.Count > 0 && list[^1] is LoopStatement loop)

@@ -1814,7 +1814,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             }
             return expression;
         }
-        private Expression InferLeftValueType(BlurryVariableDeclarationExpression blurry, Type type)
+        public Expression InferLeftValueType(BlurryVariableDeclarationExpression blurry, Type type)
         {
             if (type == Expression.BLURRY || type == Expression.NULL)
             {

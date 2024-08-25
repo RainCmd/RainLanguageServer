@@ -38,10 +38,9 @@ namespace RainLanguageServer
             get
             {
                 var start = 0;
-                var end = Count;
+                var end = Count - 1;
+                while (end >= start && char.IsWhiteSpace(this[end])) end--;
                 while (start < end && char.IsWhiteSpace(this[start])) start++;
-                while (end-- > start && char.IsWhiteSpace(this[end])) ;
-                if (start > end) end = start;
                 return this[start..(end + 1)];
             }
         }

@@ -1,10 +1,19 @@
 ﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Statements
 {
-    internal class JumpStatement(LoopStatement? loop, Expression? condition) : Statement
+    internal class JumpStatement : Statement
     {
-        public readonly LoopStatement? loop = loop;
-        public readonly Expression? condition = condition;
+        public readonly TextRange symbol;
+        public readonly LoopStatement? loop;
+        public readonly Expression? condition;
+
+        public JumpStatement(TextRange symbol, LoopStatement? loop, Expression? condition)
+        {
+            range = condition == null ? symbol : symbol & condition.range;
+            this.symbol = symbol;
+            this.loop = loop;
+            this.condition = condition;
+        }
     }
-    internal class BreakStatement(LoopStatement? loop, Expression? condition) : JumpStatement(loop, condition) { }
-    internal class ContinueStatement(LoopStatement? loop, Expression? condition) : JumpStatement(loop, condition) { }
+    internal class BreakStatement(TextRange symbol, LoopStatement? loop, Expression? condition) : JumpStatement(symbol, loop, condition) { }
+    internal class ContinueStatement(TextRange symbol, LoopStatement? loop, Expression? condition) : JumpStatement(symbol, loop, condition) { }
 }

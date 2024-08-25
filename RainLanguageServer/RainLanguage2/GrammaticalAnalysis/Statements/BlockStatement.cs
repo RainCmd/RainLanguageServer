@@ -2,7 +2,11 @@
 {
     internal class BlockStatement : Statement
     {
-        public int indent = -1;
         public readonly List<Statement> statements = [];
+        public BlockStatement(TextRange range)
+        {
+            base.range = range;
+        }
+
     }
 }
