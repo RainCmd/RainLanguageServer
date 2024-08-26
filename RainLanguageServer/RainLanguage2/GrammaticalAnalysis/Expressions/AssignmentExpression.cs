@@ -13,5 +13,10 @@
             this.right = right;
             attribute = left.attribute & ~ExpressionAttribute.Assignable;
         }
+        public override void Read(ExpressionParameter parameter)
+        {
+            if (left.attribute.ContainAny(ExpressionAttribute.Assignable)) left.Write(parameter);
+            right.Read(parameter);
+        }
     }
 }

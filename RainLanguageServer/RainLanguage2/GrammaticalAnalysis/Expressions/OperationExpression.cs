@@ -15,5 +15,10 @@
             if (tuple.Count == 1) attribute = ExpressionAttribute.Value | tuple[0].GetAttribute(manager);
             else attribute = ExpressionAttribute.Tuple;
         }
+        public override void Read(ExpressionParameter parameter)
+        {
+            callable.references.Add(symbol);
+            parameters.Read(parameter);
+        }
     }
 }

@@ -12,10 +12,17 @@
             this.attribute = attribute | local.type.GetAttribute(manager);
         }
         public VariableLocalExpression(TextRange range, Local local, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : this(range, local, local.type, identifier, attribute, manager) { }
+        public override void Read(ExpressionParameter parameter) => local.read.Add(identifier);
+        public override void Write(ExpressionParameter parameter) => local.write.Add(identifier);
     }
     internal class VariableDeclarationLocalExpression(TextRange range, Local local, TextRange identifier, TypeExpression typeExpression, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, identifier, attribute, manager)
     {
         public readonly TypeExpression typeExpression = typeExpression;
+        public override void Read(ExpressionParameter parameter)
+        {
+            base.Read(parameter);
+            typeExpression.Read(parameter);
+        }
     }
     internal class VariableKeyworldLocalExpression(TextRange range, Local local, Type type, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, type, identifier, attribute, manager)
     {
@@ -35,6 +42,8 @@
             if (!variable.isReadonly) attribute |= ExpressionAttribute.Assignable;
             else if (variable.declaration.library == Manager.LIBRARY_SELF) attribute |= ExpressionAttribute.Constant;
         }
+        public override void Read(ExpressionParameter parameter) => variable.references.Add(name.name);
+        public override void Write(ExpressionParameter parameter) => variable.write.Add(name.name);
     }
     internal class VariableMemberExpression : Expression
     {
@@ -54,5 +63,16 @@
             else if (target != null) attribute |= target.attribute & ExpressionAttribute.Assignable;
         }
         public VariableMemberExpression(TextRange range, Type type, TextRange identifier, AbstractDeclaration member, Manager.KernelManager manager) : this(range, type, null, identifier, null, member, manager) { }
+        public override void Read(ExpressionParameter parameter)
+        {
+            target?.Read(parameter);
+            member.references.Add(identifier);
+        }
+        public override void Write(ExpressionParameter parameter)
+        {
+            target?.Read(parameter);
+            if (member is AbstractStruct.Variable structMember) structMember.write.Add(identifier);
+            else if (member is AbstractClass.Variable classMember) classMember.write.Add(identifier);
+        }
     }
 }

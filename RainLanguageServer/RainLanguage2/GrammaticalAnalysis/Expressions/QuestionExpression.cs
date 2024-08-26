@@ -18,5 +18,11 @@
             this.right = right;
             attribute = left.attribute & ~ExpressionAttribute.Assignable;
         }
+        public override void Read(ExpressionParameter parameter)
+        {
+            condition.Read(parameter);
+            left.Read(parameter);
+            right?.Read(parameter);
+        }
     }
 }

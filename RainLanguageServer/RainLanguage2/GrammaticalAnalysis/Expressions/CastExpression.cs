@@ -14,7 +14,11 @@
             this.expression = expression;
             attribute = ExpressionAttribute.Value | type.type.GetAttribute(manager);
         }
-
+        public override void Read(ExpressionParameter parameter)
+        {
+            type.Read(parameter);
+            expression.Read(parameter);
+        }
     }
     internal class TupleCastExpression : Expression
     {
@@ -27,6 +31,7 @@
             else attribute = ExpressionAttribute.Tuple;
             attribute |= expression.attribute & ~ExpressionAttribute.Assignable;
         }
+        public override void Read(ExpressionParameter parameter) => expression.Read(parameter);
     }
     internal class IsCastExpression : Expression
     {
@@ -46,6 +51,11 @@
             this.local = local;
             attribute = ExpressionAttribute.Value;
         }
+        public override void Read(ExpressionParameter parameter)
+        {
+            source.Read(parameter);
+            type.Read(parameter);
+        }
     }
     internal class AsCastExpression : Expression
     {
@@ -60,6 +70,11 @@
             this.source = source;
             this.type = type;
             attribute = ExpressionAttribute.Value;
+        }
+        public override void Read(ExpressionParameter parameter)
+        {
+            source.Read(parameter);
+            type.Read(parameter);
         }
     }
 }

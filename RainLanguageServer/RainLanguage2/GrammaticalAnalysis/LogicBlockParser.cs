@@ -57,27 +57,24 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             var prev = stack.Peek()[^1];
                             if (prev is BranchStatement branchStatement)
                             {
-                                var branchLine = branchStatement.ifSymbol.start.Line;
-                                branchStatement.trueBranch = new BlockStatement(branchLine.end & branchLine.end);
+                                branchStatement.trueBranch = new BlockStatement(line.start & line.start);
                                 statements = branchStatement.trueBranch.statements;
                             }
                             else if (prev is LoopStatement loopStatement)
                             {
-                                var loopLine = loopStatement.symbol.start.Line;
-                                loopStatement.loopBlock = new BlockStatement(loopLine.end & loopLine.end);
+                                loopStatement.loopBlock = new BlockStatement(line.start & line.start);
                                 statements = loopStatement.loopBlock.statements;
                             }
                             else if (prev is TryStatement tryStatement)
                             {
                                 if (tryStatement.tryBlock == null)
                                 {
-                                    var tryLine = tryStatement.trySymbol.start.Line;
-                                    tryStatement.tryBlock = new BlockStatement(tryLine.end & tryLine.end);
+                                    tryStatement.tryBlock = new BlockStatement(line.start & line.start);
                                     statements = tryStatement.tryBlock.statements;
                                 }
                                 else statements = tryStatement.catchBlocks[^1].block.statements;
                             }
-                            else if (prev is SubStatement subStatement) statements = subStatement.CreateBlock().statements;
+                            else if (prev is SubStatement subStatement) statements = subStatement.CreateBlock(line.start & line.start).statements;
                         }
                         if (statements == null)
                         {

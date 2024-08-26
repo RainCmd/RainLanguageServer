@@ -13,5 +13,6 @@
             this.group = group;
             group.Add(symbol);
         }
+        public override void Read(StatementParameter parameter) => result.Read(parameter);
     }
 }

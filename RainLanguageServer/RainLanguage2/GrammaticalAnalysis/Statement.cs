@@ -4,6 +4,7 @@
     {
         public readonly Manager manager = manager;
         public readonly MessageCollector collector = collector;
+        public static implicit operator ExpressionParameter(StatementParameter parameter) => new(parameter.manager, parameter.collector);
     }
     internal class Statement
     {

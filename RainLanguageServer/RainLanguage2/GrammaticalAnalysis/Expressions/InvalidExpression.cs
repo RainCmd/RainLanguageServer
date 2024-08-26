@@ -20,11 +20,12 @@
             expressions = [expression];
             attribute = ExpressionAttribute.Invalid;
         }
+        public override void Read(ExpressionParameter parameter)
+        {
+            foreach(var expression in expressions) expression.Read(parameter);
+        }
     }
-    internal class InvalidKeyworldExpression(TextRange range) : InvalidExpression(range)
-    {
-
-    }
+    internal class InvalidKeyworldExpression(TextRange range) : InvalidExpression(range) { }
     internal class InvalidOperationExpression : Expression
     {
         public readonly TextRange symbol;
@@ -37,5 +38,6 @@
             this.parameters = parameters;
             attribute = ExpressionAttribute.Invalid;
         }
+        public override void Read(ExpressionParameter parameter) => parameters?.Read(parameter);
     }
 }

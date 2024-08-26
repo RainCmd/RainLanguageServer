@@ -56,7 +56,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
         public static readonly Tuple TUPLE_BLURRY = new([BLURRY]);
         public virtual bool TryEvaluateIndices(List<long> indices) => false;
         public virtual bool Calculability() { return false; }
-        public virtual void Read(ExpressionParameter parameter) { }
-        public virtual void Write(ExpressionParameter parameter) { }
+        public abstract void Read(ExpressionParameter parameter);
+        public virtual void Write(ExpressionParameter parameter) => parameter.collector.Add(range, ErrorLevel.Error, "表达式不可赋值");
     }
 }

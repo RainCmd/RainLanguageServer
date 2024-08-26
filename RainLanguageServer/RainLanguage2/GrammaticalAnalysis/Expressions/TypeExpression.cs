@@ -13,6 +13,11 @@
             this.type = type;
             attribute = ExpressionAttribute.Type;
         }
+        public override void Read(ExpressionParameter parameter)
+        {
+            if (parameter.manager.TryGetDeclaration(type, out var declaration))
+                declaration.references.Add(file.name.name);
+        }
     }
     internal class TypeKeyworldExpression(TextRange range, TextRange? qualifier, FileType file, Type type) : TypeExpression(range, qualifier, file, type) { }
 }

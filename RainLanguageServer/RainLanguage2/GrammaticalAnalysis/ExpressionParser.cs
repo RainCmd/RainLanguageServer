@@ -1348,7 +1348,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             if (declaration is AbstractClass.Function function) callables.Add(function);
                             else ambiguity = true;
                         if (ambiguity) CheckAmbiguity(attribute, declarations, name);
-                        var expression = new MethodMemberExpression(name.Range, name.Range, callables);
+                        var expression = new MethodVirtualExpression(name.Range, name.Range, callables);
                         if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
                         {
                             expressionStack.Push(expression);

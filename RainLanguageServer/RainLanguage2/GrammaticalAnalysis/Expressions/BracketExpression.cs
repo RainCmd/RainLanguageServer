@@ -17,5 +17,6 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
         {
             return expression.TryEvaluateIndices(indices);
         }
+        public override void Read(ExpressionParameter parameter) => expression.Read(parameter);
     }
 }

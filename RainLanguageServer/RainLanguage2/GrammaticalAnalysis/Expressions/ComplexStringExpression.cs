@@ -9,5 +9,9 @@
             this.expressions = expressions;
             attribute = ExpressionAttribute.Value | manager.STRING.GetAttribute(manager);
         }
+        public override void Read(ExpressionParameter parameter)
+        {
+            foreach (var expression in expressions) expression.Read(parameter);
+        }
     }
 }

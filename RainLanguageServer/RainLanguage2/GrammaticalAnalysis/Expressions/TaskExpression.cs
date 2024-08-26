@@ -12,6 +12,7 @@
             this.invoker = invoker;
             attribute = ExpressionAttribute.Value | type.GetAttribute(manager);
         }
+        public override void Read(ExpressionParameter parameter) => invoker.Read(parameter);
     }
     internal class TaskEvaluationExpression : Expression
     {
@@ -24,6 +25,11 @@
             this.indices = indices;
             if (tuple.Count == 1) attribute = ExpressionAttribute.Value | tuple[0].GetAttribute(manager);
             else attribute = ExpressionAttribute.Tuple;
+        }
+        public override void Read(ExpressionParameter parameter)
+        {
+            source.Read(parameter);
+            indices.Read(parameter);
         }
     }
 }

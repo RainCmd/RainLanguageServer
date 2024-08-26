@@ -14,5 +14,11 @@
             this.condition = condition;
             this.group = group;
         }
+        public override void Read(StatementParameter parameter)
+        {
+            condition.Read(parameter);
+            trueBranch?.Read(parameter);
+            falseBranch?.Read(parameter);
+        }
     }
 }

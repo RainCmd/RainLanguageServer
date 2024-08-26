@@ -7,6 +7,9 @@
         {
             base.range = range;
         }
-
+        public override void Read(StatementParameter parameter)
+        {
+            foreach(var statement in statements) statement.Read(parameter);
+        }
     }
 }

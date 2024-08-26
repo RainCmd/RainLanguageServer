@@ -44,6 +44,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
             value = default;
             return false;
         }
+        public override void Read(ExpressionParameter parameter) { }
     }
     internal class ConstBooleanExpression(TextRange range, bool value, Manager.KernelManager manager) : ConstExpression(range, manager.BOOL)
     {
@@ -54,10 +55,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
             return true;
         }
     }
-    internal class ConstBooleanKeyworldExpression(TextRange range, bool value, Manager.KernelManager manager) : ConstBooleanExpression(range, value, manager)
-    {
-
-    }
+    internal class ConstBooleanKeyworldExpression(TextRange range, bool value, Manager.KernelManager manager) : ConstBooleanExpression(range, value, manager) { }
     internal class ConstByteExpression(TextRange range, byte value, Manager.KernelManager manager) : ConstExpression(range, manager.BYTE)
     {
         public readonly byte value = value;
@@ -130,10 +128,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
             return true;
         }
     }
-    internal class ConstCharsExpression(TextRange range, long value, Manager.KernelManager manager) : ConstIntegerExpression(range, value, manager)
-    {
-
-    }
+    internal class ConstCharsExpression(TextRange range, long value, Manager.KernelManager manager) : ConstIntegerExpression(range, value, manager) { }
     internal class ConstRealExpression(TextRange range, double value, Manager.KernelManager manager) : ConstExpression(range, manager.REAL)
     {
         public readonly double value = value;
@@ -168,6 +163,10 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
         {
             value = this.value;
             return true;
+        }
+        public override void Read(ExpressionParameter parameter)
+        {
+            if (parameter.manager.TryGetDeclaration(value, out var declaration)) declaration.references.Add(file.name.name);
         }
     }
     internal class ConstNullExpression(TextRange range) : ConstExpression(range, NULL) { }

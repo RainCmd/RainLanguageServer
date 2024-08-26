@@ -13,6 +13,11 @@
             this.loop = loop;
             this.condition = condition;
         }
+        public override void Read(StatementParameter parameter)
+        {
+            loop?.Read(parameter);
+            condition?.Read(parameter);
+        }
     }
     internal class BreakStatement(TextRange symbol, LoopStatement? loop, Expression? condition) : JumpStatement(symbol, loop, condition) { }
     internal class ContinueStatement(TextRange symbol, LoopStatement? loop, Expression? condition) : JumpStatement(symbol, loop, condition) { }

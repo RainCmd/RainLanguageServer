@@ -18,5 +18,10 @@
             this.type = type;
             attribute = ExpressionAttribute.Constant;
         }
+        public override void Read(ExpressionParameter parameter)
+        {
+            abstractEnum.references.Add(type.range);
+            element.references.Add(identifier);
+        }
     }
 }

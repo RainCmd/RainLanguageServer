@@ -8,26 +8,31 @@
         public BlockStatement? loopBlock, elseBlock;
         public readonly List<TextRange> group;
 
-        public LoopStatement(TextRange symbol, Expression condition, List<TextRange> group)
+        public LoopStatement(TextRange symbol, Expression? condition, List<TextRange> group)
         {
             this.symbol = symbol;
             this.condition = condition;
             this.group = group;
             group.Add(symbol);
         }
+        public override void Read(StatementParameter parameter)
+        {
+            condition?.Read(parameter);
+            loopBlock?.Read(parameter);
+            elseBlock?.Read(parameter);
+        }
     }
     internal class WhileStatement(TextRange symbol, Expression? condition) : LoopStatement(symbol, condition, []) { }
-    internal class ForStatement : LoopStatement
+    internal class ForStatement(TextRange symbol, Expression? condition, TextRange? separator1, TextRange? separator2, Expression? front, Expression? back) : LoopStatement(symbol, condition, [])
     {
-        public readonly TextRange? separator1, separator2;//两个分隔符 ;
-        public readonly Expression? front, back;
+        public readonly TextRange? separator1 = separator1, separator2 = separator2;//两个分隔符 ;
+        public readonly Expression? front = front, back = back;
 
-        public ForStatement(TextRange symbol, Expression? condition, TextRange? separator1, TextRange? separator2, Expression? front, Expression? back) : base(symbol, condition, [])
+        public override void Read(StatementParameter parameter)
         {
-            this.separator1 = separator1;
-            this.separator2 = separator2;
-            this.front = front;
-            this.back = back;
+            base.Read(parameter);
+            front?.Read(parameter);
+            back?.Read(parameter);
         }
     }
 }

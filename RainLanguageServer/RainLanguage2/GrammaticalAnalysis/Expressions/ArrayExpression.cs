@@ -11,6 +11,11 @@
             this.length = length;
             attribute = ExpressionAttribute.Value | ExpressionAttribute.Array;
         }
+        public override void Read(ExpressionParameter parameter)
+        {
+            type.Read(parameter);
+            length.Read(parameter);
+        }
     }
     internal class ArrayInitExpression : Expression
     {
@@ -22,6 +27,11 @@
             this.type = type;
             this.elements = elements;
             attribute = ExpressionAttribute.Value | ExpressionAttribute.Array;
+        }
+        public override void Read(ExpressionParameter parameter)
+        {
+            type?.Read(parameter);
+            elements.Read(parameter);
         }
     }
     internal class ArrayEvaluationExpression : Expression
@@ -35,6 +45,16 @@
             this.index = index;
             attribute = ExpressionAttribute.Value | tuple[0].GetAttribute(manager);
         }
+        public override void Read(ExpressionParameter parameter)
+        {
+            array.Read(parameter);
+            index.Read(parameter);
+        }
+        public override void Write(ExpressionParameter parameter)
+        {
+            array.Read(parameter);
+            index.Read(parameter);
+        }
     }
     internal class StringEvaluationExpression : Expression
     {
@@ -47,6 +67,11 @@
             this.index = index;
             attribute = ExpressionAttribute.Value | tuple[0].GetAttribute(manager);
         }
+        public override void Read(ExpressionParameter parameter)
+        {
+            source.Read(parameter);
+            index.Read(parameter);
+        }
     }
     internal class ArraySubExpression : Expression
     {
@@ -58,6 +83,11 @@
             this.source = source;
             this.indies = indies;
             attribute = ExpressionAttribute.Value | ExpressionAttribute.Array;
+        }
+        public override void Read(ExpressionParameter parameter)
+        {
+            source.Read(parameter);
+            indies.Read(parameter);
         }
     }
 }

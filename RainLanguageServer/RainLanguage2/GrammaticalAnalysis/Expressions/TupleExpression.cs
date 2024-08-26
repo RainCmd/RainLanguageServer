@@ -26,6 +26,10 @@
                 if (!expression.TryEvaluateIndices(indices)) return false;
             return true;
         }
+        public override void Read(ExpressionParameter parameter)
+        {
+            foreach(var expression in expressions) expression.Read(parameter);
+        }
         public static Expression Create(IList<Expression> expressions, MessageCollector collector)
         {
             if (expressions.Count == 0) throw new Exception("至少需要一个表达式，否则无法计算表达式范围");
@@ -55,6 +59,11 @@
             this.indices = indices;
             if (tuple.Count == 1) attribute = ExpressionAttribute.Value | tuple[0].GetAttribute(manager);
             else attribute = ExpressionAttribute.Tuple;
+        }
+        public override void Read(ExpressionParameter parameter)
+        {
+            source.Read(parameter);
+            indices.Read(parameter);
         }
     }
 }

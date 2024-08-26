@@ -9,5 +9,6 @@
             range = expression.range;
             this.expression = expression;
         }
+        public override void Read(StatementParameter parameter) => expression.Read(parameter);
     }
 }

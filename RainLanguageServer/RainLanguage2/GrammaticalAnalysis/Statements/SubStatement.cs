@@ -4,11 +4,11 @@
     {
         public readonly Statement parent = parent;
 
-        public BlockStatement CreateBlock()
+        public BlockStatement CreateBlock(TextRange range)
         {
-            if (parent is BranchStatement branchStatement) return branchStatement.falseBranch = new BlockStatement();
-            else if (parent is LoopStatement loopStatement) return loopStatement.elseBlock = new BlockStatement();
-            else if (parent is TryStatement tryStatement) return tryStatement.finallyBlock = new BlockStatement();
+            if (parent is BranchStatement branchStatement) return branchStatement.falseBranch = new BlockStatement(range);
+            else if (parent is LoopStatement loopStatement) return loopStatement.elseBlock = new BlockStatement(range);
+            else if (parent is TryStatement tryStatement) return tryStatement.finallyBlock = new BlockStatement(range);
             else throw new InvalidOperationException();
         }
     }
