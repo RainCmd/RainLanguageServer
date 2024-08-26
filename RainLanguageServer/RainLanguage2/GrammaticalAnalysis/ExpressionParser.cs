@@ -1980,7 +1980,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             else collector.Add(source.range, ErrorLevel.Error, "类型数量不一致");
             return new TupleCastExpression(source, type, manager.kernelManager);
         }
-        private Expression AssignmentConvert(Expression source, TypeSpan span)
+        public Expression AssignmentConvert(Expression source, TypeSpan span)
         {
             if (!source.Valid) return source;
             if (source.tuple.Count == span.Count)
@@ -2121,7 +2121,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             }
             return expression;
         }
-        private bool TryGetFunction(TextRange range, List<AbstractCallable> callables, TypeSpan span, [MaybeNullWhen(false)] out AbstractCallable callable)
+        public bool TryGetFunction(TextRange range, List<AbstractCallable> callables, TypeSpan span, [MaybeNullWhen(false)] out AbstractCallable callable)
         {
             var results = new List<AbstractCallable>();
             var min = 0;

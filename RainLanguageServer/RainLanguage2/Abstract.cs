@@ -139,7 +139,7 @@ namespace RainLanguageServer.RainLanguage2
             : AbstractCallable(file, space, name, declaration, parameters, returns)
         {
             public readonly FileClass.Constructor fileConstructor = file;
-            //todo 调用父构造函数的 expression
+            public Expression? expression;
             public readonly LogicBlock logicBlock = new();
         }
         internal class Function(FileClass.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)

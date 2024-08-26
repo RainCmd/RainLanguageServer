@@ -360,6 +360,9 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                         }
                     }
                 }
+                var parameter = new StatementParameter(manager, collector);
+                foreach (var statement in logicBlock.statements)
+                    statement.Read(parameter);
             }
             for (var i = 0; i < logicBlock.statements.Count; i++)
                 if (CheckReturn(logicBlock.statements[i]))
@@ -568,6 +571,27 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             var localContext = new LocalContext(declaration.file.space.collector, declaration);
             var parser = new LogicBlockParser(manager, name, context, localContext, [], body, declaration.file.space.collector, true, logicBlock);
             parser.Parse();
+        }
+        public static Expression Parse(Manager manager, AbstractClass declaration, List<AbstractCallable> callables, TextRange invokerRange, TextRange parameterRange, MessageCollector collector)
+        {
+            var context = new Context(declaration.file.space.document, declaration.space, declaration.file.space.relies, declaration);
+            var localContext = new LocalContext(collector, declaration);
+            var parser = new ExpressionParser(manager, context, localContext, collector, false);
+            var expression = parser.Parse(parameterRange);
+            if (expression.Valid)
+            {
+                if (expression is BracketExpression bracket)
+                {
+                    if (parser.TryGetFunction(invokerRange, callables, expression.tuple, out var callable))
+                    {
+                        bracket = new BracketExpression(bracket.left, bracket.right, parser.AssignmentConvert(bracket, callable.signature));
+                        return new InvokerMemberExpression(invokerRange & bracket.range, [], null, invokerRange, null, callable, bracket, manager.kernelManager);
+                    }
+                    else collector.Add(invokerRange, ErrorLevel.Error, "未找到匹配的构造函数");
+                }
+                else collector.Add(expression.range, ErrorLevel.Error, "无效的表达式");
+            }
+            return new InvalidExpression(new InvalidKeyworldExpression(invokerRange), expression);
         }
     }
 }

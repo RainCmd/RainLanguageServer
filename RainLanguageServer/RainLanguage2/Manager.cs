@@ -424,21 +424,47 @@ namespace RainLanguageServer.RainLanguage2
             foreach (var file in space.classes)
                 if (file.abstractDeclaration is AbstractClass abstractClass)
                 {
-                    var classContext = new Context(context, abstractClass);
                     foreach (var member in abstractClass.variables)
                         if (member.fileVariable.expression != null)
                         {
+                            var classContext = new Context(context, abstractClass);
                             var localContext = new LocalContext(space.collector, abstractClass);
-                            var parser = new ExpressionParser(this, context, localContext, space.collector, false);
+                            var parser = new ExpressionParser(this, classContext, localContext, space.collector, false);
                             member.expression = parser.Parse(member.fileVariable.expression.Value);
                             member.expression.Read(parameter);
                             CheckType(member.expression, member.type, space.collector);
                         }
-                    foreach(var member in abstractClass.constructors)
+                    foreach (var member in abstractClass.constructors)
                     {
-                        //todo 解析构造函数
+                        if (Lexical.TryAnalysis(member.fileConstructor.expression, 0, out var lexical, space.collector))
+                        {
+                            var parameterRange = lexical.anchor.end & member.fileConstructor.expression.end;
+                            if (lexical.anchor == KeyWords.THIS)
+                            {
+                                var callables = new List<AbstractCallable>();
+                                foreach (var callable in abstractClass.constructors) callables.Add(callable);
+                                member.expression = LogicBlockParser.Parse(this, abstractClass, callables, lexical.anchor, parameterRange, space.collector);
+                                member.expression.Read(parameter);
+                            }
+                            else if (lexical.anchor == KeyWords.BASE)
+                            {
+                                if (TryGetDeclaration(abstractClass.parent, out var declaration) && declaration is AbstractClass parent)
+                                {
+                                    var selfContext = new Context(context, abstractClass);
+                                    var callables = new List<AbstractCallable>();
+                                    foreach (var callable in parent.constructors)
+                                        if (selfContext.IsVisiable(this, callable.declaration))
+                                            callables.Add(callable);
+                                    member.expression = LogicBlockParser.Parse(this, abstractClass, callables, lexical.anchor, parameterRange, space.collector);
+                                    member.expression.Read(parameter);
+                                }
+                                else space.collector.Add(lexical.anchor, ErrorLevel.Error, "父类未找到");
+                            }
+                            else space.collector.Add(lexical.anchor, ErrorLevel.Error, "无效的表达式");
+                        }
+                        LogicBlockParser.Parse(this, member.logicBlock, abstractClass, member, member.fileConstructor.body);
                     }
-                    foreach(var member in abstractClass.functions)
+                    foreach (var member in abstractClass.functions)
                         LogicBlockParser.Parse(this, member.logicBlock, abstractClass, member, member.fileFunction.body);
                 }
         }
