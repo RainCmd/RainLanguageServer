@@ -132,7 +132,7 @@ namespace RainLanguageServer.RainLanguage2
             public readonly FileClass.Variable fileVariable = file;
             public readonly bool valid = valid;
             public readonly Type type = type;
-            public readonly LogicBlock logicBlock = new();
+            public Expression? expression;
             public readonly HashSet<TextRange> write = [];
         }
         internal class Constructor(FileClass.Constructor file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)

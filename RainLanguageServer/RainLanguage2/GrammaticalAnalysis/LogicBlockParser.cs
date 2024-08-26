@@ -9,8 +9,9 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
         public readonly List<Local> parameters = [];
         public readonly List<Statement> statements = [];
     }
-    internal class LogicBlockParser
+    internal readonly struct LogicBlockParser
     {
+        private readonly Manager manager;
         private readonly TextRange name;
         private readonly Context context;
         private readonly LocalContext localContext;
@@ -19,32 +20,19 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
         private readonly MessageCollector collector;
         private readonly bool destructor;
         private readonly LogicBlock logicBlock;
-        public LogicBlockParser(LogicBlock logicBlock, AbstractDeclaration? declaration, AbstractCallable callable, List<TextLine> body)
+        private LogicBlockParser(Manager manager, TextRange name, Context context, LocalContext localContext, Tuple returns, List<TextLine> body, MessageCollector collector, bool destructor, LogicBlock logicBlock)
         {
-            name = callable.name;
-            context = new Context(callable.file.space.document, callable.space, callable.file.space.relies, declaration);
-            localContext = new LocalContext(callable.file.space.collector, declaration);
-            foreach (var parameter in callable.parameters)
-                if (parameter.name != null)
-                    logicBlock.parameters.Add(localContext.Add(parameter.name.Value, parameter.type, true));
-            returns = callable.returns;
-            this.body = body;
-            collector = callable.file.space.collector;
-            destructor = false;
-            this.logicBlock = logicBlock;
-        }
-        public LogicBlockParser(TextRange name, LogicBlock logicBlock, AbstractDeclaration declaration, HashSet<AbstractSpace> relies, List<TextLine> body)
-        {
+            this.manager = manager;
             this.name = name;
-            context = new Context(declaration.file.space.document, declaration.space, relies, declaration);
-            localContext = new LocalContext(declaration.file.space.collector, declaration);
-            returns = [];
+            this.context = context;
+            this.localContext = localContext;
+            this.returns = returns;
             this.body = body;
-            collector = declaration.file.space.collector;
-            destructor = true;
+            this.collector = collector;
+            this.destructor = destructor;
             this.logicBlock = logicBlock;
         }
-        public void Parse(Manager manager)
+        private void Parse()
         {
             if (body.Count > 0)
             {
@@ -562,6 +550,24 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
         {
             if (index + 1 < statements.Count)
                 collector.Add(statements[index].range, ErrorLevel.Warning, "无法访问的代码");
+        }
+        public static void Parse(Manager manager, LogicBlock logicBlock, AbstractDeclaration? declaration, AbstractCallable callable, List<TextLine> body)
+        {
+            var context = new Context(callable.file.space.document, callable.space, callable.file.space.relies, declaration);
+            var localContext = new LocalContext(callable.file.space.collector, declaration);
+            foreach (var parameter in callable.parameters)
+                if (parameter.name != null)
+                    logicBlock.parameters.Add(localContext.Add(parameter.name.Value, parameter.type, true));
+
+            var parser = new LogicBlockParser(manager, callable.name, context, localContext, callable.returns, body, callable.file.space.collector, false, logicBlock);
+            parser.Parse();
+        }
+        public static void Parse(Manager manager, TextRange name, LogicBlock logicBlock, AbstractDeclaration declaration, HashSet<AbstractSpace> relies, List<TextLine> body)
+        {
+            var context = new Context(declaration.file.space.document, declaration.space, relies, declaration);
+            var localContext = new LocalContext(declaration.file.space.collector, declaration);
+            var parser = new LogicBlockParser(manager, name, context, localContext, [], body, declaration.file.space.collector, true, logicBlock);
+            parser.Parse();
         }
     }
 }

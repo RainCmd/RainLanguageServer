@@ -347,6 +347,7 @@ namespace RainLanguageServer.RainLanguage2
                         var parameter = new ExpressionParameter(this, item.file.space.collector);
                         item.expression.Read(parameter);
                         constants.Add(item);
+                        CheckType(item.expression, item.type, item.file.space.collector);
                     }
                 while (constants.Count > 0)
                 {
@@ -411,19 +412,45 @@ namespace RainLanguageServer.RainLanguage2
                     var parser = new ExpressionParser(this, context, localContext, space.collector, false);
                     variable.expression = parser.Parse(file.expression.Value);
                     variable.expression.Read(parameter);
-                    if (variable.expression.Valid)
-                    {
-                        if (!variable.expression.attribute.ContainAny(ExpressionAttribute.Value))
-                            space.collector.Add(variable.expression.range, ErrorLevel.Error, "不是一个值表达式");
-                        else if (ExpressionParser.Convert(this, variable.expression.tuple[0], variable.type) < 0)
-                            space.collector.Add(variable.expression.range, ErrorLevel.Error, "类型不匹配");
-                    }
+                    CheckType(variable.expression, variable.type, space.collector);
                 }
             foreach (var file in space.functions)
                 if (file.abstractDeclaration is AbstractFunction function)
+                    LogicBlockParser.Parse(this, function.logicBlock, null, function, function.fileFunction.body);
+            foreach (var file in space.structs)
+                if (file.abstractDeclaration is AbstractStruct abstractStruct)
+                    foreach (var function in abstractStruct.functions)
+                        LogicBlockParser.Parse(this, function.logicBlock, abstractStruct, function, function.fileFunction.body);
+            foreach (var file in space.classes)
+                if (file.abstractDeclaration is AbstractClass abstractClass)
                 {
-
+                    var classContext = new Context(context, abstractClass);
+                    foreach (var member in abstractClass.variables)
+                        if (member.fileVariable.expression != null)
+                        {
+                            var localContext = new LocalContext(space.collector, abstractClass);
+                            var parser = new ExpressionParser(this, context, localContext, space.collector, false);
+                            member.expression = parser.Parse(member.fileVariable.expression.Value);
+                            member.expression.Read(parameter);
+                            CheckType(member.expression, member.type, space.collector);
+                        }
+                    foreach(var member in abstractClass.constructors)
+                    {
+                        //todo 解析构造函数
+                    }
+                    foreach(var member in abstractClass.functions)
+                        LogicBlockParser.Parse(this, member.logicBlock, abstractClass, member, member.fileFunction.body);
                 }
+        }
+        private void CheckType(Expression expression, Type type, MessageCollector collector)
+        {
+            if (expression.Valid)
+            {
+                if (!expression.attribute.ContainAny(ExpressionAttribute.Value))
+                    collector.Add(expression.range, ErrorLevel.Error, "不是一个值表达式");
+                else if (ExpressionParser.Convert(this, expression.tuple[0], type) < 0)
+                    collector.Add(expression.range, ErrorLevel.Error, "类型不匹配");
+            }
         }
         public static string ToRainScheme(string library, string? path = null)
         {
