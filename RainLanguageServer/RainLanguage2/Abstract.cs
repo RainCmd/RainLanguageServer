@@ -32,6 +32,7 @@ namespace RainLanguageServer.RainLanguage2
                 return sb.ToString();
             }
         }
+        public abstract bool OnHover(Manager manager, TextPosition position, out HoverInfo info);
     }
     internal class AbstractVariable(FileVariable file, AbstractSpace space, TextRange name, Declaration declaration, bool isReadonly, Type type)
         : AbstractDeclaration(file, space, name, declaration)
@@ -42,8 +43,41 @@ namespace RainLanguageServer.RainLanguage2
         public Expression? expression;
         public bool calculated = false;
         public readonly HashSet<TextRange> write = [];
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (fileVariable.type.range.Contain(position))
+            {
+                var fileType = fileVariable.type;
+                foreach (var spaceName in fileType.name.qualify)
+                    if (spaceName.Contain(position))
+                    {
+                        info = new HoverInfo(spaceName, $"namespace {spaceName}".MakedownCode(), true);
+                        return true;
+                    }
+                if (fileType.name.name.Contain(position))
+                {
+                    info = new HoverInfo(fileType.name.name, type.Info(manager, true, space), true);
+                    return true;
+                }
+            }
+            else if (name.Contain(position))
+            {
+                var sb = new StringBuilder();
+                if (isReadonly) sb.Append("(常量)");
+                else sb.Append("(全局变量)");
+                sb.Append(type.Info(manager, false, space));
+                sb.Append(' ');
+                sb.Append(name.ToString());
+                info = new HoverInfo(name, sb.ToString().MakedownCode(), true);
+                return true;
+            }
+            else if (expression != null && expression.range.Contain(position))
+                return expression.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
     }
-    internal class AbstractCallable : AbstractDeclaration
+    internal abstract class AbstractCallable : AbstractDeclaration
     {
         internal readonly struct Parameter(Type type, TextRange? name)
         {
@@ -53,7 +87,6 @@ namespace RainLanguageServer.RainLanguage2
         public readonly List<Parameter> parameters;
         public readonly Tuple signature;
         public readonly Tuple returns;
-
         public AbstractCallable(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, List<Parameter> parameters, Tuple returns) : base(file, space, name, declaration)
         {
             this.parameters = parameters;
