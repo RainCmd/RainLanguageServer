@@ -1,24 +1,26 @@
-﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Statements
+﻿
+namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Statements
 {
-    internal class BranchStatement : Statement
+    internal class BranchStatement(TextRange ifSymbol, Expression condition, List<TextRange> group) : Statement
     {
-        public TextRange ifSymbol;
+        public readonly TextRange ifSymbol = ifSymbol;
         public TextRange? elseSymbol;
-        public readonly Expression condition;
+        public readonly Expression condition = condition;
         public BlockStatement? trueBranch, falseBranch;
-        public readonly List<TextRange> group;
+        public readonly List<TextRange> group = group;
 
-        public BranchStatement(TextRange ifSymbol, Expression condition, List<TextRange> group)
+        public override void Operator(Action<Expression> action)
         {
-            this.ifSymbol = ifSymbol;
-            this.condition = condition;
-            this.group = group;
+            action(condition);
+            trueBranch?.Operator(action);
+            falseBranch?.Operator(action);
         }
-        public override void Read(StatementParameter parameter)
+        public override bool Operator(TextPosition position, ExpressionOperator action)
         {
-            condition.Read(parameter);
-            trueBranch?.Read(parameter);
-            falseBranch?.Read(parameter);
+            if (condition.range.Contain(position)) return action(condition);
+            if (trueBranch != null && trueBranch.range.Contain(position)) return trueBranch.Operator(position, action);
+            if (falseBranch != null && falseBranch.range.Contain(position)) return falseBranch.Operator(position, action);
+            return false;
         }
     }
 }

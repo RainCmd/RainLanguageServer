@@ -1,4 +1,5 @@
-﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Statements
+﻿
+namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Statements
 {
     internal class BlockStatement : Statement
     {
@@ -7,9 +8,16 @@
         {
             base.range = range;
         }
-        public override void Read(StatementParameter parameter)
+        public override void Operator(Action<Expression> action)
         {
-            foreach(var statement in statements) statement.Read(parameter);
+            foreach(var statement in statements) statement.Operator(action);
+        }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            foreach(var statement in statements)
+                if(statement.range.Contain(position))
+                    return statement.Operator(position, action);
+            return false;
         }
     }
 }

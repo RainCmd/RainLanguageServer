@@ -1,4 +1,5 @@
-﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Statements
+﻿
+namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Statements
 {
     internal class JumpStatement : Statement
     {
@@ -13,10 +14,14 @@
             this.loop = loop;
             this.condition = condition;
         }
-        public override void Read(StatementParameter parameter)
+        public override void Operator(Action<Expression> action)
         {
-            loop?.Read(parameter);
-            condition?.Read(parameter);
+            if (condition != null) action(condition);
+        }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (condition != null && condition.range.Contain(position)) return action(condition);
+            return false;
         }
     }
     internal class BreakStatement(TextRange symbol, LoopStatement? loop, Expression? condition) : JumpStatement(symbol, loop, condition) { }

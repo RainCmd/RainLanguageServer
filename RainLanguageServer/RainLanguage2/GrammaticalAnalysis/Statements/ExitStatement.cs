@@ -1,4 +1,5 @@
-﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Statements
+﻿
+namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Statements
 {
     internal class ExitStatement : Statement
     {
@@ -14,6 +15,7 @@
             this.group = group;
             group.Add(symbol);
         }
-        public override void Read(StatementParameter parameter) => expression.Read(parameter);
+        public override void Operator(Action<Expression> action) => action(expression);
+        public override bool Operator(TextPosition position, ExpressionOperator action) => expression.range.Contain(position) && action(expression);
     }
 }
