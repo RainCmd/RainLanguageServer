@@ -79,16 +79,16 @@
             foreach (var file in space.delegates)
             {
                 var declaration = new Declaration(library.library, file.visibility, DeclarationCategory.Delegate, library.delegates.Count);
-                var abstructDelegate = new AbstructDelegate(file, space.space, file.name, declaration, [], Tuple.Empty);
+                var abstractDelegate = new AbstractDelegate(file, space.space, file.name, declaration, [], Tuple.Empty);
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.delegates.Add(abstructDelegate);
+                library.delegates.Add(abstractDelegate);
             }
             foreach (var file in space.tasks)
             {
                 var declaration = new Declaration(library.library, file.visibility, DeclarationCategory.Task, library.tasks.Count);
-                var abstructTask = new AbstructTask(file, space.space, file.name, declaration, Tuple.Empty);
+                var abstractTask = new AbstractTask(file, space.space, file.name, declaration, Tuple.Empty);
                 AddDeclaration(file, allowKeyword, declaration, space);
-                library.tasks.Add(abstructTask);
+                library.tasks.Add(abstractTask);
             }
         }
     }

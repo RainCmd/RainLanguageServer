@@ -158,8 +158,11 @@
                         if (type.code != TypeCode.Interface) space.collector.Add(file.inherits[i].range, ErrorLevel.Error, "必须是接口类型");
                         abstractClass.inherits.Add(type);
                     }
-                    else if (type.code == TypeCode.Handle) abstractClass.parent = type;
-                    else space.collector.Add(file.inherits[i].range, ErrorLevel.Error, "不能继承该类型");
+                    else
+                    {
+                        abstractClass.parent = type;
+                        if (type.code != TypeCode.Handle) space.collector.Add(file.inherits[i].range, ErrorLevel.Error, "不能继承该类型");
+                    }
                     if (manager.TryGetDeclaration(type, out var declaration))
                     {
                         if (declaration is AbstractClass parent) parent.implements.Add(abstractClass);
@@ -204,28 +207,28 @@
             }
             foreach (var file in space.delegates)
             {
-                var abstructDelegate = Find(library.delegates, space, file.name);
-                var references = abstructDelegate.references;
+                var abstractDelegate = Find(library.delegates, space, file.name);
+                var references = abstractDelegate.references;
                 var parameters = new List<AbstractCallable.Parameter>();
                 foreach (var parameter in file.parameters)
                     parameters.Add(new AbstractCallable.Parameter(GetType(context, manager, parameter.type, space.collector), parameter.name));
                 var returns = new Type[file.returns.Count];
                 for (var i = 0; i < returns.Length; i++)
                     returns[i] = GetType(context, manager, file.returns[i], space.collector);
-                abstructDelegate = new AbstructDelegate(file, space.space, file.name, abstructDelegate.declaration, parameters, returns);
-                abstructDelegate.references.AddRange(references);
-                library.delegates[abstructDelegate.declaration.index] = abstructDelegate;
+                abstractDelegate = new AbstractDelegate(file, space.space, file.name, abstractDelegate.declaration, parameters, returns);
+                abstractDelegate.references.AddRange(references);
+                library.delegates[abstractDelegate.declaration.index] = abstractDelegate;
             }
             foreach (var file in space.tasks)
             {
-                var abstructTask = Find(library.tasks, space, file.name);
-                var references = abstructTask.references;
+                var abstractTask = Find(library.tasks, space, file.name);
+                var references = abstractTask.references;
                 var returns = new Type[file.returns.Count];
                 for (var i = 0; i < returns.Length; i++)
                     returns[i] = GetType(context, manager, file.returns[i], space.collector);
-                abstructTask = new AbstructTask(file, space.space, file.name, abstructTask.declaration, returns);
-                abstructTask.references.AddRange(references);
-                library.tasks[abstructTask.declaration.index] = abstructTask;
+                abstractTask = new AbstractTask(file, space.space, file.name, abstractTask.declaration, returns);
+                abstractTask.references.AddRange(references);
+                library.tasks[abstractTask.declaration.index] = abstractTask;
             }
             foreach (var file in space.natives)
             {
@@ -236,7 +239,7 @@
                 for (var i = 0; i < returns.Length; i++)
                     returns[i] = GetType(context, manager, file.returns[i], space.collector);
                 var declaration = new Declaration(library.library, file.visibility, DeclarationCategory.Native, library.natives.Count);
-                var native = new AbstructNative(file, space.space, file.name, declaration, parameters, returns);
+                var native = new AbstractNative(file, space.space, file.name, declaration, parameters, returns);
                 AddDeclaration(file, allowKeyword, false, declaration, space);
                 library.natives.Add(native);
             }

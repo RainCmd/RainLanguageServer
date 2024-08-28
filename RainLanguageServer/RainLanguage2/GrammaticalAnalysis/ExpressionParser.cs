@@ -95,9 +95,9 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             {
                                 var expression = expressionStack.Pop();
                                 if (!manager.TryGetDeclaration(expression.tuple[0], out var declaration)) throw new Exception("类型错误");
-                                if (declaration is not AbstructDelegate abstructDelegate) throw new Exception("未知的可调用类型：" + declaration.GetType());
-                                bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, abstructDelegate.signature));
-                                expression = new InvokerDelegateExpression(expression.range & bracket.range, abstructDelegate.returns, expression, bracket, manager.kernelManager);
+                                if (declaration is not AbstractDelegate abstractDelegate) throw new Exception("未知的可调用类型：" + declaration.GetType());
+                                bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, abstractDelegate.signature));
+                                expression = new InvokerDelegateExpression(expression.range & bracket.range, abstractDelegate.returns, expression, bracket, manager.kernelManager);
                                 expressionStack.Push(expression);
                                 attribute = expression.attribute;
                             }
@@ -305,15 +305,15 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                     {
                                         var expression = expressionStack.Pop();
                                         if (!manager.TryGetDeclaration(expression.tuple[0], out var declaration)) throw new Exception("类型错误");
-                                        if (declaration is not AbstructTask abstructTask) throw new Exception("不是任务类型");
+                                        if (declaration is not AbstractTask abstractTask) throw new Exception("不是任务类型");
                                         if (indices.Count > 0)
                                         {
                                             var tuple = new Type[indices.Count];
                                             var error = false;
                                             for (var i = 0; i < indices.Count; i++)
                                             {
-                                                if (indices[i] < 0) indices[i] += abstructTask.returns.Count;
-                                                if (indices[i] >= 0 && indices[i] < abstructTask.returns.Count) tuple[i] = abstructTask.returns[(int)indices[i]];
+                                                if (indices[i] < 0) indices[i] += abstractTask.returns.Count;
+                                                if (indices[i] >= 0 && indices[i] < abstractTask.returns.Count) tuple[i] = abstractTask.returns[(int)indices[i]];
                                                 else
                                                 {
                                                     collector.Add(bracket.range, ErrorLevel.Error, $"第{i + 1}个索引超出了任务的值类型数量范围");
@@ -334,7 +334,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                         }
                                         else
                                         {
-                                            expression = new TaskEvaluationExpression(expression.range & bracket.range, abstructTask.returns, expression, bracket, manager.kernelManager);
+                                            expression = new TaskEvaluationExpression(expression.range & bracket.range, abstractTask.returns, expression, bracket, manager.kernelManager);
                                             expressionStack.Push(expression);
                                             attribute = expression.attribute;
                                         }
@@ -764,9 +764,9 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                             {
                                 var expression = expressionStack.Pop();
                                 if (!manager.TryGetDeclaration(expression.tuple[0], out var declaration)) throw new Exception("类型错误");
-                                if (declaration is not AbstructDelegate abstructDelegate) throw new Exception("未知的可调用类型：" + declaration.GetType());
-                                bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, abstructDelegate.signature));
-                                expression = new InvokerDelegateExpression(expression.range & bracket.range, abstructDelegate.returns, expression, bracket, manager.kernelManager);
+                                if (declaration is not AbstractDelegate abstractDelegate) throw new Exception("未知的可调用类型：" + declaration.GetType());
+                                bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, abstractDelegate.signature));
+                                expression = new InvokerDelegateExpression(expression.range & bracket.range, abstractDelegate.returns, expression, bracket, manager.kernelManager);
                                 expressionStack.Push(expression);
                                 attribute = expression.attribute;
                             }
@@ -1397,7 +1397,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             var ambiguity = false;
             foreach (var declaration in declarations)
                 if (declaration is AbstractFunction function) callables.Add(function);
-                else if (declaration is AbstructNative native) callables.Add(native);
+                else if (declaration is AbstractNative native) callables.Add(native);
                 else ambiguity = true;
             if (ambiguity) CheckAmbiguity(attribute, declarations, name);
             var expression = new MethodExpression(qualifier == null ? name.Range : qualifier.Value & name.Range, qualifier, name, callables);
@@ -1921,42 +1921,42 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                 else if (expression is MethodExpression method)
                 {
                     if (target.dimension > 0) return false;
-                    if (!manager.TryGetDeclaration(target, out var declaration) || declaration is not AbstructDelegate abstructDelegate) return false;
-                    if (!TryGetFunction(method.range, method.callables, abstructDelegate.signature, out _)) return false;
+                    if (!manager.TryGetDeclaration(target, out var declaration) || declaration is not AbstractDelegate abstractDelegate) return false;
+                    if (!TryGetFunction(method.range, method.callables, abstractDelegate.signature, out _)) return false;
                 }
                 else if (expression is MethodMemberExpression methodMember)
                 {
                     if (target.dimension > 0) return false;
-                    if (!manager.TryGetDeclaration(target, out var declaration) || declaration is not AbstructDelegate abstructDelegate) return false;
-                    if (!TryGetFunction(methodMember.range, methodMember.callables, abstructDelegate.signature, out _)) return false;
+                    if (!manager.TryGetDeclaration(target, out var declaration) || declaration is not AbstractDelegate abstractDelegate) return false;
+                    if (!TryGetFunction(methodMember.range, methodMember.callables, abstractDelegate.signature, out _)) return false;
                 }
                 else if (expression is MethodVirtualExpression methodVirtual)
                 {
                     if (target.dimension > 0) return false;
-                    if (!manager.TryGetDeclaration(target, out var declaration) || declaration is not AbstructDelegate abstructDelegate) return false;
-                    if (!TryGetFunction(methodVirtual.range, methodVirtual.callables, abstructDelegate.signature, out _)) return false;
+                    if (!manager.TryGetDeclaration(target, out var declaration) || declaration is not AbstractDelegate abstractDelegate) return false;
+                    if (!TryGetFunction(methodVirtual.range, methodVirtual.callables, abstractDelegate.signature, out _)) return false;
                 }
                 else if (expression is BlurryTaskExpression blurryTask)
                 {
                     if (target.dimension > 0) return false;
-                    if (!manager.TryGetDeclaration(target, out var declaration) || declaration is not AbstructTask abstructTask) return false;
-                    if (blurryTask.invoker.tuple != abstructTask.returns) return false;
+                    if (!manager.TryGetDeclaration(target, out var declaration) || declaration is not AbstractTask abstractTask) return false;
+                    if (blurryTask.invoker.tuple != abstractTask.returns) return false;
                 }
                 else if (expression is BlurryLambdaExpression blurryLambda)
                 {
                     if (target.dimension > 0) return false;
-                    if (!manager.TryGetDeclaration(target, out var declaration) || declaration is not AbstructDelegate abstructDelegate) return false;
+                    if (!manager.TryGetDeclaration(target, out var declaration) || declaration is not AbstractDelegate abstractDelegate) return false;
                     localContext.PushBlock();
-                    for (var i = 0; i < abstructDelegate.parameters.Count; i++)
-                        localContext.Add(blurryLambda.parameters[i], abstructDelegate.signature[i], true);
+                    for (var i = 0; i < abstractDelegate.parameters.Count; i++)
+                        localContext.Add(blurryLambda.parameters[i], abstractDelegate.signature[i], true);
                     var body = Parse(blurryLambda.body);
                     localContext.PopBlock();
                     if (!body.Valid) return false;
-                    else if (abstructDelegate.returns.Count > 0)
+                    else if (abstractDelegate.returns.Count > 0)
                     {
-                        if (abstructDelegate.returns != body.tuple)
+                        if (abstractDelegate.returns != body.tuple)
                         {
-                            body = AssignmentConvert(body, abstructDelegate.returns);
+                            body = AssignmentConvert(body, abstractDelegate.returns);
                             if (!body.Valid) return false;
                         }
                     }
@@ -2043,11 +2043,11 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             }
             else if (expression is MethodExpression method)
             {
-                if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstructDelegate abstructDelegate)
+                if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractDelegate abstractDelegate)
                 {
-                    if (TryGetFunction(expression.range, method.callables, abstructDelegate.signature, out var callable))
+                    if (TryGetFunction(expression.range, method.callables, abstractDelegate.signature, out var callable))
                     {
-                        if (callable.returns != abstructDelegate.returns)
+                        if (callable.returns != abstractDelegate.returns)
                             collector.Add(expression.range, ErrorLevel.Error, "返回值类型不一致");
                         return new FunctionDelegateCreateExpression(method.range, method.qualifier, method.name, type, callable, manager.kernelManager);
                     }
@@ -2056,11 +2056,11 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             }
             else if (expression is MethodMemberExpression methodMember)
             {
-                if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstructDelegate abstructDelegate)
+                if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractDelegate abstractDelegate)
                 {
-                    if (TryGetFunction(expression.range, methodMember.callables, abstructDelegate.signature, out var callable))
+                    if (TryGetFunction(expression.range, methodMember.callables, abstractDelegate.signature, out var callable))
                     {
-                        if (callable.returns != abstructDelegate.returns)
+                        if (callable.returns != abstractDelegate.returns)
                             collector.Add(expression.range, ErrorLevel.Error, "返回值类型不一致");
                         if (methodMember is MethodVirtualExpression)
                             return new VirtualFunctionDelegateCreateExpression(expression.range, type, callable, manager.kernelManager, methodMember.target, methodMember.symbol, methodMember.member);
@@ -2072,9 +2072,9 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             }
             else if (expression is BlurryTaskExpression blurryTask)
             {
-                if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstructTask abstructTask)
+                if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractTask abstractTask)
                 {
-                    if (blurryTask.invoker.tuple != abstructTask.returns)
+                    if (blurryTask.invoker.tuple != abstractTask.returns)
                         collector.Add(expression.range, ErrorLevel.Error, "返回值类型不匹配");
                     return new TaskCreateExpression(expression.range, type, blurryTask.symbol, blurryTask.invoker, manager.kernelManager);
                 }
@@ -2082,9 +2082,9 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
             }
             else if (expression is BlurryLambdaExpression blurryLambda)
             {
-                if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstructDelegate abstructDelegate)
+                if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractDelegate abstractDelegate)
                 {
-                    if (blurryLambda.parameters.Count != abstructDelegate.parameters.Count)
+                    if (blurryLambda.parameters.Count != abstractDelegate.parameters.Count)
                     {
                         collector.Add(expression.range, ErrorLevel.Error, "参数数量与委托类型参数数量不一致");
                         return expression;
@@ -2092,12 +2092,12 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                     localContext.PushBlock();
                     var parameters = new List<Local>();
                     for (var i = 0; i < blurryLambda.parameters.Count; i++)
-                        parameters.Add(localContext.Add(blurryLambda.parameters[i], abstructDelegate.signature[i], true));
+                        parameters.Add(localContext.Add(blurryLambda.parameters[i], abstractDelegate.signature[i], true));
                     var body = Parse(blurryLambda.body);
                     localContext.PopBlock();
-                    if (body.Valid && abstructDelegate.returns.Count > 0 && body.tuple != abstructDelegate.returns)
-                        body = AssignmentConvert(body, abstructDelegate.returns);
-                    return new LambdaDelegateCreateExpression(expression.range, type, abstructDelegate, manager.kernelManager, parameters, blurryLambda.symbol, body);
+                    if (body.Valid && abstractDelegate.returns.Count > 0 && body.tuple != abstractDelegate.returns)
+                        body = AssignmentConvert(body, abstractDelegate.returns);
+                    return new LambdaDelegateCreateExpression(expression.range, type, abstractDelegate, manager.kernelManager, parameters, blurryLambda.symbol, body);
                 }
                 collector.Add(expression.range, ErrorLevel.Error, "无法转换为目标类型");
             }

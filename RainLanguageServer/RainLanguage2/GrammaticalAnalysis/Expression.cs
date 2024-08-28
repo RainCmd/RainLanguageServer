@@ -58,6 +58,9 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
         public virtual bool Calculability() { return false; }
         public abstract void Read(ExpressionParameter parameter);
         public virtual void Write(ExpressionParameter parameter) => parameter.collector.Add(range, ErrorLevel.Error, "表达式不可赋值");
-        public virtual bool OnHover(Manager manager, TextPosition position, out HoverInfo info) { return false; }
+        public abstract bool OnHover(Manager manager, TextPosition position, out HoverInfo info);
+        public abstract bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos);
+        public abstract bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition);
+        public abstract bool FindReferences(Manager manager, TextPosition position, List<TextRange> references);
     }
 }
