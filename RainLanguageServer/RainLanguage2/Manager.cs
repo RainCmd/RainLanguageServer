@@ -43,6 +43,7 @@ namespace RainLanguageServer.RainLanguage2
         public readonly AbstractLibrary kernel;
         private readonly TextDocument[] kernelDocuments;
         public readonly Dictionary<string, FileSpace> fileSpaces = [];
+        public readonly Dictionary<string, FileSpace> allFileSpaces = [];
         public readonly Dictionary<string, AbstractLibrary> relies = [];
         private readonly Dictionary<int, AbstractLibrary> librarys = [];
         private readonly HashSet<string> imports = [];
@@ -96,7 +97,11 @@ namespace RainLanguageServer.RainLanguage2
             librarys.Add(library.library, library);
             var files = new List<FileSpace>(documents.Length);
             foreach (var document in documents)
-                files.Add(FileParse.ParseSpace(library, document));
+            {
+                var file = FileParse.ParseSpace(library, document);
+                files.Add(file);
+                allFileSpaces.Add(document.path, file);
+            }
             foreach (var file in files)
                 FileTidy.Tidy(this, library, file);
             foreach (var file in files)
@@ -317,6 +322,7 @@ namespace RainLanguageServer.RainLanguage2
         {
             library.Clear();
             fileSpaces.Clear();
+            allFileSpaces.Clear();
             relies.Clear();
             librarys.Clear();
             kernel.Clear();
@@ -329,6 +335,7 @@ namespace RainLanguageServer.RainLanguage2
                     var file = new FileSpace(null, null, library, document, []);
                     FileParse.ParseSpace(file, reader, -1);
                     fileSpaces.Add(document.path, file);
+                    allFileSpaces.Add(document.path, file);
                 }
                 foreach (var item in fileSpaces)
                     FileTidy.Tidy(this, library, item.Value);
