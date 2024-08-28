@@ -1,6 +1,10 @@
 ﻿using LanguageServer.Parameters.TextDocument;
+using Microsoft.VisualBasic.FileIO;
+using RainLanguageServer.RainLanguage;
 using RainLanguageServer.RainLanguage2.GrammaticalAnalysis;
+using System;
 using System.Text;
+using System.Xml.Linq;
 
 namespace RainLanguageServer.RainLanguage2
 {
@@ -157,16 +161,7 @@ namespace RainLanguageServer.RainLanguage2
         {
             if (fileType.range.Contain(position))
             {
-                foreach (var qualify in fileType.name.qualify)
-                    if (qualify.Contain(position))
-                    {
-                        var sb = new StringBuilder();
-                        sb.Append(KeyWords.NAMESPACE);
-                        sb.Append(' ');
-                        sb.Append(space);
-                        info = new HoverInfo(qualify, sb.ToString().MakedownCode(), true);
-                        return true;
-                    }
+                if (OnHover(fileType.name.qualify, position, out info)) return true;
                 if (fileType.name.name.Contain(position))
                 {
                     info = new HoverInfo(fileType.name.name, type.Info(manager, true, space).MakedownCode(), true);
@@ -176,29 +171,37 @@ namespace RainLanguageServer.RainLanguage2
             info = default;
             return false;
         }
+        public static void OnHover(this Local local, Manager manager, TextPosition position, out HoverInfo info)
+        {
+            var sb = new StringBuilder();
+            if (local.parameter) sb.Append("(参数)");
+            else sb.Append("(局部变量)");
+            sb.Append(local.type.Info(manager, false, ManagerOperator.GetSpace(manager, position)));
+            sb.Append(' ');
+            sb.Append(local.range.ToString());
+            info = new HoverInfo(local.range, sb.ToString().MakedownCode(), true);
+        }
+        public static bool OnHover(List<TextRange> qualify, TextPosition position, out HoverInfo info)
+        {
+            foreach (var range in qualify)
+                if (range.Contain(position))
+                {
+                    var sb = new StringBuilder();
+                    sb.Append(KeyWords.NAMESPACE);
+                    sb.Append(' ');
+                    sb.Append(range);
+                    info = new HoverInfo(range, sb.ToString().MakedownCode(), true);
+                    return true;
+                }
+            info = default;
+            return false;
+        }
         public static bool OnHighlight(this FileType fileType, Manager manager, TextPosition position, Type type, List<HighlightInfo> infos)
         {
             if (manager.TryGetDeclaration(type, out var declaration))
             {
                 if (fileType.name.name.Contain(position)) return declaration.OnHighlight(manager, position, infos);
-                for (var i = 0; i < fileType.name.qualify.Count; i++)
-                {
-                    var range = fileType.name.qualify[^(i + 1)];
-                    if (range.Contain(position))
-                    {
-                        infos.Add(new HighlightInfo(range, DocumentHighlightKind.Text));
-                        var index = declaration.space;
-                        while (index != null && i > 0)
-                        {
-                            i--;
-                            index = index.parent;
-                        }
-                        if (index != null)
-                            foreach (var reference in index.references)
-                                infos.Add(new HighlightInfo(reference, DocumentHighlightKind.Text));
-                        return true;
-                    }
-                }
+                if (OnHighlight(fileType.name.qualify, position, declaration.space, infos)) return true;
             }
             else if (fileType.name.name.Contain(position))
             {
@@ -214,6 +217,39 @@ namespace RainLanguageServer.RainLanguage2
                 infos.Add(new HighlightInfo(range, DocumentHighlightKind.Read));
             foreach (var range in local.write)
                 infos.Add(new HighlightInfo(range, DocumentHighlightKind.Write));
+        }
+        private static bool QualifyAction(List<TextRange> qualify, TextPosition position, AbstractSpace? space, Action<AbstractSpace> action)
+        {
+            for (var i = 0; i < qualify.Count; i++)
+            {
+                var range = qualify[^(i + 1)];
+                if (range.Contain(position))
+                {
+                    var index = space;
+                    while (index != null && i > 0)
+                    {
+                        i--;
+                        index = index.parent;
+                    }
+                    if (index != null) action(index);
+                    return true;
+                }
+            }
+            return false;
+        }
+        public static bool OnHighlight(List<TextRange> qualify, TextPosition position, AbstractSpace? space, List<HighlightInfo> infos)
+        {
+            return QualifyAction(qualify, position, space, value =>
+            {
+                foreach (var reference in value.references)
+                    infos.Add(new HighlightInfo(reference, DocumentHighlightKind.Text));
+            });
+        }
+        public static void Highlight(AbstractDeclaration declaration, List<HighlightInfo> infos)
+        {
+            infos.Add(new HighlightInfo(declaration.name, DocumentHighlightKind.Text));
+            foreach (var reference in declaration.references)
+                infos.Add(new HighlightInfo(reference, DocumentHighlightKind.Text));
         }
         public static void FindReferences(this Local local, List<TextRange> references)
         {
@@ -236,23 +272,13 @@ namespace RainLanguageServer.RainLanguage2
             if (manager.TryGetDeclaration(type, out var declaration))
             {
                 if (fileType.name.name.Contain(position)) return declaration.FindReferences(manager, position, references);
-                for (var i = 0; i < fileType.name.qualify.Count; i++)
-                {
-                    var range = fileType.name.qualify[^(i + 1)];
-                    if (range.Contain(position))
-                    {
-                        var index = declaration.space;
-                        while (index != null && i > 0)
-                        {
-                            i--;
-                            index = index.parent;
-                        }
-                        if (index != null) references.AddRange(index.references);
-                        return true;
-                    }
-                }
+                if (FindReferences(fileType.name.qualify, position, declaration.space, references)) return true;
             }
-            return fileType.range.Contain(position);
+            return false;
+        }
+        public static bool FindReferences(List<TextRange> qualify, TextPosition position, AbstractSpace? space, List<TextRange> references)
+        {
+            return QualifyAction(qualify, position, space, value => references.AddRange(value.references));
         }
     }
 }

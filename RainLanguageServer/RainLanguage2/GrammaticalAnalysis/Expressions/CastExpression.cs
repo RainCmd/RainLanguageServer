@@ -1,4 +1,5 @@
-﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
+﻿
+namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
 {
     internal class CastExpression : Expression
     {
@@ -19,6 +20,36 @@
             type.Read(parameter);
             expression.Read(parameter);
         }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (type.range.Contain(position)) return type.OnHover(manager, position, out info);
+            if (expression.range.Contain(position)) return expression.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (type.range.Contain(position)) return type.OnHighlight(manager, position, infos);
+            if (expression.range.Contain(position)) return expression.OnHighlight(manager, position, infos);
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (type.range.Contain(position)) return type.TryGetDefinition(manager, position, out definition);
+            if (expression.range.Contain(position)) return expression.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (type.range.Contain(position)) return type.FindReferences(manager, position, references);
+            if (expression.range.Contain(position)) return expression.FindReferences(manager, position, references);
+            return false;
+        }
     }
     internal class TupleCastExpression : Expression
     {
@@ -32,6 +63,32 @@
             attribute |= expression.attribute & ~ExpressionAttribute.Assignable;
         }
         public override void Read(ExpressionParameter parameter) => expression.Read(parameter);
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (expression.range.Contain(position)) return expression.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (expression.range.Contain(position)) return expression.OnHighlight(manager, position, infos);
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (expression.range.Contain(position)) return expression.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (expression.range.Contain(position)) return expression.FindReferences(manager, position, references);
+            return false;
+        }
     }
     internal class IsCastExpression : Expression
     {
@@ -56,6 +113,56 @@
             source.Read(parameter);
             type.Read(parameter);
         }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (source.range.Contain(position)) return source.OnHover(manager, position, out info);
+            if (type.range.Contain(position)) return type.OnHover(manager, position, out info);
+            if (local != null && local.Value.range.Contain(position))
+            {
+                local.Value.OnHover(manager, position, out info);
+                return true;
+            }
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (source.range.Contain(position)) return source.OnHighlight(manager, position, infos);
+            if (type.range.Contain(position)) return type.OnHighlight(manager, position, infos);
+            if (local != null && local.Value.range.Contain(position))
+            {
+                local.Value.OnHighlight(infos);
+                return true;
+            }
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (source.range.Contain(position)) return source.TryGetDefinition(manager, position, out definition);
+            if (type.range.Contain(position)) return type.TryGetDefinition(manager, position, out definition);
+            if (local != null && local.Value.range.Contain(position))
+            {
+                definition = local.Value.range;
+                return true;
+            }
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (source.range.Contain(position)) return source.FindReferences(manager, position, references);
+            if (type.range.Contain(position)) return type.FindReferences(manager, position, references);
+            if (local != null && local.Value.range.Contain(position))
+            {
+                local.Value.FindReferences(references);
+                return true;
+            }
+            return false;
+        }
     }
     internal class AsCastExpression : Expression
     {
@@ -75,6 +182,36 @@
         {
             source.Read(parameter);
             type.Read(parameter);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (source.range.Contain(position)) return source.OnHover(manager, position, out info);
+            if (type.range.Contain(position)) return type.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (source.range.Contain(position)) return source.OnHighlight(manager, position, infos);
+            if (type.range.Contain(position)) return type.OnHighlight(manager, position, infos);
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (source.range.Contain(position)) return source.TryGetDefinition(manager, position, out definition);
+            if (type.range.Contain(position)) return type.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (source.range.Contain(position)) return source.FindReferences(manager, position, references);
+            if (type.range.Contain(position)) return type.FindReferences(manager, position, references);
+            return false;
         }
     }
 }

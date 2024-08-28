@@ -38,9 +38,7 @@ namespace RainLanguageServer.RainLanguage2
         {
             if (name.Contain(position))
             {
-                infos.Add(new HighlightInfo(name, DocumentHighlightKind.Text));
-                foreach (var reference in references)
-                    infos.Add(new HighlightInfo(reference, DocumentHighlightKind.Text));
+                InfoUtility.Highlight(this, infos);
                 return true;
             }
             return false;
@@ -661,7 +659,7 @@ namespace RainLanguageServer.RainLanguage2
             public readonly FileClass.Function fileFunction = file;
             public readonly bool valid = valid;
             public readonly LogicBlock logicBlock = new();
-            public readonly List<AbstractCallable> overrides = [];
+            public readonly List<AbstractCallable> overrides = [];//todo 高亮和查找引用时需要把这个也带上
             public readonly List<Function> implements = [];
             public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
             {

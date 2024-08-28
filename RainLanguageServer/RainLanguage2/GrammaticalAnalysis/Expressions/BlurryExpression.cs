@@ -13,10 +13,26 @@
             attribute = ExpressionAttribute.Assignable;
         }
         public override void Read(ExpressionParameter parameter) => parameter.collector.Add(declaration, ErrorLevel.Error, "无法推断类型");
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => false;
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => false;
     }
     internal class MethodExpression : Expression//global & native
     {
-        public readonly TextRange? qualifier;
+        public readonly TextRange? qualifier;// global关键字
         public readonly QualifiedName name;
         public readonly List<AbstractCallable> callables;
         public override bool Valid => true;
@@ -36,6 +52,52 @@
                 callable.references.Add(name.name);
             }
             parameter.collector.Add(msg);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (InfoUtility.OnHover(name.qualify, position, out info)) return true;
+            if (name.name.Contain(position))
+            {
+                info = new HoverInfo(name.name, callables[0].Info(manager, null, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                return true;
+            }
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (InfoUtility.OnHighlight(name.qualify, position, callables[0].space, infos)) return true;
+            if (name.name.Contain(position))
+            {
+                foreach (var callable in callables)
+                    InfoUtility.Highlight(callable, infos);
+                return true;
+            }
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (name.name.Contain(position))
+            {
+                definition = callables[0].name;
+                return true;
+            }
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (InfoUtility.FindReferences(name.qualify, position, callables[0].space, references)) return true;
+            if (name.name.Contain(position))
+            {
+                foreach (var callable in callables)
+                    references.AddRange(callable.references);
+                return true;
+            }
+            return false;
         }
     }
     internal class MethodMemberExpression : Expression
@@ -64,6 +126,55 @@
             }
             parameter.collector.Add(msg);
             target?.Read(parameter);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHover(manager, position, out info);
+            if (member.Contain(position))
+            {
+                manager.TryGetDefineDeclaration(callables[0].declaration, out var declaration);
+                info = new HoverInfo(member, callables[0].Info(manager, declaration, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                return true;
+            }
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
+            if (member.Contain(position))
+            {
+                foreach (var callable in callables)
+                    InfoUtility.Highlight(callable, infos);
+                return true;
+            }
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (target != null && target.range.Contain(position)) return target.TryGetDefinition(manager, position, out definition);
+            if (member.Contain(position))
+            {
+                definition = callables[0].name;
+                return true;
+            }
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (target != null && target.range.Contain(position)) return target.FindReferences(manager, position, references);
+            if (member.Contain(position))
+            {
+                foreach (var callable in callables)
+                    references.AddRange(callable.references);
+                return true;
+            }
+            return false;
         }
     }
     internal class MethodVirtualExpression : MethodMemberExpression

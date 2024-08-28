@@ -357,7 +357,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                         }
                     }
                 }
-                var parameter = new StatementParameter(manager, collector);
+                var parameter = new ExpressionParameter(manager, collector);
                 foreach (var statement in logicBlock.statements)
                     statement.Read(parameter);
             }

@@ -147,5 +147,19 @@ namespace RainLanguageServer.RainLanguage2
             }
             return false;
         }
+
+        public static AbstractSpace? GetSpace(Manager manager, TextPosition position)
+        {
+            if (manager.allFileSpaces.TryGetValue(position.document.path, out var result))
+                return GetSpace(result, position);
+            return null;
+        }
+        private static AbstractSpace GetSpace(FileSpace space, TextPosition position)
+        {
+            foreach(var child in space.children)
+                if(child.range.Contain(position))
+                    return GetSpace(child, position);
+            return space.space;
+        }
     }
 }
