@@ -1,4 +1,4 @@
-﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
     internal readonly struct Local(bool parameter, int index, TextRange range, Type type)
     {

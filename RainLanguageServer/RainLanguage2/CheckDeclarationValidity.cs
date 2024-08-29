@@ -1,4 +1,4 @@
-﻿namespace RainLanguageServer.RainLanguage2
+﻿namespace RainLanguageServer.RainLanguage
 {
     internal static class CheckDeclarationValidity
     {

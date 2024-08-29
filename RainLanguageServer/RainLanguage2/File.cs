@@ -1,4 +1,4 @@
-﻿namespace RainLanguageServer.RainLanguage2
+﻿namespace RainLanguageServer.RainLanguage
 {
     internal class FileType(TextRange range, QualifiedName name, int dimension)
     {

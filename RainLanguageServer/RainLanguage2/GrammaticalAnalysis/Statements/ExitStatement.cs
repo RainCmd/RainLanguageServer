@@ -1,5 +1,5 @@
 ﻿
-namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Statements
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
     internal class ExitStatement : Statement
     {

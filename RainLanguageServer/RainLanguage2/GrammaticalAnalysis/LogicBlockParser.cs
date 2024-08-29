@@ -1,8 +1,8 @@
-﻿using RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions;
-using RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Statements;
+﻿using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
+using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements;
 using System.Diagnostics.CodeAnalysis;
 
-namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
     internal class LogicBlock
     {

@@ -1,4 +1,4 @@
-﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
     internal enum TokenType
     {

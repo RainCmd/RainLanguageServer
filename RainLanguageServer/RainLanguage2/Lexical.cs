@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace RainLanguageServer.RainLanguage2
+namespace RainLanguageServer.RainLanguage
 {
     internal enum LexicalType
     {

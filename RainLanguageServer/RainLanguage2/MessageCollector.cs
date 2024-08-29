@@ -1,6 +1,6 @@
 ﻿using System.Collections;
 
-namespace RainLanguageServer.RainLanguage2
+namespace RainLanguageServer.RainLanguage
 {
     /// <summary>
     /// 编译错误等级

@@ -4,49 +4,33 @@ using LanguageServer.Parameters.General;
 using LanguageServer.Parameters.TextDocument;
 using Newtonsoft.Json.Linq;
 using RainLanguageServer.RainLanguage;
-using System.Collections;
 using System.Diagnostics.CodeAnalysis;
+using System.Collections;
 using System.Text.RegularExpressions;
+using Message = LanguageServer.Message;
 
 namespace RainLanguageServer
 {
     [RequiresDynamicCode("Calls LanguageServer.Reflector.GetRequestType(MethodInfo)")]
     internal partial class Server(Stream input, Stream output) : ServiceConnection(input, output)
     {
-        private class FileDocument : IFileDocument
-        {
-            public string Path { get; }
-            public string Content { get; }
-            public FileDocument(string path, Server server)
-            {
-                path = new UnifiedPath(path);
-                Path = path;
-                if (server.TryGetDoc(path, out var document)) Content = document.text;
-                else
-                {
-                    using var sr = File.OpenText(path);
-                    Content = sr.ReadToEnd();
-                }
-            }
-        }
-        private class DocumentLoader(string? root, Server server) : IEnumerable<IFileDocument>
+        private class DocumentLoader(string? root, Server server) : IEnumerable<TextDocument>
         {
             private readonly string? root = root;
             private readonly Server server = server;
 
-            public IEnumerator<IFileDocument> GetEnumerator()
+            public IEnumerator<TextDocument> GetEnumerator()
             {
                 if (root == null) yield break;
                 foreach (var path in Directory.GetFiles(root, "*.rain", SearchOption.AllDirectories))
-                    yield return new FileDocument(path, server);
+                    if (server.TryGetDoc(path, out var document)) yield return document;
+                    else using (var sr = File.OpenText(path))
+                            yield return new TextDocument(path, sr.ReadToEnd());
             }
 
-            IEnumerator IEnumerable.GetEnumerator()
-            {
-                return GetEnumerator();
-            }
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
-        private ASTBuilder? builder;
+        private Manager? manager;
         private string? kernelDefinePath;
         private string? projectName;
         private string? projectPath;
@@ -73,33 +57,33 @@ namespace RainLanguageServer
         {
             if (kernelDefinePath != null)
             {
-                builder = new(kernelDefinePath, projectName ?? "TestLibrary", new DocumentLoader(projectPath, this), imports, LoadRelyLibrary);
-                builder.Reparse();
-                foreach (var space in builder.manager.fileSpaces.Values)
-                {
-                    builder.Reparse(space);
+                manager = new Manager(projectName ?? "TestLibrary", kernelDefinePath, imports, LoadRelyLibrary, () => new DocumentLoader(projectPath, this), () => documents.Values);
+                manager.Reparse(false);
+                foreach (var space in manager.fileSpaces.Values)
                     RefreshDiagnostics(space);
-                }
             }
         }
+        private TextDocument[] LoadRelyLibrary(string library)
+        {
+            var text = Proxy.SendRequest<string, string>("rainlanguage/loadRely", library).Result;
+            return [new TextDocument(Manager.ToRainScheme(library), text)];
+        }
+
         protected override Result<CompletionResult, ResponseError> Completion(CompletionParams param, CancellationToken token)
         {
-            if (builder != null)
+            if (manager != null)
             {
-                if (builder.manager.fileSpaces.TryGetValue(param.textDocument.uri, out var fileSpace))
+                //todo 代码补全
+                var infos = new List<CompletionInfo>();
+                if (infos.Count > 0)
                 {
-                    var infos = new List<CompletionInfo>();
-                    //FileCollectCompletions.CollectCompletions(builder.manager, fileSpace, GetFilePosition(fileSpace.document, param.position), infos);
-                    if (infos.Count > 0)
+                    var items = new CompletionItem[infos.Count];
+                    for (var i = 0; i < infos.Count; i++)
                     {
-                        var items = new CompletionItem[infos.Count];
-                        for (var i = 0; i < infos.Count; i++)
-                        {
-                            var info = infos[i];
-                            items[i] = new CompletionItem(info.lable) { kind = info.kind, data = info.data };
-                        }
-                        return Result<CompletionResult, ResponseError>.Success(new CompletionResult(items));
+                        var info = infos[i];
+                        items[i] = new CompletionItem(info.lable) { kind = info.kind, data = info.data };
                     }
+                    return Result<CompletionResult, ResponseError>.Success(new CompletionResult(items));
                 }
             }
             return Result<CompletionResult, ResponseError>.Error(Message.ServerError(ErrorCodes.RequestCancelled));
@@ -116,91 +100,47 @@ namespace RainLanguageServer
 
         protected override Result<Location[], ResponseError> FindReferences(ReferenceParams param, CancellationToken token)
         {
-            if (builder != null)
+            if (manager != null && ManagerOperator.FindReferences(manager, param.textDocument.uri, param.position, out var result))
             {
-                if (builder.manager.fileSpaces.TryGetValue(param.textDocument.uri, out var fileSpace))
-                    if (fileSpace.TryGetDeclaration(builder.manager, GetFilePosition(fileSpace.document, param.position), out var result))
-                    {
-                        var locations = new List<Location>();
-                        foreach (var item in result!.references)
-                            locations.Add(TR2L(item));
-                        if (result is CompilingAbstractFunction abstractFunction)
-                        {
-                            foreach (var implement in abstractFunction.implements)
-                                locations.Add(TR2L(implement.name));
-                        }
-                        else if (result is CompilingVirtualFunction virtualFunction)
-                        {
-                            foreach (var implement in virtualFunction.implements)
-                                locations.Add(TR2L(implement.name));
-                        }
-                        else if (result is CompilingVariable variable)
-                        {
-                            foreach (var anchor in variable.read)
-                                locations.Add(TR2L(anchor));
-                            foreach (var anchor in variable.write)
-                                locations.Add(TR2L(anchor));
-                        }
-                        return Result<Location[], ResponseError>.Success([.. locations]);
-                    }
+                var locations = new List<Location>();
+                foreach (var item in result) locations.Add(TR2L(item));
+                return Result<Location[], ResponseError>.Success([.. locations]);
             }
             return Result<Location[], ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
         }
 
         protected override Result<LocationSingleOrArray, ResponseError> GotoDefinition(TextDocumentPositionParams param, CancellationToken token)
         {
-            if (builder != null)
-            {
-                if (builder.manager.fileSpaces.TryGetValue(param.textDocument.uri, out var fileSpace))
-                    if (fileSpace.TryGetDeclaration(builder.manager, GetFilePosition(fileSpace.document, param.position), out var result))
-                        return Result<LocationSingleOrArray, ResponseError>.Success(TR2L(result!.name));
-            }
+            if (manager != null && ManagerOperator.TryGetDefinition(manager, param.textDocument.uri, param.position, out var result))
+                return Result<LocationSingleOrArray, ResponseError>.Success(TR2L(result));
             return Result<LocationSingleOrArray, ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
         }
 
         protected override Result<Hover, ResponseError> Hover(TextDocumentPositionParams param, CancellationToken token)
         {
-            if (builder != null)
+            if (manager != null && ManagerOperator.OnHover(manager, param.textDocument.uri, param.position, out var info))
             {
-                if (builder.manager.fileSpaces.TryGetValue(new UnifiedPath(param.textDocument.uri), out var fileSpace))
-                {
-                    var position = GetFilePosition(fileSpace.document, param.position);
-                    var declaration = fileSpace.GetFileDeclaration(position);
-                    if (declaration != null && declaration.OnHover(builder.manager, position, out var info))
-                    {
-                        if (info.markdown) return Result<Hover, ResponseError>.Success(new Hover(new MarkupContent(MarkupKind.Markdown, info.info), TR2R(info.range)));
-                        else return Result<Hover, ResponseError>.Success(new Hover(info.info, TR2R(info.range)));
-                    }
-                }
+                if (info.markdown) return Result<Hover, ResponseError>.Success(new Hover(new MarkupContent(MarkupKind.Markdown, info.info), TR2R(info.range)));
+                else return Result<Hover, ResponseError>.Success(new Hover(info.info, TR2R(info.range)));
             }
             return Result<Hover, ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
         }
 
         protected override Result<DocumentHighlight[], ResponseError> DocumentHighlight(TextDocumentPositionParams param, CancellationToken token)
         {
-            if (builder != null)
+            if (manager != null && ManagerOperator.OnHighlight(manager, param.textDocument.uri, param.position, out var infos))
             {
-                if (builder.manager.fileSpaces.TryGetValue(new UnifiedPath(param.textDocument.uri), out var fileSpace))
-                {
-                    var position = GetFilePosition(fileSpace.document, param.position);
-                    var declaration = fileSpace.GetFileDeclaration(position);
-                    var infos = new List<HighlightInfo>();
-                    if (declaration != null && declaration.OnHighlight(builder.manager, position, infos))
-                    {
-                        infos.RemoveAll(info => info.range.start.document != fileSpace.document);
-                        var results = new DocumentHighlight[infos.Count];
-                        for (int i = 0; i < infos.Count; i++)
-                            results[i] = new DocumentHighlight(TR2R(infos[i].range)) { kind = infos[i].kind };
-                        return Result<DocumentHighlight[], ResponseError>.Success(results);
-                    }
-                }
+                var results = new DocumentHighlight[infos.Count];
+                for (int i = 0; i < infos.Count; i++)
+                    results[i] = new DocumentHighlight(TR2R(infos[i].range)) { kind = infos[i].kind };
+                return Result<DocumentHighlight[], ResponseError>.Success(results);
             }
             return Result<DocumentHighlight[], ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
         }
 
         protected override Result<CodeLens[], ResponseError> CodeLens(CodeLensParams param, CancellationToken token)
         {
-            if (builder != null)
+            if (manager != null)
             {
                 if (builder.manager.fileSpaces.TryGetValue(param.textDocument.uri, out var fileSpace))
                 {
@@ -309,14 +249,10 @@ namespace RainLanguageServer
         [JsonRpcMethod("rainlanguage/getSemanticTokens")]
         private Result<SemanticToken[], ResponseError> GetSemanticTokens(SemanticTokenParam param)
         {
-            if (builder != null)
+            if (manager != null)
             {
-                if (builder.manager.fileSpaces.TryGetValue(param.uri, out var fileSpace))
-                {
-                    var collector = new SemanticTokenCollector();
-                    fileSpace.CollectSemanticToken(collector);
-                    return Result<SemanticToken[], ResponseError>.Success(collector.GetResult());
-                }
+                var collector = ManagerOperator.CollectSemanticToken(manager, param.uri);
+                return Result<SemanticToken[], ResponseError>.Success(collector.GetResult());
             }
             return Result<SemanticToken[], ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
         }
@@ -333,15 +269,11 @@ namespace RainLanguageServer
             public string path = path;
             public string content = content;
         }
-        private string LoadRelyLibrary(string library)
-        {
-            return Proxy.SendRequest<string, string>("rainlanguage/loadRely", library).Result;
-        }
         protected override void DidOpenTextDocument(DidOpenTextDocumentParams param)
         {
             string path = new UnifiedPath(param.textDocument.uri);
             TextDocument? document = null;
-            if (builder != null && builder.manager.fileSpaces.TryGetValue(path, out var fileSpace))
+            if (manager != null && manager.fileSpaces.TryGetValue(path, out var fileSpace))
             {
                 if (param.textDocument.text != fileSpace.document.text)
                 {
@@ -373,16 +305,13 @@ namespace RainLanguageServer
 
         private void OnChanged()
         {
-            if (builder != null)
+            if (manager != null)
             {
-                lock (builder)
+                lock (manager)
                 {
-                    builder.Reparse();
-                    foreach (var space in builder.manager.fileSpaces.Values)
-                    {
-                        builder.Reparse(space);
+                    manager.Reparse(true);
+                    foreach (var space in manager.fileSpaces.Values)
                         RefreshDiagnostics(space);
-                    }
                 }
             }
         }
@@ -394,26 +323,18 @@ namespace RainLanguageServer
         /// <param name="files"></param>
         private void RefreshDiagnostics(FileSpace space)
         {
-            CollectFileDiagnostic(space, diagnosticsHelper);
-            var param = new PublishDiagnosticsParams(new Uri(space.document.path), [.. diagnosticsHelper]);
-            Proxy.TextDocument.PublishDiagnostics(param);
-            diagnosticsHelper.Clear();
-        }
-
-        private static void CollectFileDiagnostic(FileSpace space, List<Diagnostic> diagnostics)
-        {
-            foreach (var msg in space.Messages)
+            foreach (var msg in space.collector)
             {
                 var diagnostic = new Diagnostic(TR2R(msg.range), msg.message);
                 switch (msg.level)
                 {
-                    case CErrorLevel.Error:
+                    case ErrorLevel.Error:
                         diagnostic.severity = DiagnosticSeverity.Error;
                         break;
-                    case CErrorLevel.Warning:
+                    case ErrorLevel.Warning:
                         diagnostic.severity = DiagnosticSeverity.Warning;
                         break;
-                    case CErrorLevel.Info:
+                    case ErrorLevel.Info:
                         diagnostic.severity = DiagnosticSeverity.Information;
                         break;
                 }
@@ -423,9 +344,13 @@ namespace RainLanguageServer
                     for (var i = 0; i < msg.related.Count; i++)
                         diagnostic.relatedInformation[i] = new DiagnosticRelatedInformation(TR2L(msg.related[i].range), msg.related[i].message);
                 }
-                diagnostics.Add(diagnostic);
+                diagnosticsHelper.Add(diagnostic);
             }
+            var param = new PublishDiagnosticsParams(new Uri(space.document.path), [.. diagnosticsHelper]);
+            Proxy.TextDocument.PublishDiagnostics(param);
+            diagnosticsHelper.Clear();
         }
+
         private static Location TR2L(TextRange range)
         {
             return new Location(new Uri(range.start.document.path), TR2R(range));

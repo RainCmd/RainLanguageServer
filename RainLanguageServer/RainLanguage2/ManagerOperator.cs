@@ -4,7 +4,7 @@ using LanguageServer.Parameters.TextDocument;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
-namespace RainLanguageServer.RainLanguage2
+namespace RainLanguageServer.RainLanguage
 {
     internal static class ManagerOperator
     {
@@ -83,8 +83,9 @@ namespace RainLanguageServer.RainLanguage2
             info = default;
             return false;
         }
-        public static bool OnHighlight(Manager manager, DocumentUri uri, Position position, List<HighlightInfo> infos)
+        public static bool OnHighlight(Manager manager, DocumentUri uri, Position position,out List<HighlightInfo> result)
         {
+            var infos = result = [];
             if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
             {
                 if (FileSpaceOperator(space, textPosition, fileSpace =>
@@ -129,8 +130,9 @@ namespace RainLanguageServer.RainLanguage2
             definition = default;
             return false;
         }
-        public static bool FindReferences(Manager manager, DocumentUri uri, Position position, List<TextRange> references)
+        public static bool FindReferences(Manager manager, DocumentUri uri, Position position, out List<TextRange> result)
         {
+            var references = result = [];
             if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
             {
                 return FileSpaceOperator(space, textPosition, fileSpace =>

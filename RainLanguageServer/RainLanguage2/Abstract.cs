@@ -1,8 +1,8 @@
 ﻿using LanguageServer.Parameters.TextDocument;
-using RainLanguageServer.RainLanguage2.GrammaticalAnalysis;
+using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
 using System.Text;
 
-namespace RainLanguageServer.RainLanguage2
+namespace RainLanguageServer.RainLanguage
 {
     internal abstract class AbstractDeclaration
     {

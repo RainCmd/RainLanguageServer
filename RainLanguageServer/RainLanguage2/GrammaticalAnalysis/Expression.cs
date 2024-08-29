@@ -1,6 +1,6 @@
-﻿using RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions;
+﻿using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
 
-namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
     internal enum ExpressionAttribute
     {

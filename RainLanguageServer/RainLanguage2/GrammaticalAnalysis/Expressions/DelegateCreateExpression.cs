@@ -1,4 +1,4 @@
-﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal abstract class DelegateCreateExpression : Expression
     {

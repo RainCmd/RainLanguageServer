@@ -1,7 +1,7 @@
-﻿using RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions;
+﻿using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
 using System.Diagnostics.CodeAnalysis;
 
-namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
     internal class ExpressionParser(Manager manager, Context context, LocalContext localContext, MessageCollector collector, bool destructor)
     {

@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
-namespace RainLanguageServer.RainLanguage2
+namespace RainLanguageServer.RainLanguage
 {
     internal readonly struct Context(TextDocument document, AbstractSpace space, HashSet<AbstractSpace> relies, AbstractDeclaration? declaration)
     {

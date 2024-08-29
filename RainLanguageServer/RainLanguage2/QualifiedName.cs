@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace RainLanguageServer.RainLanguage2
+namespace RainLanguageServer.RainLanguage
 {
     internal readonly struct QualifiedName
     {

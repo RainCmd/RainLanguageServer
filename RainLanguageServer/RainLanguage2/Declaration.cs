@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 
-namespace RainLanguageServer.RainLanguage2
+namespace RainLanguageServer.RainLanguage
 {
     internal enum DeclarationCategory
     {

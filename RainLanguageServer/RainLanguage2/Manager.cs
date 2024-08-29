@@ -1,8 +1,8 @@
 ﻿using LanguageServer;
-using RainLanguageServer.RainLanguage2.GrammaticalAnalysis;
+using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
 using System.Diagnostics.CodeAnalysis;
 
-namespace RainLanguageServer.RainLanguage2
+namespace RainLanguageServer.RainLanguage
 {
     internal class Manager
     {
