@@ -28,7 +28,7 @@
         }
         public override void Read(ExpressionParameter parameter)
         {
-            foreach(var expression in expressions) expression.Read(parameter);
+            foreach (var expression in expressions) expression.Read(parameter);
         }
         public static Expression Create(IList<Expression> expressions, MessageCollector collector)
         {
@@ -46,6 +46,41 @@
             }
             return new TupleExpression(expressions[0].range & expressions[^1].range, new Tuple([.. types]), expressions);
         }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.OnHighlight(manager, position, infos);
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.FindReferences(manager, position, references);
+            return false;
+        }
+
         private static readonly IList<Expression> empty = [];
     }
     internal class TupleEvaluationExpression : Expression
@@ -64,6 +99,36 @@
         {
             source.Read(parameter);
             indices.Read(parameter);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (source.range.Contain(position)) return source.OnHover(manager, position, out info);
+            if (indices.range.Contain(position)) return indices.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (source.range.Contain(position)) return source.OnHighlight(manager, position, infos);
+            if (indices.range.Contain(position)) return indices.OnHighlight(manager, position, infos);
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (source.range.Contain(position)) return source.TryGetDefinition(manager, position, out definition);
+            if (indices.range.Contain(position)) return indices.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (source.range.Contain(position)) return source.FindReferences(manager, position, references);
+            if (indices.range.Contain(position)) return indices.FindReferences(manager, position, references);
+            return false;
         }
     }
 }

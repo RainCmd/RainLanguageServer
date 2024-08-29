@@ -1,4 +1,5 @@
-﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
+﻿
+namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
 {
     internal class InvalidExpression : Expression
     {
@@ -22,7 +23,41 @@
         }
         public override void Read(ExpressionParameter parameter)
         {
-            foreach(var expression in expressions) expression.Read(parameter);
+            foreach (var expression in expressions) expression.Read(parameter);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.OnHighlight(manager, position, infos);
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.FindReferences(manager, position, references);
+            return false;
         }
     }
     internal class InvalidKeyworldExpression(TextRange range) : InvalidExpression(range) { }
@@ -39,5 +74,35 @@
             attribute = ExpressionAttribute.Invalid;
         }
         public override void Read(ExpressionParameter parameter) => parameters?.Read(parameter);
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (parameters != null && parameters.range.Contain(position))
+                return parameters.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (parameters != null && parameters.range.Contain(position))
+                return parameters.OnHighlight(manager, position, infos);
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (parameters != null && parameters.range.Contain(position))
+                return parameters.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (parameters != null && parameters.range.Contain(position))
+                return parameters.FindReferences(manager, position, references);
+            return false;
+        }
     }
 }

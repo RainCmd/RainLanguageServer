@@ -1,8 +1,5 @@
 ﻿using LanguageServer.Parameters.TextDocument;
-using Microsoft.VisualBasic.FileIO;
-using RainLanguageServer.RainLanguage;
 using RainLanguageServer.RainLanguage2.GrammaticalAnalysis;
-using System;
 using System.Text;
 using System.Xml.Linq;
 
@@ -61,7 +58,20 @@ namespace RainLanguageServer.RainLanguage2
             }
             return "无效的类型";
         }
-        public static string Info(this AbstractDeclaration declaration, Manager manager, AbstractSpace? space = null, AbstractDeclaration? context = null)
+        private static string FieldInfo(AbstractDeclaration declaration, Type type, Manager manager, AbstractSpace? space)
+        {
+            if (!manager.TryGetDefineDeclaration(declaration.declaration, out var abstractDeclaration)) throw new InvalidOperationException();
+            var sb = new StringBuilder();
+            sb.Append("(字段)");
+            sb.Append(type.Info(manager, false, space));
+            sb.Append(' ');
+            if (GetQualifier(declaration.declaration.library, declaration.space, space, sb)) sb.Append('.');
+            sb.Append(abstractDeclaration.name);
+            sb.Append('.');
+            sb.Append(declaration.name);
+            return sb.ToString();
+        }
+        public static string Info(this AbstractDeclaration declaration, Manager manager, AbstractSpace? space = null)
         {
             if (declaration is AbstractVariable abstractVariable)
             {
@@ -74,12 +84,102 @@ namespace RainLanguageServer.RainLanguage2
                 sb.Append(abstractVariable.name.ToString());
                 return sb.ToString();
             }
-            else if (declaration is AbstractFunction abstractFunction)
+            else if (declaration is AbstractFunction abstractFunction) return abstractFunction.Info(manager, null, space);
+            else if (declaration is AbstractEnum)
             {
                 var sb = new StringBuilder();
-                sb.Append("(全局函数)");
-
+                sb.Append(KeyWords.ENUM);
+                sb.Append(' ');
+                if (GetQualifier(declaration.declaration.library, declaration.space, space, sb)) sb.Append('.');
+                sb.Append(declaration.name);
+                return sb.ToString();
             }
+            else if (declaration is AbstractEnum.Element element)
+            {
+                if (!manager.TryGetDefineDeclaration(element.declaration, out var abstractDeclaration)) throw new InvalidOperationException();
+                var sb = new StringBuilder();
+                if (GetQualifier(declaration.declaration.library, declaration.space, space, sb)) sb.Append('.');
+                sb.Append(abstractDeclaration.name);
+                sb.Append('.');
+                sb.Append(element.name);
+                if (element.expression != null)
+                {
+                    sb.Append(" = ");
+                    sb.Append(element.expression.range.ToString());
+                }
+                else if (element.calculated)
+                {
+                    sb.Append(" = ");
+                    sb.Append(element.value);
+                }
+                return sb.ToString();
+            }
+            else if (declaration is AbstractStruct)
+            {
+                var sb = new StringBuilder();
+                sb.Append(KeyWords.STRUCT);
+                sb.Append(' ');
+                if (GetQualifier(declaration.declaration.library, declaration.space, space, sb)) sb.Append('.');
+                sb.Append(declaration.name);
+                return sb.ToString();
+            }
+            else if (declaration is AbstractStruct.Variable abstractStructVariable) return FieldInfo(declaration, abstractStructVariable.type, manager, space);
+            else if (declaration is AbstractStruct.Function abstractStructFunction)
+            {
+                if (!manager.TryGetDefineDeclaration(abstractStructFunction.declaration, out var abstractDeclaration)) throw new InvalidOperationException();
+                return abstractStructFunction.Info(manager, abstractDeclaration, space);
+            }
+            else if (declaration is AbstractInterface)
+            {
+                var sb = new StringBuilder();
+                sb.Append(KeyWords.INTERFACE);
+                sb.Append(' ');
+                if (GetQualifier(declaration.declaration.library, declaration.space, space, sb)) sb.Append('.');
+                sb.Append(declaration.name);
+                return sb.ToString();
+            }
+            else if (declaration is AbstractInterface.Function abstractInterfaceFunction)
+            {
+                if (!manager.TryGetDefineDeclaration(abstractInterfaceFunction.declaration, out var abstractDeclaration)) throw new InvalidOperationException();
+                return abstractInterfaceFunction.Info(manager, abstractDeclaration, space);
+            }
+            else if (declaration is AbstractClass)
+            {
+                var sb = new StringBuilder();
+                sb.Append(KeyWords.CLASS);
+                sb.Append(' ');
+                if (GetQualifier(declaration.declaration.library, declaration.space, space, sb)) sb.Append('.');
+                sb.Append(declaration.name);
+                return sb.ToString();
+            }
+            else if (declaration is AbstractClass.Variable abstractClassVariable) return FieldInfo(declaration, abstractClassVariable.type, manager, space);
+            else if (declaration is AbstractClass.Constructor abstractClassConstructor)
+            {
+                if (!manager.TryGetDefineDeclaration(abstractClassConstructor.declaration, out var abstractDeclaration)) throw new InvalidOperationException();
+                return abstractClassConstructor.Info(manager, abstractDeclaration, space);
+            }
+            else if (declaration is AbstractClass.Function abstractClassFunction)
+            {
+                if (!manager.TryGetDefineDeclaration(abstractClassFunction.declaration, out var abstractDeclaration)) throw new InvalidOperationException();
+                return abstractClassFunction.Info(manager, abstractDeclaration, space);
+            }
+            else if (declaration is AbstractDelegate abstractDelegate) return abstractDelegate.Info(manager, null, space);
+            else if (declaration is AbstractTask abstractTask)
+            {
+                var sb = new StringBuilder();
+                sb.Append(KeyWords.TASK);
+                sb.Append(' ');
+                for (var i = 0; i < abstractTask.returns.Count; i++)
+                {
+                    if (i > 0) sb.Append(", ");
+                    sb.Append(abstractTask.returns[i].Info(manager, false, space));
+                }
+                if (abstractTask.returns.Count > 0) sb.Append(' ');
+                if (GetQualifier(declaration.declaration.library, space, space, sb)) sb.Append('.');
+                sb.Append(declaration.name);
+                return sb.ToString();
+            }
+            else if (declaration is AbstractNative abstractNative) return abstractNative.Info(manager, null, space);
             throw new Exception("无效的声明");
         }
         public static string Info(this AbstractCallable callable, Manager manager, AbstractDeclaration? declaration = null, AbstractSpace? space = null)
@@ -171,7 +271,7 @@ namespace RainLanguageServer.RainLanguage2
             info = default;
             return false;
         }
-        public static void OnHover(this Local local, Manager manager, TextPosition position, out HoverInfo info)
+        public static HoverInfo Hover(this Local local, Manager manager, TextPosition position)
         {
             var sb = new StringBuilder();
             if (local.parameter) sb.Append("(参数)");
@@ -179,7 +279,7 @@ namespace RainLanguageServer.RainLanguage2
             sb.Append(local.type.Info(manager, false, ManagerOperator.GetSpace(manager, position)));
             sb.Append(' ');
             sb.Append(local.range.ToString());
-            info = new HoverInfo(local.range, sb.ToString().MakedownCode(), true);
+            return new HoverInfo(local.range, sb.ToString().MakedownCode(), true);
         }
         public static bool OnHover(List<TextRange> qualify, TextPosition position, out HoverInfo info)
         {

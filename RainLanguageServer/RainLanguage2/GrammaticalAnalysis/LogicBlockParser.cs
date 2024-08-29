@@ -341,6 +341,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
                                     var tryLine = tryStatement.trySymbol.start.Line;
                                     tryStatement.tryBlock = new BlockStatement(tryLine.end & tryLine.end);
                                 }
+                                tryStatement.finallySymbol = lexical.anchor;
                                 tryStatement.group.Add(lexical.anchor);
                                 stack.Peek().Add(new SubStatement(tryStatement));
                             }

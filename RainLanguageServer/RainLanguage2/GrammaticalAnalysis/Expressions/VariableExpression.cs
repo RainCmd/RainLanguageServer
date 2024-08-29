@@ -1,4 +1,5 @@
-﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
+﻿
+namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
 {
     internal class VariableLocalExpression : Expression
     {
@@ -14,6 +15,48 @@
         public VariableLocalExpression(TextRange range, Local local, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : this(range, local, local.type, identifier, attribute, manager) { }
         public override void Read(ExpressionParameter parameter) => local.read.Add(identifier);
         public override void Write(ExpressionParameter parameter) => local.write.Add(identifier);
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (identifier.Contain(position))
+            {
+                info = local.Hover(manager, position);
+                return true;
+            }
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (identifier.Contain(position))
+            {
+                local.OnHighlight(infos);
+                return true;
+            }
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (identifier.Contain(position))
+            {
+                definition = local.range;
+                return true;
+            }
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (identifier.Contain(position))
+            {
+                local.FindReferences(references);
+                return true;
+            }
+            return false;
+        }
     }
     internal class VariableDeclarationLocalExpression(TextRange range, Local local, TextRange identifier, TypeExpression typeExpression, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, identifier, attribute, manager)
     {
@@ -23,9 +66,39 @@
             base.Read(parameter);
             typeExpression.Read(parameter);
         }
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (typeExpression.range.Contain(position)) return typeExpression.OnHover(manager, position, out info);
+            return base.OnHover(manager, position, out info);
+        }
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (typeExpression.range.Contain(position)) return typeExpression.OnHighlight(manager, position, infos);
+            return base.OnHighlight(manager, position, infos);
+        }
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (typeExpression.range.Contain(position)) return typeExpression.TryGetDefinition(manager, position, out definition);
+            return base.TryGetDefinition(manager, position, out definition);
+        }
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (typeExpression.range.Contain(position)) return typeExpression.FindReferences(manager, position, references);
+            return base.FindReferences(manager, position, references);
+        }
     }
     internal class VariableKeyworldLocalExpression(TextRange range, Local local, Type type, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, type, identifier, attribute, manager)
     {
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (identifier.Contain(position) && manager.TryGetDeclaration(local.type, out var declaration))
+            {
+                info = new HoverInfo(identifier, declaration.Info(manager, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                return true;
+            }
+            info = default;
+            return false;
+        }
     }
     internal class VariableGlobalExpression : Expression
     {
@@ -44,6 +117,51 @@
         }
         public override void Read(ExpressionParameter parameter) => variable.references.Add(name.name);
         public override void Write(ExpressionParameter parameter) => variable.write.Add(name.name);
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (InfoUtility.OnHover(name.qualify, position, out info)) return true;
+            if (name.name.Contain(position))
+            {
+                info = new HoverInfo(name.name, variable.Info(manager, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                return true;
+            }
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (InfoUtility.OnHighlight(name.qualify, position, variable.space, infos)) return true;
+            if (name.name.Contain(position))
+            {
+                InfoUtility.Highlight(variable, infos);
+                return true;
+            }
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (name.name.Contain(position))
+            {
+                definition = variable.name;
+                return true;
+            }
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (InfoUtility.FindReferences(name.qualify, position, variable.space, references)) return true;
+            if (name.name.Contain(position))
+            {
+                references.AddRange(variable.references);
+                return true;
+            }
+            return false;
+        }
     }
     internal class VariableMemberExpression : Expression
     {
@@ -73,6 +191,52 @@
             target?.Read(parameter);
             if (member is AbstractStruct.Variable structMember) structMember.write.Add(identifier);
             else if (member is AbstractClass.Variable classMember) classMember.write.Add(identifier);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHover(manager, position, out info);
+            if (identifier.Contain(position))
+            {
+                info = new HoverInfo(identifier, member.Info(manager, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                return true;
+            }
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
+            if (identifier.Contain(position))
+            {
+                InfoUtility.Highlight(member, infos);
+                return true;
+            }
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (target != null && target.range.Contain(position)) return target.TryGetDefinition(manager, position, out definition);
+            if (identifier.Contain(position))
+            {
+                definition = member.name;
+                return true;
+            }
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (target != null && target.range.Contain(position)) return target.FindReferences(manager, position, references);
+            if (identifier.Contain(position))
+            {
+                references.AddRange(member.references);
+                return true;
+            }
+            return false;
         }
     }
 }

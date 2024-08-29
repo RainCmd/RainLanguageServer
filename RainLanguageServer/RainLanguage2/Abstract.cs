@@ -269,22 +269,7 @@ namespace RainLanguageServer.RainLanguage2
             {
                 if (name.Contain(position))
                 {
-                    if (!manager.TryGetDefineDeclaration(declaration, out var abstractDeclaration)) throw new InvalidOperationException();
-                    var sb = new StringBuilder();
-                    sb.Append(abstractDeclaration.Info(manager, space));
-                    sb.Append('.');
-                    sb.Append(name.ToString());
-                    if (expression != null)
-                    {
-                        sb.Append(' ');
-                        sb.Append(expression.range.ToString());
-                    }
-                    else if (calculated)
-                    {
-                        sb.Append(' ');
-                        sb.Append(value);
-                    }
-                    info = new HoverInfo(name, sb.ToString().MakedownCode(), true);
+                    info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
                     return true;
                 }
                 else if (expression != null && expression.range.Contain(position))
@@ -320,11 +305,7 @@ namespace RainLanguageServer.RainLanguage2
         {
             if (name.Contain(position))
             {
-                var sb = new StringBuilder();
-                sb.Append(KeyWords.ENUM);
-                sb.Append(' ');
-                sb.Append(this.Info(manager, space));
-                info = new HoverInfo(name, sb.ToString().MakedownCode(), true);
+                info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
                 return true;
             }
             foreach (var element in elements)
@@ -372,15 +353,7 @@ namespace RainLanguageServer.RainLanguage2
             {
                 if (name.Contain(position))
                 {
-                    if (!manager.TryGetDefineDeclaration(declaration, out var abstractDeclaration)) throw new InvalidOperationException();
-                    var sb = new StringBuilder();
-                    sb.Append("(字段)");
-                    sb.Append(type.Info(manager, false, space));
-                    sb.Append(' ');
-                    sb.Append(abstractDeclaration.Info(manager, space));
-                    sb.Append('.');
-                    sb.Append(name.ToString());
-                    info = new HoverInfo(name, sb.ToString().MakedownCode(), true);
+                    info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
                     return true;
                 }
                 return fileVariable.type.OnHover(manager, position, type, space, out info);
@@ -432,11 +405,7 @@ namespace RainLanguageServer.RainLanguage2
         {
             if (name.Contain(position))
             {
-                var sb = new StringBuilder();
-                sb.Append(KeyWords.STRUCT);
-                sb.Append(' ');
-                sb.Append(this.Info(manager, space));
-                info = new HoverInfo(name, sb.ToString().MakedownCode(), true);
+                info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
                 return true;
             }
             foreach (var variable in variables)
@@ -509,11 +478,7 @@ namespace RainLanguageServer.RainLanguage2
         {
             if (name.Contain(position))
             {
-                var sb = new StringBuilder();
-                sb.Append(KeyWords.INTERFACE);
-                sb.Append(' ');
-                sb.Append(name);
-                info = new HoverInfo(name, sb.ToString().MakedownCode(), true);
+                info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
                 return true;
             }
             for (var i = 0; i < fileInterface.inherits.Count; i++)
@@ -574,15 +539,7 @@ namespace RainLanguageServer.RainLanguage2
             {
                 if (name.Contain(position))
                 {
-                    if (!manager.TryGetDefineDeclaration(declaration, out var abstractDeclaration)) throw new InvalidOperationException();
-                    var sb = new StringBuilder();
-                    sb.Append("(字段)");
-                    sb.Append(type.Info(manager, false, space));
-                    sb.Append(' ');
-                    sb.Append(abstractDeclaration.Info(manager, space));
-                    sb.Append('.');
-                    sb.Append(name);
-                    info = new HoverInfo(name, sb.ToString().MakedownCode(), true);
+                    info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
                     return true;
                 }
                 else if (fileVariable.type.OnHover(manager, position, type, space, out info)) return true;
@@ -683,7 +640,7 @@ namespace RainLanguageServer.RainLanguage2
                 if (name.Contain(position))
                 {
                     references.AddRange(this.references);
-                    foreach(var function in overrides)
+                    foreach (var function in overrides)
                         references.AddRange(function.references);
                     return true;
                 }
@@ -702,11 +659,7 @@ namespace RainLanguageServer.RainLanguage2
         {
             if (name.Contain(position))
             {
-                var sb = new StringBuilder();
-                sb.Append(KeyWords.CLASS);
-                sb.Append(' ');
-                sb.Append(this.Info(manager, space));
-                info = new HoverInfo(name, sb.ToString().MakedownCode(), true);
+                info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
                 return true;
             }
             for (var i = 0; i < fileClass.inherits.Count; i++)
@@ -822,18 +775,7 @@ namespace RainLanguageServer.RainLanguage2
         {
             if (name.Contain(position))
             {
-                var sb = new StringBuilder();
-                sb.Append(KeyWords.TASK);
-                sb.Append(' ');
-                for (var i = 0; i < returns.Count; i++)
-                {
-                    if (i > 0) sb.Append(", ");
-                    sb.Append(returns[i].Info(manager, false, space));
-                }
-                if (returns.Count > 0) sb.Append(' ');
-                if (InfoUtility.GetQualifier(declaration.library, space, space, sb)) sb.Append('.');
-                sb.Append(name);
-                info = new HoverInfo(name, sb.ToString().MakedownCode(), true);
+                info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
                 return true;
             }
             for (var i = 0; i < fileTask.returns.Count; i++)

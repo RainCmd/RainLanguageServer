@@ -10,7 +10,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Statements
             public readonly BlockStatement block = block;
         }
         public readonly TextRange trySymbol = trySymbol;
-        public readonly TextRange? finallySymbol;
+        public TextRange? finallySymbol;
         public BlockStatement? tryBlock;
         public readonly List<CatchBlock> catchBlocks = [];
         public BlockStatement? finallyBlock;

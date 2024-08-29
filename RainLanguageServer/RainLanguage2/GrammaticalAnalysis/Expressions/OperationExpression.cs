@@ -1,4 +1,5 @@
-﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
+﻿
+namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
 {
     internal class OperationExpression : Expression
     {
@@ -19,6 +20,52 @@
         {
             callable.references.Add(symbol);
             parameters.Read(parameter);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (symbol.Contain(position))
+            {
+                info = new HoverInfo(symbol, callable.Info(manager, null, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (symbol.Contain(position))
+            {
+                InfoUtility.Highlight(callable, infos);
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.OnHighlight(manager, position, infos);
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (symbol.Contain(position))
+            {
+                definition = callable.name;
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (symbol.Contain(position))
+            {
+                references.AddRange(callable.references);
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.FindReferences(manager, position, references);
+            return false;
         }
     }
 }

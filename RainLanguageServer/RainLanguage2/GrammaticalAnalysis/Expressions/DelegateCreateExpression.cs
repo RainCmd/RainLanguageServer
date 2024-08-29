@@ -52,7 +52,7 @@
 
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
-            if(InfoUtility.FindReferences(name.qualify,position,callable.space, references)) return true;
+            if (InfoUtility.FindReferences(name.qualify, position, callable.space, references)) return true;
             if (name.name.Contain(position))
             {
                 references.AddRange(callable.references);
@@ -67,10 +67,58 @@
         public readonly Expression? target = target;
         public readonly TextRange? symbol = symbol;
         public readonly TextRange member = member;
+
         public override void Read(ExpressionParameter parameter)
         {
             target?.Read(parameter);
             callable.references.Add(member);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHover(manager, position, out info);
+            if (member.Contain(position))
+            {
+                manager.TryGetDefineDeclaration(callable.declaration, out var abstractDeclaration);
+                info = new HoverInfo(member, callable.Info(manager, abstractDeclaration, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                return true;
+            }
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
+            if (member.Contain(position))
+            {
+                InfoUtility.Highlight(callable, infos);
+                return true;
+            }
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (target != null && target.range.Contain(position)) return target.TryGetDefinition(manager, position, out definition);
+            if (member.Contain(position))
+            {
+                definition = callable.name;
+                return true;
+            }
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (target != null && target.range.Contain(position)) return target.FindReferences(manager, position, references);
+            if (member.Contain(position))
+            {
+                references.AddRange(callable.references);
+                return true;
+            }
+            return false;
         }
     }
     internal class VirtualFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
@@ -78,17 +126,72 @@
         public readonly Expression? target = target;
         public readonly TextRange? symbol = symbol;
         public readonly TextRange member = member;
+
         public override void Read(ExpressionParameter parameter)
         {
             target?.Read(parameter);
             if (callable is AbstractClass.Function function) Reference(function);
             else callable.references.Add(member);
         }
+
         private void Reference(AbstractClass.Function function)
         {
             function.references.Add(member);
             foreach (var item in function.implements)
                 Reference(item);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHover(manager, position, out info);
+            if (member.Contain(position))
+            {
+                manager.TryGetDefineDeclaration(callable.declaration, out var abstractDeclaration);
+                info = new HoverInfo(member, callable.Info(manager, abstractDeclaration, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                return true;
+            }
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
+            if (member.Contain(position))
+            {
+                InfoUtility.Highlight(callable, infos);
+                if (callable is AbstractClass.Function function)
+                    foreach (var item in function.overrides)
+                        InfoUtility.Highlight(item, infos);
+                return true;
+            }
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (target != null && target.range.Contain(position)) return target.TryGetDefinition(manager, position, out definition);
+            if (member.Contain(position))
+            {
+                definition = callable.name;
+                return true;
+            }
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (target != null && target.range.Contain(position)) return target.FindReferences(manager, position, references);
+            if (member.Contain(position))
+            {
+                references.AddRange(callable.references);
+                if (callable is AbstractClass.Function function)
+                    foreach (var item in function.overrides)
+                        references.AddRange(item.references);
+                return true;
+            }
+            return false;
         }
     }
     internal class LambdaDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, List<Local> parmeters, TextRange symbol, Expression body) : DelegateCreateExpression(range, type, callable, manager)
@@ -96,6 +199,57 @@
         public readonly List<Local> parmeters = parmeters;
         public readonly TextRange symbol = symbol;
         public readonly Expression body = body;
+
         public override void Read(ExpressionParameter parameter) => body.Read(parameter);
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            foreach (var local in parmeters)
+                if (local.range.Contain(position))
+                {
+                    info = local.Hover(manager, position);
+                    return true;
+                }
+            if (body.range.Contain(position)) return body.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            foreach (var local in parmeters)
+                if (local.range.Contain(position))
+                {
+                    local.OnHighlight(infos);
+                    return true;
+                }
+            if (body.range.Contain(position)) return body.OnHighlight(manager, position, infos);
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            foreach (var local in parmeters)
+                if (local.range.Contain(position))
+                {
+                    definition = local.range;
+                    return true;
+                }
+            if (body.range.Contain(position)) return body.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            foreach (var local in parmeters)
+                if (local.range.Contain(position))
+                {
+                    local.FindReferences(references);
+                    return true;
+                }
+            if (body.range.Contain(position)) return body.FindReferences(manager, position, references);
+            return false;
+        }
     }
 }

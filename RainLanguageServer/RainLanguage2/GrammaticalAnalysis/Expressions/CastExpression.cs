@@ -120,7 +120,7 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
             if (type.range.Contain(position)) return type.OnHover(manager, position, out info);
             if (local != null && local.Value.range.Contain(position))
             {
-                local.Value.OnHover(manager, position, out info);
+                info = local.Value.Hover(manager, position);
                 return true;
             }
             info = default;

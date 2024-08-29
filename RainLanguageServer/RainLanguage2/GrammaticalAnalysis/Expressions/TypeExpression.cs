@@ -1,4 +1,5 @@
-﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
+﻿
+namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
 {
     internal class TypeExpression : Expression
     {
@@ -18,6 +19,14 @@
             if (parameter.manager.TryGetDeclaration(type, out var declaration))
                 declaration.references.Add(file.name.name);
         }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info) => file.OnHover(manager, position, type, ManagerOperator.GetSpace(manager, position), out info);
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => file.OnHighlight(manager, position, type, infos);
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition) => file.TryGetDefinition(manager, position, type, out definition);
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => file.FindReferences(manager, position, type, references);
     }
     internal class TypeKeyworldExpression(TextRange range, TextRange? qualifier, FileType file, Type type) : TypeExpression(range, qualifier, file, type) { }
 }

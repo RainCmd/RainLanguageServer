@@ -11,7 +11,7 @@ using System.Text.RegularExpressions;
 namespace RainLanguageServer
 {
     [RequiresDynamicCode("Calls LanguageServer.Reflector.GetRequestType(MethodInfo)")]
-    internal class Server(Stream input, Stream output) : ServiceConnection(input, output)
+    internal partial class Server(Stream input, Stream output) : ServiceConnection(input, output)
     {
         private class FileDocument : IFileDocument
         {
@@ -261,8 +261,6 @@ namespace RainLanguageServer
             return Result<CodeLens[], ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
         }
 
-        private static readonly Regex regionRegex = new(@"^\s*//\s*region\b");
-        private static readonly Regex endregionRegex = new(@"^\s*//\s*endregion\b");
         protected override Result<FoldingRange[], ResponseError> FoldingRange(FoldingRangeRequestParam param, CancellationToken token)
         {
             if (TryGetDoc(param.textDocument.uri, out var document))
@@ -299,8 +297,8 @@ namespace RainLanguageServer
                     else
                     {
                         var text = line.ToString();
-                        if (regionRegex.IsMatch(text)) regions.Push(line.line);
-                        else if (endregionRegex.IsMatch(text) && regions.Count > 0) result.Add(new FoldingRange() { endLine = line.line, startLine = regions.Pop() });
+                        if (RegionRegex().IsMatch(text)) regions.Push(line.line);
+                        else if (EndregionRegex().IsMatch(text) && regions.Count > 0) result.Add(new FoldingRange() { endLine = line.line, startLine = regions.Pop() });
                     }
                 }
                 while (lines.Count > 0) result.Add(new FoldingRange() { startLine = lines.Pop(), endLine = lastLine });
@@ -442,5 +440,10 @@ namespace RainLanguageServer
         {
             return document[(int)position.line].start + (int)position.character;
         }
+
+        [GeneratedRegex(@"^\s*//\s*region\b")]
+        private static partial Regex RegionRegex();
+        [GeneratedRegex(@"^\s*//\s*endregion\b")]
+        private static partial Regex EndregionRegex();
     }
 }
