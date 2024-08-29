@@ -6,6 +6,11 @@ using System.Text;
 
 namespace RainLanguageServer.RainLanguage
 {
+    internal readonly struct CodeLenInfo(TextRange range, string title)
+    {
+        public readonly TextRange range = range;
+        public readonly string title = title;
+    }
     internal static class ManagerOperator
     {
         private static TextPosition ToTextPosition(this Position position, TextDocument document) => document[(int)position.line].start + (int)position.character;
@@ -83,7 +88,7 @@ namespace RainLanguageServer.RainLanguage
             info = default;
             return false;
         }
-        public static bool OnHighlight(Manager manager, DocumentUri uri, Position position,out List<HighlightInfo> result)
+        public static bool OnHighlight(Manager manager, DocumentUri uri, Position position, out List<HighlightInfo> result)
         {
             var infos = result = [];
             if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
@@ -176,6 +181,82 @@ namespace RainLanguageServer.RainLanguage
             if (manager.allFileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
                 CollectSemanticToken(manager, collector, space);
             return collector;
+        }
+
+        private static void CollectCodeLens(Manager manager, FileSpace space, List<CodeLenInfo> infos)
+        {
+            foreach (var child in space.children)
+                CollectCodeLens(manager, child, infos);
+            foreach (var file in space.variables)
+                if (file.abstractDeclaration is AbstractVariable abstractVariable)
+                {
+                    infos.Add(new CodeLenInfo(abstractVariable.name, $"读取：{abstractVariable.references.Count}"));
+                    infos.Add(new CodeLenInfo(abstractVariable.name, $"写入：{abstractVariable.write.Count}"));
+                }
+            foreach (var file in space.functions)
+                if (file.abstractDeclaration is AbstractFunction abstractFunction)
+                    infos.Add(new CodeLenInfo(abstractFunction.name, $"引用：{abstractFunction.references.Count}"));
+            foreach (var file in space.enums)
+                if (file.abstractDeclaration is AbstractEnum abstractEnum)
+                    infos.Add(new CodeLenInfo(abstractEnum.name, $"引用：{abstractEnum.references.Count}"));
+            foreach (var file in space.structs)
+                if (file.abstractDeclaration is AbstractStruct abstractStruct)
+                {
+                    infos.Add(new CodeLenInfo(abstractStruct.name, $"引用：{abstractStruct.references.Count}"));
+                    foreach (var member in abstractStruct.variables)
+                    {
+                        infos.Add(new CodeLenInfo(member.name, $"读取：{member.references.Count}"));
+                        infos.Add(new CodeLenInfo(member.name, $"写入：{member.write.Count}"));
+                    }
+                    foreach (var member in abstractStruct.functions)
+                        infos.Add(new CodeLenInfo(member.name, $"引用：{member.references.Count}"));
+                }
+            foreach (var file in space.interfaces)
+                if (file.abstractDeclaration is AbstractInterface abstractInterface)
+                {
+                    infos.Add(new CodeLenInfo(abstractInterface.name, $"引用：{abstractInterface.references.Count}"));
+                    infos.Add(new CodeLenInfo(abstractInterface.name, $"实现：{abstractInterface.implements.Count}"));
+                    foreach (var member in abstractInterface.functions)
+                    {
+                        infos.Add(new CodeLenInfo(member.name, $"引用：{member.references.Count}"));
+                        infos.Add(new CodeLenInfo(member.name, $"实现：{member.implements.Count}"));
+                    }
+                }
+            foreach (var file in space.classes)
+                if (file.abstractDeclaration is AbstractClass abstractClass)
+                {
+                    infos.Add(new CodeLenInfo(abstractClass.name, $"引用：{abstractClass.references.Count}"));
+                    infos.Add(new CodeLenInfo(abstractClass.name, $"子类：{abstractClass.implements.Count}"));
+                    foreach(var member in abstractClass.variables)
+                    {
+                        infos.Add(new CodeLenInfo(member.name, $"读取：{member.references.Count}"));
+                        infos.Add(new CodeLenInfo(member.name, $"写入：{member.write.Count}"));
+                    }
+                    foreach(var member in abstractClass.functions)
+                    {
+                        infos.Add(new CodeLenInfo(member.name, $"引用：{member.references.Count}"));
+                        infos.Add(new CodeLenInfo(member.name, $"实现：{member.implements.Count}"));
+                        infos.Add(new CodeLenInfo(member.name, $"覆盖：{member.overrides.Count}"));
+                    }
+                    foreach(var member in abstractClass.constructors)
+                        infos.Add(new CodeLenInfo(member.name, $"引用：{member.references.Count}"));
+                }
+            foreach (var file in space.delegates)
+                if (file.abstractDeclaration is AbstractDelegate abstractDelegate)
+                    infos.Add(new CodeLenInfo(abstractDelegate.name, $"引用：{abstractDelegate.references.Count}"));
+            foreach (var file in space.tasks)
+                if (file.abstractDeclaration is AbstractTask abstractTask)
+                    infos.Add(new CodeLenInfo(abstractTask.name, $"引用：{abstractTask.references.Count}"));
+            foreach (var file in space.natives)
+                if (file.abstractDeclaration is AbstractNative abstractNative)
+                    infos.Add(new CodeLenInfo(abstractNative.name, $"引用：{abstractNative.references.Count}"));
+        }
+        public static List<CodeLenInfo> CollectCodeLens(Manager manager, DocumentUri uri)
+        {
+            var results = new List<CodeLenInfo>();
+            if (manager.allFileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
+                CollectCodeLens(manager, space, results);
+            return results;
         }
 
         public static AbstractSpace? GetSpace(Manager manager, TextPosition position)
