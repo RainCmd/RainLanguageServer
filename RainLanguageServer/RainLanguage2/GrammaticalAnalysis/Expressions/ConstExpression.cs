@@ -45,6 +45,32 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
             return false;
         }
         public override void Read(ExpressionParameter parameter) { }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (manager.TryGetDeclaration(tuple[0], out var declaration))
+            {
+                info = new HoverInfo(range, declaration.Info(manager, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                return true;
+            }
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => false;
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (manager.TryGetDeclaration(tuple[0], out var declaration))
+            {
+                definition = declaration.name;
+                return true;
+            }
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => false;
     }
     internal class ConstBooleanExpression(TextRange range, bool value, Manager.KernelManager manager) : ConstExpression(range, manager.BOOL)
     {
@@ -168,6 +194,10 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis.Expressions
         {
             if (parameter.manager.TryGetDeclaration(value, out var declaration)) declaration.references.Add(file.name.name);
         }
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info) => InfoUtility.OnHover(file, manager, position, value, ManagerOperator.GetSpace(manager, position), out info);
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => InfoUtility.OnHighlight(file, manager, position, value, infos);
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition) => file.TryGetDefinition(manager, position, value, out definition);
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => file.FindReferences(manager, position, value, references);
     }
     internal class ConstNullExpression(TextRange range) : ConstExpression(range, NULL) { }
     internal class ConstHandleNullExpression(TextRange range, Type type) : ConstExpression(range, type) { }

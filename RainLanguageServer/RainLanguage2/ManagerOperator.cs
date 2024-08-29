@@ -87,7 +87,7 @@ namespace RainLanguageServer.RainLanguage2
         {
             if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
             {
-                return FileSpaceOperator(space, textPosition, fileSpace =>
+                if (FileSpaceOperator(space, textPosition, fileSpace =>
                     {
                         if (fileSpace.name != null && fileSpace.name.Value.Contain(textPosition))
                         {
@@ -102,7 +102,11 @@ namespace RainLanguageServer.RainLanguage2
                         if (fileDeclaration.abstractDeclaration != null)
                             return fileDeclaration.abstractDeclaration.OnHighlight(manager, textPosition, infos);
                         return false;
-                    });
+                    }))
+                {
+                    infos.RemoveAll(value => value.range.start.document != space.document);
+                    return true;
+                }
             }
             return false;
         }
@@ -156,8 +160,8 @@ namespace RainLanguageServer.RainLanguage2
         }
         private static AbstractSpace GetSpace(FileSpace space, TextPosition position)
         {
-            foreach(var child in space.children)
-                if(child.range.Contain(position))
+            foreach (var child in space.children)
+                if (child.range.Contain(position))
                     return GetSpace(child, position);
             return space.space;
         }

@@ -199,6 +199,39 @@
             foreach (var item in function.implements)
                 Reference(item);
         }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
+            if (member.Contain(position))
+            {
+                foreach (var callable in callables)
+                {
+                    InfoUtility.Highlight(callable, infos);
+                    if (callable is AbstractClass.Function function)
+                        foreach (var item in function.overrides)
+                            InfoUtility.Highlight(item, infos);
+                }
+                return true;
+            }
+            return false;
+        }
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (target != null && target.range.Contain(position)) return target.FindReferences(manager, position, references);
+            if (member.Contain(position))
+            {
+                foreach (var callable in callables)
+                {
+                    references.AddRange(callable.references);
+                    if (callable is AbstractClass.Function function)
+                        foreach (var item in function.overrides)
+                            references.AddRange(item.references);
+                }
+                return true;
+            }
+            return false;
+        }
     }
     internal class BlurryTaskExpression : Expression
     {
@@ -213,6 +246,24 @@
         }
 
         public override void Read(ExpressionParameter parameter) => invoker.Read(parameter);
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (invoker.range.Contain(position)) return invoker.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => invoker.range.Contain(position) && invoker.OnHighlight(manager, position, infos);
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (invoker.range.Contain(position)) return invoker.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => invoker.range.Contain(position) && invoker.FindReferences(manager, position, references);
     }
     internal class BlurrySetExpression : Expression
     {
@@ -229,6 +280,24 @@
             parameter.collector.Add(range, ErrorLevel.Error, "无法推断集合类型");
             expression.Read(parameter);
         }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (expression.range.Contain(position)) return expression.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => expression.range.Contain(position) && expression.OnHighlight(manager, position, infos);
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (expression.range.Contain(position)) return expression.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => expression.range.Contain(position) && expression.FindReferences(manager, position, references);
     }
     internal class BlurryLambdaExpression : Expression
     {
@@ -247,5 +316,21 @@
         {
             parameter.collector.Add(range, ErrorLevel.Error, "无法推断lambda表达式类型");
         }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => false;
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            definition = default; 
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => false;
     }
 }

@@ -15,6 +15,52 @@
         public readonly TextRange? qualifier = qualifier;
         public readonly QualifiedName name = name;
         public override void Read(ExpressionParameter parameter) => callable.references.Add(name.name);
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (InfoUtility.OnHover(name.qualify, position, out info)) return true;
+            if (name.name.Contain(position))
+            {
+                info = new HoverInfo(name.name, callable.Info(manager, null, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                return true;
+            }
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (InfoUtility.OnHighlight(name.qualify, position, callable.space, infos)) return true;
+            if (name.name.Contain(position))
+            {
+                InfoUtility.Highlight(callable, infos);
+                return true;
+            }
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (name.name.Contain(position))
+            {
+                definition = callable.name;
+                return true;
+            }
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if(InfoUtility.FindReferences(name.qualify,position,callable.space, references)) return true;
+            if (name.name.Contain(position))
+            {
+                references.AddRange(callable.references);
+                return true;
+            }
+            return false;
+        }
+
     }
     internal class MemberFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
     {
@@ -41,7 +87,7 @@
         private void Reference(AbstractClass.Function function)
         {
             function.references.Add(member);
-            foreach(var item in function.implements)
+            foreach (var item in function.implements)
                 Reference(item);
         }
     }

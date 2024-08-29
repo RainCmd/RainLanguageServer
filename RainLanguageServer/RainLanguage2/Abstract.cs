@@ -659,16 +659,36 @@ namespace RainLanguageServer.RainLanguage2
             public readonly FileClass.Function fileFunction = file;
             public readonly bool valid = valid;
             public readonly LogicBlock logicBlock = new();
-            public readonly List<AbstractCallable> overrides = [];//todo 高亮和查找引用时需要把这个也带上
+            public readonly List<AbstractCallable> overrides = [];//所有被override的函数，包括接口的
             public readonly List<Function> implements = [];
             public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
             {
                 if (!manager.TryGetDefineDeclaration(declaration, out var abstractDeclaration)) throw new InvalidOperationException();
                 return OnHover(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, abstractDeclaration, out info);
             }
-            public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => OnHighlight(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
+            public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+            {
+                if (name.Contain(position))
+                {
+                    InfoUtility.Highlight(this, infos);
+                    foreach (var function in overrides)
+                        InfoUtility.Highlight(function, infos);
+                    return true;
+                }
+                return OnHighlight(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
+            }
             public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition) => TryGetDefinition(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, out definition);
-            public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => FindReferences(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, references);
+            public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+            {
+                if (name.Contain(position))
+                {
+                    references.AddRange(this.references);
+                    foreach(var function in overrides)
+                        references.AddRange(function.references);
+                    return true;
+                }
+                return FindReferences(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, references);
+            }
         }
         public readonly FileClass fileClass = file;
         public Type parent;
