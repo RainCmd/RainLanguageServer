@@ -1,6 +1,6 @@
 ﻿namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
 {
-    internal class Statement
+    internal abstract class Statement
     {
         public delegate bool ExpressionOperator(Expression expression);
         public TextRange range;
@@ -32,5 +32,6 @@
             return false;
         }
         public bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => Operator(position, value => value.FindReferences(manager, position, references));
+        public abstract void CollectSemanticToken(Manager manager, SemanticTokenCollector collector);
     }
 }

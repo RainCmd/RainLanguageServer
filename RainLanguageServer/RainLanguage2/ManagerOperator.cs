@@ -152,6 +152,30 @@ namespace RainLanguageServer.RainLanguage2
             return false;
         }
 
+        private static void CollectSemanticToken(Manager manager, SemanticTokenCollector collector, FileSpace space)
+        {
+            foreach (var child in space.children)
+                CollectSemanticToken(manager, collector, child);
+            if (space.name != null)
+                collector.AddRange(SemanticTokenType.Namespace, space.name.Value);
+            foreach (var declaration in space.variables) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
+            foreach (var declaration in space.functions) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
+            foreach (var declaration in space.enums) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
+            foreach (var declaration in space.structs) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
+            foreach (var declaration in space.interfaces) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
+            foreach (var declaration in space.classes) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
+            foreach (var declaration in space.delegates) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
+            foreach (var declaration in space.tasks) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
+            foreach (var declaration in space.natives) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
+        }
+        public static SemanticTokenCollector CollectSemanticToken(Manager manager, DocumentUri uri)
+        {
+            var collector = new SemanticTokenCollector();
+            if (manager.allFileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
+                CollectSemanticToken(manager, collector, space);
+            return collector;
+        }
+
         public static AbstractSpace? GetSpace(Manager manager, TextPosition position)
         {
             if (manager.allFileSpaces.TryGetValue(position.document.path, out var result))

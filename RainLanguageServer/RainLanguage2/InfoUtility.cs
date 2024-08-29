@@ -1,10 +1,39 @@
 ﻿using LanguageServer.Parameters.TextDocument;
 using RainLanguageServer.RainLanguage2.GrammaticalAnalysis;
 using System.Text;
-using System.Xml.Linq;
 
 namespace RainLanguageServer.RainLanguage2
 {
+    internal enum DetailTokenType
+    {
+        GlobalVariable,
+        GlobalFunction,
+        EnumType,
+        EnumElement,
+        StructType,
+        InterfaceType,
+        HandleType,
+        MemberField,
+        MemberFunction,
+        Constructor,
+        DelegateType,
+        TaskType,
+        NativeFunction,
+
+        Parameter,
+        Local,
+
+        KeywordCtrl,
+        KeywordType,
+        KeywordVariable,// this base global
+        KeywordConst,//true false null
+        Numeric,
+        Operator,
+        Constant,
+        Namespace,
+
+        Label,
+    }
     internal static class InfoUtility
     {
         public static string MakedownCode(this string code)
@@ -379,6 +408,132 @@ namespace RainLanguageServer.RainLanguage2
         public static bool FindReferences(List<TextRange> qualify, TextPosition position, AbstractSpace? space, List<TextRange> references)
         {
             return QualifyAction(qualify, position, space, value => references.AddRange(value.references));
+        }
+
+        public static void AddNamespace(this SemanticTokenCollector collector, List<TextRange> qualify)
+        {
+            for (var i = 0; i < qualify.Count; i++)
+            {
+                if (i > 0) collector.Add(DetailTokenType.Operator, qualify[i - 1].end & qualify[i].start);
+                collector.Add(DetailTokenType.Namespace, qualify[i]);
+            }
+        }
+        public static void AddType(this SemanticTokenCollector collector, TextRange range, Manager manager, Type type)
+        {
+            var kernel = manager.kernelManager;
+            if (type == kernel.BOOL || type == kernel.BYTE || type == kernel.CHAR || type == kernel.INT || type == kernel.REAL || type == kernel.REAL2 || type == kernel.REAL3 || type == kernel.REAL4 ||
+                type == kernel.ENUM || type == kernel.TYPE || type == kernel.STRING || type == kernel.ENTITY || type == kernel.HANDLE || type == kernel.DELEGATE || type == kernel.TASK || type == kernel.ARRAY)
+                collector.Add(DetailTokenType.KeywordType, range);
+            else
+                switch (type.code)
+                {
+                    case TypeCode.Invalid: goto default;
+                    case TypeCode.Struct:
+                        collector.Add(DetailTokenType.StructType, range);
+                        break;
+                    case TypeCode.Enum:
+                        collector.Add(DetailTokenType.EnumType, range);
+                        break;
+                    case TypeCode.Handle:
+                        collector.Add(DetailTokenType.HandleType, range);
+                        break;
+                    case TypeCode.Interface:
+                        collector.Add(DetailTokenType.InterfaceType, range);
+                        break;
+                    case TypeCode.Delegate:
+                        collector.Add(DetailTokenType.DelegateType, range);
+                        break;
+                    case TypeCode.Task:
+                        collector.Add(DetailTokenType.TaskType, range);
+                        break;
+                    default:
+                        collector.Add(DetailTokenType.Label, range);
+                        break;
+                }
+        }
+        public static void AddType(this SemanticTokenCollector collector, FileType file, Manager manager, Type type)
+        {
+            collector.AddNamespace(file.name.qualify);
+            collector.AddType(file.name.name, manager, type);
+            if (file.name.name.end < file.range.end)
+                collector.Add(DetailTokenType.Operator, file.name.name.end & file.range.end);
+        }
+        public static void Add(this SemanticTokenCollector collector, DetailTokenType type, TextRange range)
+        {
+            switch (type)
+            {
+                case DetailTokenType.GlobalVariable:
+                    collector.AddRange(SemanticTokenType.Variable, range);
+                    break;
+                case DetailTokenType.GlobalFunction:
+                    collector.AddRange(SemanticTokenType.Function, range);
+                    break;
+                case DetailTokenType.EnumType:
+                    collector.AddRange(SemanticTokenType.Enum, range);
+                    break;
+                case DetailTokenType.EnumElement:
+                    collector.AddRange(SemanticTokenType.EnumMember, range);
+                    break;
+                case DetailTokenType.StructType:
+                    collector.AddRange(SemanticTokenType.Struct, range);
+                    break;
+                case DetailTokenType.InterfaceType:
+                    collector.AddRange(SemanticTokenType.Interface, range);
+                    break;
+                case DetailTokenType.HandleType:
+                    collector.AddRange(SemanticTokenType.Class, range);
+                    break;
+                case DetailTokenType.MemberField:
+                    collector.AddRange(SemanticTokenType.Variable, range);
+                    break;
+                case DetailTokenType.MemberFunction:
+                    collector.AddRange(SemanticTokenType.Function, range);
+                    break;
+                case DetailTokenType.Constructor:
+                    collector.AddRange(SemanticTokenType.Class, range);
+                    break;
+                case DetailTokenType.DelegateType:
+                    collector.AddRange(SemanticTokenType.Type, range);
+                    break;
+                case DetailTokenType.TaskType:
+                    collector.AddRange(SemanticTokenType.Type, range);
+                    break;
+                case DetailTokenType.NativeFunction:
+                    collector.AddRange(SemanticTokenType.Function, range);
+                    break;
+                case DetailTokenType.Parameter:
+                    collector.AddRange(SemanticTokenType.Parameter, range);
+                    break;
+                case DetailTokenType.Local:
+                    collector.AddRange(SemanticTokenType.Variable, range);
+                    break;
+                case DetailTokenType.KeywordCtrl:
+                    break;
+                case DetailTokenType.KeywordType:
+                    collector.AddRange(SemanticTokenType.Keyword, range);
+                    break;
+                case DetailTokenType.KeywordVariable:
+                    collector.AddRange(SemanticTokenType.Keyword, range);
+                    break;
+                case DetailTokenType.KeywordConst:
+                    collector.AddRange(SemanticTokenType.Keyword, range);
+                    break;
+                case DetailTokenType.Numeric:
+                    collector.AddRange(SemanticTokenType.Number, range);
+                    break;
+                case DetailTokenType.Operator:
+                    collector.AddRange(SemanticTokenType.Operator, range);
+                    break;
+                case DetailTokenType.Constant:
+                    collector.AddRange(SemanticTokenType.Const, range);
+                    break;
+                case DetailTokenType.Namespace:
+                    collector.AddRange(SemanticTokenType.Namespace, range);
+                    break;
+                case DetailTokenType.Label:
+                    collector.AddRange(SemanticTokenType.Label, range);
+                    break;
+            }
         }
     }
 }

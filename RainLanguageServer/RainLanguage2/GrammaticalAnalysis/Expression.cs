@@ -62,5 +62,6 @@ namespace RainLanguageServer.RainLanguage2.GrammaticalAnalysis
         public abstract bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos);
         public abstract bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition);
         public abstract bool FindReferences(Manager manager, TextPosition position, List<TextRange> references);
+        public abstract void CollectSemanticToken(Manager manager, SemanticTokenCollector collector);
     }
 }

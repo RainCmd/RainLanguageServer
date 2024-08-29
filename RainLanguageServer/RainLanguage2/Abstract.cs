@@ -62,6 +62,7 @@ namespace RainLanguageServer.RainLanguage2
             }
             return false;
         }
+        public abstract void CollectSemanticToken(Manager manager, SemanticTokenCollector collector);
     }
     internal class AbstractVariable(FileVariable file, AbstractSpace space, TextRange name, Declaration declaration, bool isReadonly, Type type)
         : AbstractDeclaration(file, space, name, declaration)
@@ -119,6 +120,13 @@ namespace RainLanguageServer.RainLanguage2
             if (fileVariable.type.FindReferences(manager, position, type, references)) return true;
             if (expression != null && expression.range.Contain(position)) return expression.FindReferences(manager, position, references);
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.AddType(fileVariable.type, manager, type);
+            collector.Add(DetailTokenType.GlobalVariable, name);
+            expression?.CollectSemanticToken(manager, collector);
         }
     }
     internal abstract class AbstractCallable : AbstractDeclaration
