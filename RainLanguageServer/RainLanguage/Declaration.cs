@@ -103,7 +103,7 @@ namespace RainLanguageServer.RainLanguage
     }
     internal readonly struct Tuple(params Type[] types) : IEquatable<Tuple>, IEnumerable<Type>
     {
-        private readonly Type[] types = types;
+        private readonly Type[] types = types ?? Empty.types;
         public int Count => types.Length;
         public Type this[int index] => types[index];
         public TypeSpan this[Range range] => new(types[range]);

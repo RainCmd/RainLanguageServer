@@ -473,6 +473,8 @@ namespace RainLanguageServer.RainLanguage
                     }
                     foreach (var member in abstractClass.functions)
                         LogicBlockParser.Parse(this, member.logicBlock, abstractClass, member, member.fileFunction.body);
+                    if (file.descontructor != null)
+                        LogicBlockParser.Parse(this, file.descontructor.name, abstractClass.descontructorLogicBlock, abstractClass, space.relies, file.descontructor.body);
                 }
         }
         private void CheckType(Expression expression, Type type, MessageCollector collector)

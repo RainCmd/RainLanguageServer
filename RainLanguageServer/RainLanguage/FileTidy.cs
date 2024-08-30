@@ -35,9 +35,9 @@
         }
         private static void AddDeclaration(FileDeclaration file, bool allowKeyword, Declaration declaration, FileSpace space)
         {
-            if (Utility.IsValidName(file.name, allowKeyword, false, space.collector))
-                space.space.declarations.Add(file.name.ToString(), declaration);
-            else space.collector.Add(file.name, ErrorLevel.Error, "无效的名称标识符");
+            if (!Utility.IsValidName(file.name, allowKeyword, false, space.collector))
+                space.collector.Add(file.name, ErrorLevel.Error, "无效的名称标识符");
+            space.space.declarations.Add(file.name.ToString(), declaration);
         }
         public static void Tidy(Manager manager, AbstractLibrary library, FileSpace space)
         {

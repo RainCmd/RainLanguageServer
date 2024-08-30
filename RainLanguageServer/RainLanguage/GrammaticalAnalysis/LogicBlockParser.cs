@@ -567,7 +567,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         {
             var context = new Context(declaration.file.space.document, declaration.space, relies, declaration);
             var localContext = new LocalContext(declaration.file.space.collector, declaration);
-            var parser = new LogicBlockParser(manager, name, context, localContext, [], body, declaration.file.space.collector, true, logicBlock);
+            var parser = new LogicBlockParser(manager, name, context, localContext, Tuple.Empty, body, declaration.file.space.collector, true, logicBlock);
             parser.Parse();
         }
         public static Expression Parse(Manager manager, AbstractClass declaration, List<AbstractCallable> callables, TextRange invokerRange, TextRange parameterRange, MessageCollector collector)
@@ -582,7 +582,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 {
                     if (parser.TryGetFunction(invokerRange, callables, expression.tuple, out var callable))
                     {
-                        bracket = new BracketExpression(bracket.left, bracket.right, parser.AssignmentConvert(bracket, callable.signature));
+                        bracket = bracket.Replace(parser.AssignmentConvert(bracket, callable.signature));
                         return new InvokerMemberExpression(invokerRange & bracket.range, [], null, invokerRange, null, callable, bracket, manager.kernelManager);
                     }
                     else collector.Add(invokerRange, ErrorLevel.Error, "未找到匹配的构造函数");

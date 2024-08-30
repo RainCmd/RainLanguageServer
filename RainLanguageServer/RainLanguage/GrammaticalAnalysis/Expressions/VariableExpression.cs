@@ -67,6 +67,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
     internal class VariableDeclarationLocalExpression(TextRange range, Local local, TextRange identifier, TypeExpression typeExpression, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, identifier, attribute, manager)
     {
         public readonly TypeExpression typeExpression = typeExpression;
+
         public override void Read(ExpressionParameter parameter)
         {
             base.Read(parameter);

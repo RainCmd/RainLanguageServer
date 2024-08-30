@@ -48,7 +48,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     {
                                         if (TryGetFunction(method.range, method.callables, bracket.tuple, out var callable))
                                         {
-                                            bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, callable.signature));
+                                            bracket = bracket.Replace(AssignmentConvert(bracket.expression, callable.signature));
                                             expression = new InvokerFunctionExpression(method.range & bracket.range, callable.returns, method.qualifier, method.name, callable, bracket, manager.kernelManager);
                                             expressionStack.Push(expression);
                                             attribute = expression.attribute;
@@ -63,7 +63,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     {
                                         if (TryGetFunction(methodMember.range, methodMember.callables, bracket.tuple, out var callable))
                                         {
-                                            bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, callable.signature));
+                                            bracket = bracket.Replace(AssignmentConvert(bracket.expression, callable.signature));
                                             expression = new InvokerMemberExpression(methodMember.range & bracket.range, callable.returns, methodMember.symbol, methodMember.range, methodMember.target, callable, bracket, manager.kernelManager);
                                             expressionStack.Push(expression);
                                             attribute = expression.attribute;
@@ -78,7 +78,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     {
                                         if (TryGetFunction(methodVirtual.range, methodVirtual.callables, bracket.tuple, out var callable))
                                         {
-                                            bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, callable.signature));
+                                            bracket = bracket.Replace(AssignmentConvert(bracket.expression, callable.signature));
                                             expression = new InvokerVirtualExpression(methodVirtual.range & bracket.range, callable.returns, methodVirtual.symbol, methodVirtual.range, methodVirtual.target, callable, bracket, manager.kernelManager);
                                             expressionStack.Push(expression);
                                             attribute = expression.attribute;
@@ -96,7 +96,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                 var expression = expressionStack.Pop();
                                 if (!manager.TryGetDeclaration(expression.tuple[0], out var declaration)) throw new Exception("类型错误");
                                 if (declaration is not AbstractDelegate abstractDelegate) throw new Exception("未知的可调用类型：" + declaration.GetType());
-                                bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, abstractDelegate.signature));
+                                bracket = bracket.Replace(AssignmentConvert(bracket.expression, abstractDelegate.signature));
                                 expression = new InvokerDelegateExpression(expression.range & bracket.range, abstractDelegate.returns, expression, bracket, manager.kernelManager);
                                 expressionStack.Push(expression);
                                 attribute = expression.attribute;
@@ -108,7 +108,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                 if (type.type == manager.kernelManager.REAL2)
                                 {
                                     if (bracket.tuple.Count > 0)
-                                        bracket = new BracketExpression(bracket.left, bracket.right, ConvertVectorParameter(bracket.expression, 2));
+                                        bracket = bracket.Replace(ConvertVectorParameter(bracket.expression, 2));
                                     expression = new VectorConstructorExpression(expression.range & bracket.range, type, bracket);
                                     expressionStack.Push(expression);
                                     attribute = expression.attribute;
@@ -116,7 +116,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                 else if (type.type == manager.kernelManager.REAL3)
                                 {
                                     if (bracket.tuple.Count > 0)
-                                        bracket = new BracketExpression(bracket.left, bracket.right, ConvertVectorParameter(bracket.expression, 3));
+                                        bracket = bracket.Replace(ConvertVectorParameter(bracket.expression, 3));
                                     expression = new VectorConstructorExpression(expression.range & bracket.range, type, bracket);
                                     expressionStack.Push(expression);
                                     attribute = expression.attribute;
@@ -124,7 +124,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                 else if (type.type == manager.kernelManager.REAL4)
                                 {
                                     if (bracket.tuple.Count > 0)
-                                        bracket = new BracketExpression(bracket.left, bracket.right, ConvertVectorParameter(bracket.expression, 4));
+                                        bracket = bracket.Replace(ConvertVectorParameter(bracket.expression, 4));
                                     expression = new VectorConstructorExpression(expression.range & bracket.range, type, bracket);
                                     expressionStack.Push(expression);
                                     attribute = expression.attribute;
@@ -145,7 +145,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                             if (declaration is not AbstractStruct abstractStruct) throw new Exception("声明不是结构体：" + declaration.GetType());
                                             var members = new List<Type>();
                                             foreach (var member in abstractStruct.variables) members.Add(member.type);
-                                            bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan(members)));
+                                            bracket = bracket.Replace(AssignmentConvert(bracket.expression, new TypeSpan(members)));
                                             expression = new ConstructorExpression(expression.range & bracket.range, type, null, null, bracket, manager.kernelManager);
                                             expressionStack.Push(expression);
                                             attribute = expression.attribute;
@@ -167,6 +167,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                         else
                                         {
                                             constructors.Clear();
+                                            if (destructor) collector.Add(expression.range, ErrorLevel.Error, "析构函数中不能创建托管对象");
                                             if (abstractClass.constructors.Count > 0 && bracket.tuple.Count > 0)
                                                 collector.Add(expression.range, ErrorLevel.Error, "未找到匹配的构造函数");
                                             foreach (var constructor in abstractClass.constructors) constructors.Add(constructor);
@@ -213,7 +214,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     {
                                         var list = new List<Type>();
                                         foreach (var _ in bracket.tuple) list.Add(manager.kernelManager.INT);
-                                        bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan(list)));
+                                        bracket = bracket.Replace(AssignmentConvert(bracket.expression, new TypeSpan(list)));
                                     }
                                     var expression = expressionStack.Pop();
                                     if (bracket.tuple.Count == 1)
@@ -251,7 +252,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     {
                                         var list = new List<Type>();
                                         foreach (var _ in bracket.tuple) list.Add(manager.kernelManager.INT);
-                                        bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan(list)));
+                                        bracket = bracket.Replace(AssignmentConvert(bracket.expression, new TypeSpan(list)));
                                     }
                                     var indices = new List<long>();
                                     if (bracket.TryEvaluateIndices(indices))
@@ -299,7 +300,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     {
                                         var list = new List<Type>();
                                         foreach (var _ in bracket.tuple) list.Add(manager.kernelManager.INT);
-                                        bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan(list)));
+                                        bracket = bracket.Replace(AssignmentConvert(bracket.expression, new TypeSpan(list)));
                                     }
                                     var indices = new List<long>();
                                     if (bracket.TryEvaluateIndices(indices))
@@ -353,7 +354,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     if (bracket.tuple.Count == 1)
                                     {
                                         if (bracket.tuple[0] != manager.kernelManager.INT)
-                                            bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan([manager.kernelManager.INT])));
+                                            bracket = bracket.Replace(AssignmentConvert(bracket.expression, new TypeSpan([manager.kernelManager.INT])));
                                         var type = (TypeExpression)expressionStack.Pop();
                                         if (destructor) collector.Add(type.range, ErrorLevel.Error, "析构函数中不能创建托管对象");
                                         var expression = new ArrayCreateExpression(type.range & bracket.range, new Type(type.type, type.type.dimension + 1), type, bracket);
@@ -377,7 +378,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                         {
                                             var list = new List<Type>();
                                             foreach (var _ in bracket.tuple) list.Add(manager.kernelManager.INT);
-                                            bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan(list)));
+                                            bracket = bracket.Replace(AssignmentConvert(bracket.expression, new TypeSpan(list)));
                                         }
                                         var indices = new List<long>();
                                         if (bracket.TryEvaluateIndices(indices))
@@ -439,7 +440,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     var elementTypes = new Type[bracket.tuple.Count];
                                     for (var i = 0; i < elementTypes.Length; i++) elementTypes[i] = type.type;
                                     if (bracket.tuple != elementTypes)
-                                        bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, elementTypes));
+                                        bracket = bracket.Replace(AssignmentConvert(bracket.expression, elementTypes));
                                 }
                                 var expression = new ArrayInitExpression(type.range & bracket.range, new Type(type.type, type.type.dimension + 1), type, bracket);
                                 expressionStack.Push(expression);
@@ -766,7 +767,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                 var expression = expressionStack.Pop();
                                 if (!manager.TryGetDeclaration(expression.tuple[0], out var declaration)) throw new Exception("类型错误");
                                 if (declaration is not AbstractDelegate abstractDelegate) throw new Exception("未知的可调用类型：" + declaration.GetType());
-                                bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, abstractDelegate.signature));
+                                bracket = bracket.Replace(AssignmentConvert(bracket.expression, abstractDelegate.signature));
                                 expression = new InvokerDelegateExpression(expression.range & bracket.range, abstractDelegate.returns, expression, bracket, manager.kernelManager);
                                 expressionStack.Push(expression);
                                 attribute = expression.attribute;
@@ -790,7 +791,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     {
                                         var list = new List<Type>();
                                         foreach (var _ in bracket.tuple) list.Add(manager.kernelManager.INT);
-                                        bracket = new BracketExpression(bracket.left, bracket.right, AssignmentConvert(bracket.expression, new TypeSpan(list)));
+                                        bracket = bracket.Replace(AssignmentConvert(bracket.expression, new TypeSpan(list)));
                                     }
                                     var expression = expressionStack.Pop();
                                     if (bracket.tuple.Count == 1)
@@ -1178,11 +1179,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     expression = new BlurryTaskExpression(lexical.anchor & expression.range, lexical.anchor, invoker);
                                     expressionStack.Push(expression);
                                     attribute = expression.attribute;
+                                    if (destructor) collector.Add(expression.range, ErrorLevel.Error, "析构函数中不能创建任务对象");
                                 }
                                 else PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", new InvalidExpression(new InvalidKeyworldExpression(lexical.anchor), expression));
                                 goto label_next_lexical;
                             }
                             PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", new InvalidKeyworldExpression(lexical.anchor));
+                            attribute = ExpressionAttribute.Invalid;
                         }
                         else if (TryMatchBaseType(lexical.anchor, out var type))
                         {
@@ -1203,7 +1206,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         {
                             var typeExpression = (TypeExpression)expressionStack.Pop();
                             var local = localContext.Add(lexical.anchor, typeExpression.type);
-                            var expression = new VariableDeclarationLocalExpression(typeExpression.range & lexical.anchor, local, lexical.anchor, typeExpression, ExpressionAttribute.Value, manager.kernelManager);
+                            var expression = new VariableDeclarationLocalExpression(typeExpression.range & lexical.anchor, local, lexical.anchor, typeExpression, ExpressionAttribute.Value | ExpressionAttribute.Assignable, manager.kernelManager);
                             expressionStack.Push(expression);
                             attribute = expression.attribute;
                         }
@@ -1810,7 +1813,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             else if (ContainBlurry(expression.tuple))
             {
                 if (expression is BracketExpression bracket)
-                    return new BracketExpression(bracket.left, bracket.right, InferLeftValueType(bracket.expression, span));
+                    return bracket.Replace(InferLeftValueType(bracket.expression, span));
                 throw new Exception("表达式类型错误");
             }
             return expression;
@@ -2014,7 +2017,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             else if (ContainBlurry(source.tuple))
             {
                 if (source is BracketExpression bracket)
-                    return new BracketExpression(bracket.left, bracket.right, InferRightValueType(bracket.expression, span));
+                    return bracket.Replace(InferRightValueType(bracket.expression, span));
                 throw new Exception("表达式类型错误");
             }
             return source;
@@ -2037,7 +2040,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                     var elementType = new Type(type, type.dimension - 1);
                     var elementTypes = new Type[blurrySet.expression.tuple.Count];
                     elementTypes.Fill(elementType);
-                    var elements = new BracketExpression(blurrySet.expression.left, blurrySet.expression.right, AssignmentConvert(blurrySet.expression.expression, elementTypes));
+                    var elements = blurrySet.expression.Replace(AssignmentConvert(blurrySet.expression.expression, elementTypes));
                     return new ArrayInitExpression(blurrySet.range, type, null, elements);
                 }
                 else collector.Add(expression.range, ErrorLevel.Error, "类型不匹配");
@@ -2098,6 +2101,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                     localContext.PopBlock();
                     if (body.Valid && abstractDelegate.returns.Count > 0 && body.tuple != abstractDelegate.returns)
                         body = AssignmentConvert(body, abstractDelegate.returns);
+                    if (destructor) collector.Add(expression.range, ErrorLevel.Error, "析构函数中不能创建委托对象");
                     return new LambdaDelegateCreateExpression(expression.range, type, abstractDelegate, manager.kernelManager, parameters, blurryLambda.symbol, body);
                 }
                 collector.Add(expression.range, ErrorLevel.Error, "无法转换为目标类型");
@@ -2120,6 +2124,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         return new ConstCharExpression(expression.range, value, manager.kernelManager);
                 }
             }
+            else if (expression is BracketExpression bracketExpression) return bracketExpression.Replace(InferRightValueType(bracketExpression.expression, type));
             return expression;
         }
         public bool TryGetFunction(TextRange range, List<AbstractCallable> callables, TypeSpan span, [MaybeNullWhen(false)] out AbstractCallable callable)
@@ -2167,9 +2172,9 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             else
                 return new QuestionExpression(condition & value, symbol, null, conditionExpression, Parse(value), null);
         }
-        private BlurryLambdaExpression ParseLambda(TextRange parameters, TextRange symbol, TextRange body)
+        private BlurryLambdaExpression ParseLambda(TextRange parametersRange, TextRange symbol, TextRange body)
         {
-            parameters = parameters.Trim;
+            var parameters = parametersRange = parametersRange.Trim;
             while (ExpressionSplit.Split(parameters, SplitFlag.Bracket0, out var left, out var right, collector).type == LexicalType.BracketRight0 && left.start == parameters.start && right.end == parameters.end)
                 parameters = (left.end & right.start).Trim;
             var list = new List<TextRange>();
@@ -2179,7 +2184,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 parameters = right.Trim;
             }
             if (TryParseLambdaParameter(parameters, out parameters)) list.Add(parameters);
-            return new BlurryLambdaExpression(parameters & body, list, symbol, body);
+            return new BlurryLambdaExpression(parametersRange & body, list, symbol, body);
         }
         private bool TryParseLambdaParameter(TextRange range, out TextRange parameter)
         {

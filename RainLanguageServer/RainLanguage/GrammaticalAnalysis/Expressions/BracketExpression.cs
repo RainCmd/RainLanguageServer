@@ -13,6 +13,11 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             this.expression = expression;
             attribute = expression.attribute;
         }
+        public BracketExpression Replace(Expression expression)
+        {
+            if (this.expression == expression) return this;
+            return new BracketExpression(left, right, expression);
+        }
         public override bool TryEvaluateIndices(List<long> indices)
         {
             return expression.TryEvaluateIndices(indices);

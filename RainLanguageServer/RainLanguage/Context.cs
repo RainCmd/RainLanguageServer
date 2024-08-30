@@ -209,9 +209,9 @@ namespace RainLanguageServer.RainLanguage
         }
         public bool TryFindDeclaration(Manager manager, string name, [MaybeNullWhen(false)] out List<AbstractDeclaration> results)
         {
+            results = [];
             if (declaration != null)
             {
-                results = [];
                 if (declaration is AbstractStruct abstractStruct)
                 {
                     foreach (var variable in abstractStruct.variables)
@@ -231,28 +231,24 @@ namespace RainLanguageServer.RainLanguage
                             if (function.name == name && IsVisiable(manager, function.declaration))
                                 results.Add(function);
                     }
-                return results.Count > 0;
+                if (results.Count > 0) return true;
             }
             for (var index = space; index != null; index = index.parent)
                 if (index.declarations.TryGetValue(name, out var declarations))
                 {
-                    results = [];
                     foreach (var declaration in declarations)
                         if (IsVisiable(manager, declaration) && manager.TryGetDeclaration(declaration, out var result))
                             results.Add(result);
-                    return results.Count > 0;
+                    if (results.Count > 0) return true;
                 }
             foreach (var rely in relies)
                 if (rely.declarations.TryGetValue(name, out var declarations))
                 {
-                    results = [];
                     foreach (var declaration in declarations)
                         if (IsVisiable(manager, declaration) && manager.TryGetDeclaration(declaration, out var result))
                             results.Add(result);
-                    return results.Count > 0;
                 }
-            results = default;
-            return false;
+            return results.Count > 0;
         }
         public List<AbstractDeclaration> FindDeclaration(Manager manager, TextRange name, MessageCollector collector)
         {
