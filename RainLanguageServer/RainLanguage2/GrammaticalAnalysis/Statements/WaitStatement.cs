@@ -24,5 +24,19 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
             if (expression != null && expression.range.Contain(position)) return action(expression);
             return false;
         }
+        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
+        {
+            if (symbol.Contain(position))
+            {
+                InfoUtility.HighlightGroup(group, infos);
+                return true;
+            }
+            return false;
+        }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.KeywordCtrl, symbol);
+            expression?.CollectSemanticToken(manager, collector);
+        }
     }
 }

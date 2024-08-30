@@ -241,7 +241,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                             }
                             if (!TryGetLoopStatement(stack, out var loop))
                                 collector.Add(lexical.anchor, ErrorLevel.Error, "brack语句必须while或for循环中");
-                            var jump = new BreakStatement(lexical.anchor, loop, condition);
+                            var jump = new BreakStatement(lexical.anchor, loop?.group, condition);
                             loop?.group.Add(lexical.anchor);
                             stack.Peek().Add(jump);
                         }
@@ -260,7 +260,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                             }
                             if (!TryGetLoopStatement(stack, out var loop))
                                 collector.Add(lexical.anchor, ErrorLevel.Error, "continue语句必须while或for循环中");
-                            var jump = new ContinueStatement(lexical.anchor, loop, condition);
+                            var jump = new ContinueStatement(lexical.anchor, loop?.group, condition);
                             loop?.group.Add(lexical.anchor);
                             stack.Peek().Add(jump);
                         }

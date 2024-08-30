@@ -1,4 +1,6 @@
 ﻿
+using System;
+
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
     internal class BranchStatement(TextRange ifSymbol, Expression condition, List<TextRange> group) : Statement
@@ -21,6 +23,25 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
             if (trueBranch != null && trueBranch.range.Contain(position)) return trueBranch.Operator(position, action);
             if (falseBranch != null && falseBranch.range.Contain(position)) return falseBranch.Operator(position, action);
             return false;
+        }
+        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
+        {
+            if (ifSymbol.Contain(position) || (elseSymbol != null && elseSymbol.Value.Contain(position)))
+            {
+                InfoUtility.HighlightGroup(group, infos);
+                return true;
+            }
+            if (trueBranch != null && trueBranch.range.Contain(position)) return trueBranch.TryHighlightGroup(position, infos);
+            if (falseBranch != null && falseBranch.range.Contain(position)) return falseBranch.TryHighlightGroup(position, infos);
+            return false;
+        }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.KeywordCtrl, ifSymbol);
+            if (elseSymbol != null) collector.Add(DetailTokenType.KeywordCtrl, elseSymbol.Value);
+            condition.CollectSemanticToken(manager, collector);
+            trueBranch?.CollectSemanticToken(manager, collector);
+            falseBranch?.CollectSemanticToken(manager, collector);
         }
     }
 }

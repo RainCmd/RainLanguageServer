@@ -36,5 +36,43 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
             if (finallyBlock != null && finallyBlock.range.Contain(position)) return finallyBlock.Operator(position, action);
             return false;
         }
+        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
+        {
+            if (trySymbol.Contain(position))
+            {
+                InfoUtility.HighlightGroup(group, infos);
+                return true;
+            }
+            if (finallySymbol != null && finallySymbol.Value.Contain(position))
+            {
+                InfoUtility.HighlightGroup(group, infos);
+                return true;
+            }
+            foreach (var catchBlock in catchBlocks)
+            {
+                if (catchBlock.catchSymbol.Contain(position))
+                {
+                    InfoUtility.HighlightGroup(group, infos);
+                    return true;
+                }
+                if (catchBlock.block.range.Contain(position)) return catchBlock.block.TryHighlightGroup(position, infos);
+            }
+            if (tryBlock != null && tryBlock.range.Contain(position)) return tryBlock.TryHighlightGroup(position, infos);
+            if (finallyBlock != null && finallyBlock.range.Contain(position)) return finallyBlock.TryHighlightGroup(position, infos);
+            return false;
+        }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.KeywordCtrl, trySymbol);
+            if (finallySymbol != null) collector.Add(DetailTokenType.KeywordCtrl, finallySymbol.Value);
+            tryBlock?.CollectSemanticToken(manager, collector);
+            finallyBlock?.CollectSemanticToken(manager, collector);
+            foreach (var catchBlock in catchBlocks)
+            {
+                collector.Add(DetailTokenType.KeywordCtrl, catchBlock.catchSymbol);
+                catchBlock.expression?.CollectSemanticToken(manager, collector);
+                catchBlock.block?.CollectSemanticToken(manager, collector);
+            }
+        }
     }
 }

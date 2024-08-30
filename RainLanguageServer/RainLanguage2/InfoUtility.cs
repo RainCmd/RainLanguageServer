@@ -374,6 +374,11 @@ namespace RainLanguageServer.RainLanguage
                     infos.Add(new HighlightInfo(reference, DocumentHighlightKind.Text));
             });
         }
+        public static void HighlightGroup(List<TextRange> group, List<HighlightInfo> infos)
+        {
+            foreach (var range in group)
+                infos.Add(new HighlightInfo(range, DocumentHighlightKind.Text));
+        }
         public static void Highlight(AbstractDeclaration declaration, List<HighlightInfo> infos)
         {
             infos.Add(new HighlightInfo(declaration.name, DocumentHighlightKind.Text));
