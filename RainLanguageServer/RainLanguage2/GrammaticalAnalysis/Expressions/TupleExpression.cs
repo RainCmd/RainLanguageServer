@@ -81,6 +81,12 @@
             return false;
         }
 
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            foreach(var expression in expressions)
+                expression.CollectSemanticToken(manager, collector);
+        }
+
         private static readonly IList<Expression> empty = [];
     }
     internal class TupleEvaluationExpression : Expression
@@ -129,6 +135,12 @@
             if (source.range.Contain(position)) return source.FindReferences(manager, position, references);
             if (indices.range.Contain(position)) return indices.FindReferences(manager, position, references);
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            source.CollectSemanticToken(manager, collector);
+            indices.CollectSemanticToken(manager, collector);
         }
     }
 }

@@ -32,6 +32,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         }
 
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => invoker.range.Contain(position) && invoker.FindReferences(manager, position, references);
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.KeywordCtrl, symbol);
+            invoker.CollectSemanticToken(manager, collector);
+        }
     }
     internal class TaskEvaluationExpression : Expression
     {
@@ -79,6 +85,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (source.range.Contain(position)) return source.FindReferences(manager, position, references);
             if (indices.range.Contain(position)) return indices.FindReferences(manager, position, references);
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            source.CollectSemanticToken(manager, collector);
+            indices.CollectSemanticToken(manager, collector);
         }
     }
 }

@@ -47,5 +47,11 @@
                     return expression.FindReferences(manager, position, references);
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            foreach (var expression in expressions)
+                expression.CollectSemanticToken(manager, collector);
+        }
     }
 }

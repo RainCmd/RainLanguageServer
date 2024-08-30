@@ -104,5 +104,11 @@
             if (parameters.range.Contain(position)) return parameters.FindReferences(manager, position, references);
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            type.CollectSemanticToken(manager, collector);
+            parameters.CollectSemanticToken(manager, collector);
+        }
     }
 }

@@ -36,5 +36,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         }
 
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => expression.range.Contain(position) && expression.FindReferences(manager, position, references);
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.Operator, left);
+            collector.Add(DetailTokenType.Operator, right);
+            expression.CollectSemanticToken(manager, collector);
+        }
     }
 }

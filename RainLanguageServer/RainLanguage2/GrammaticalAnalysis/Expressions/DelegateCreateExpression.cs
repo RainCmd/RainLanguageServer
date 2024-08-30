@@ -61,6 +61,12 @@
             return false;
         }
 
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
+            collector.AddNamespace(name);
+            collector.Add(DetailTokenType.GlobalFunction, name.name);
+        }
     }
     internal class MemberFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
     {
@@ -119,6 +125,13 @@
                 return true;
             }
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            target?.CollectSemanticToken(manager, collector);
+            if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
+            collector.Add(DetailTokenType.MemberFunction, member);
         }
     }
     internal class VirtualFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
@@ -193,6 +206,13 @@
             }
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            target?.CollectSemanticToken(manager, collector);
+            if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
+            collector.Add(DetailTokenType.MemberFunction, member);
+        }
     }
     internal class LambdaDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, List<Local> parmeters, TextRange symbol, Expression body) : DelegateCreateExpression(range, type, callable, manager)
     {
@@ -250,6 +270,14 @@
                 }
             if (body.range.Contain(position)) return body.FindReferences(manager, position, references);
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            foreach (var local in parmeters)
+                collector.Add(DetailTokenType.Local, local.range);
+            collector.Add(DetailTokenType.Operator, symbol);
+            body.CollectSemanticToken(manager, collector);
         }
     }
 }

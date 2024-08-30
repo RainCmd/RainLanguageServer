@@ -70,5 +70,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             }
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            type.CollectSemanticToken(manager, collector);
+            collector.Add(DetailTokenType.Operator, symbol);
+            collector.Add(DetailTokenType.EnumElement, symbol);
+        }
     }
 }

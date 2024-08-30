@@ -49,5 +49,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (right.range.Contain(position)) return right.FindReferences(manager, position, references);
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.Operator, symbol);
+            left.CollectSemanticToken(manager, collector);
+            right.CollectSemanticToken(manager, collector);
+        }
     }
 }

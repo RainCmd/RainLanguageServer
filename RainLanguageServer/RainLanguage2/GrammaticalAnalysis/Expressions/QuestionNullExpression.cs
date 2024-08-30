@@ -6,7 +6,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public readonly TextRange symbol;
         public readonly Expression left;
         public readonly Expression right;
-        public override bool Valid => left.Valid && right.Valid;
+        public override bool Valid => left.Valid;
 
         public QuestionNullExpression(TextRange symbol, Expression left, Expression right) : base(left.range & right.range, left.tuple)
         {
@@ -49,6 +49,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (left.range.Contain(position)) return left.FindReferences(manager, position, references);
             if (right.range.Contain(position)) return right.FindReferences(manager, position, references);
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.Operator, symbol);
+            left.CollectSemanticToken(manager, collector);
+            right.CollectSemanticToken(manager, collector);
         }
     }
 }

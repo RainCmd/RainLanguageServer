@@ -29,6 +29,12 @@
         }
 
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => false;
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.KeywordCtrl, declaration);
+            collector.Add(DetailTokenType.Local, identifier);
+        }
     }
     internal class MethodExpression : Expression//global & native
     {
@@ -98,6 +104,13 @@
                 return true;
             }
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
+            InfoUtility.AddNamespace(collector, name);
+            collector.Add(DetailTokenType.GlobalFunction, name.name);
         }
     }
     internal class MethodMemberExpression : Expression
@@ -175,6 +188,13 @@
                 return true;
             }
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
+            collector.Add(DetailTokenType.MemberFunction, member);
+            target?.CollectSemanticToken(manager, collector);
         }
     }
     internal class MethodVirtualExpression : MethodMemberExpression
@@ -264,6 +284,12 @@
         }
 
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => invoker.range.Contain(position) && invoker.FindReferences(manager, position, references);
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.Operator, symbol);
+            invoker.CollectSemanticToken(manager, collector);
+        }
     }
     internal class BlurrySetExpression : Expression
     {
@@ -298,6 +324,8 @@
         }
 
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => expression.range.Contain(position) && expression.FindReferences(manager, position, references);
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => expression.CollectSemanticToken(manager, collector);
     }
     internal class BlurryLambdaExpression : Expression
     {
@@ -327,10 +355,18 @@
 
         public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
         {
-            definition = default; 
+            definition = default;
             return false;
         }
 
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => false;
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            foreach (var parameter in parameters)
+                collector.Add(DetailTokenType.Local, parameter);
+            collector.Add(DetailTokenType.Operator, symbol);
+            collector.Add(DetailTokenType.Label, body);
+        }
     }
 }

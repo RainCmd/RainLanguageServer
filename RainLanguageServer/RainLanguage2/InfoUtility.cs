@@ -28,6 +28,7 @@ namespace RainLanguageServer.RainLanguage
         KeywordVariable,// this base global
         KeywordConst,//true false null
         Numeric,
+        String,
         Operator,
         Constant,
         Namespace,
@@ -415,13 +416,14 @@ namespace RainLanguageServer.RainLanguage
             return QualifyAction(qualify, position, space, value => references.AddRange(value.references));
         }
 
-        public static void AddNamespace(this SemanticTokenCollector collector, List<TextRange> qualify)
+        public static void AddNamespace(this SemanticTokenCollector collector, QualifiedName name)
         {
-            for (var i = 0; i < qualify.Count; i++)
+            for (var i = 0; i < name.qualify.Count; i++)
             {
-                if (i > 0) collector.Add(DetailTokenType.Operator, qualify[i - 1].end & qualify[i].start);
-                collector.Add(DetailTokenType.Namespace, qualify[i]);
+                if (i > 0) collector.Add(DetailTokenType.Operator, name.qualify[i - 1].end & name.qualify[i].start);
+                collector.Add(DetailTokenType.Namespace, name.qualify[i]);
             }
+            if (name.qualify.Count > 0) collector.Add(DetailTokenType.Operator, name.qualify[^1].end & name.name.start);
         }
         public static void AddType(this SemanticTokenCollector collector, TextRange range, Manager manager, Type type)
         {
@@ -458,13 +460,14 @@ namespace RainLanguageServer.RainLanguage
         }
         public static void AddType(this SemanticTokenCollector collector, FileType file, Manager manager, Type type)
         {
-            collector.AddNamespace(file.name.qualify);
+            collector.AddNamespace(file.name);
             collector.AddType(file.name.name, manager, type);
             if (file.name.name.end < file.range.end)
                 collector.Add(DetailTokenType.Operator, file.name.name.end & file.range.end);
         }
         public static void Add(this SemanticTokenCollector collector, DetailTokenType type, TextRange range)
         {
+            if (range.Count == 0) return;
             switch (type)
             {
                 case DetailTokenType.GlobalVariable:
@@ -525,6 +528,8 @@ namespace RainLanguageServer.RainLanguage
                     break;
                 case DetailTokenType.Numeric:
                     collector.AddRange(SemanticTokenType.Number, range);
+                    break;
+                case DetailTokenType.String:
                     break;
                 case DetailTokenType.Operator:
                     collector.AddRange(SemanticTokenType.Operator, range);

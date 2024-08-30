@@ -50,6 +50,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (expression.range.Contain(position)) return expression.FindReferences(manager, position, references);
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            type.CollectSemanticToken(manager, collector);
+            collector.Add(DetailTokenType.Operator, symbol);
+            expression.CollectSemanticToken(manager, collector);
+        }
     }
     internal class TupleCastExpression : Expression
     {
@@ -89,6 +96,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (expression.range.Contain(position)) return expression.FindReferences(manager, position, references);
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => expression.CollectSemanticToken(manager, collector);
     }
     internal class IsCastExpression : Expression
     {
@@ -163,6 +172,14 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             }
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.KeywordCtrl, symbol);
+            if (identifier != null) collector.Add(DetailTokenType.Local, identifier.Value);
+            source.CollectSemanticToken(manager, collector);
+            type.CollectSemanticToken(manager, collector);
+        }
     }
     internal class AsCastExpression : Expression
     {
@@ -212,6 +229,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (source.range.Contain(position)) return source.FindReferences(manager, position, references);
             if (type.range.Contain(position)) return type.FindReferences(manager, position, references);
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.KeywordCtrl, symbol);
+            source.CollectSemanticToken(manager, collector);
+            type.CollectSemanticToken(manager, collector);
         }
     }
 }

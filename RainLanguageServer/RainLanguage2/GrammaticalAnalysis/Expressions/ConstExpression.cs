@@ -2,7 +2,7 @@
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
-    internal class ConstExpression : Expression
+    internal abstract class ConstExpression : Expression
     {
         public override bool Valid => true;
         public ConstExpression(TextRange range, Type type) : base(range, type)
@@ -80,6 +80,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             value = this.value;
             return true;
         }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.KeywordConst, range);
     }
     internal class ConstBooleanKeyworldExpression(TextRange range, bool value, Manager.KernelManager manager) : ConstBooleanExpression(range, value, manager) { }
     internal class ConstByteExpression(TextRange range, byte value, Manager.KernelManager manager) : ConstExpression(range, manager.BYTE)
@@ -110,6 +111,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             indices.Add(value);
             return true;
         }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Numeric, range);
     }
     internal class ConstCharExpression(TextRange range, char value, Manager.KernelManager manager) : ConstExpression(range, manager.CHAR)
     {
@@ -134,6 +136,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             indices.Add(value);
             return true;
         }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Numeric, range);
     }
     internal class ConstIntegerExpression(TextRange range, long value, Manager.KernelManager manager) : ConstExpression(range, manager.INT)
     {
@@ -153,6 +156,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             indices.Add(value);
             return true;
         }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Numeric, range);
     }
     internal class ConstCharsExpression(TextRange range, long value, Manager.KernelManager manager) : ConstIntegerExpression(range, value, manager) { }
     internal class ConstRealExpression(TextRange range, double value, Manager.KernelManager manager) : ConstExpression(range, manager.REAL)
@@ -163,6 +167,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             value = this.value;
             return true;
         }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Numeric, range);
     }
     internal class ConstStringExpression : ConstExpression
     {
@@ -178,6 +183,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             value = this.value;
             return true;
+        }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.String, range);
         }
     }
     internal class ConstTypeExpression(TextRange range, TextRange symbolLeft, TextRange symbolRight, FileType file, Type value, Manager.KernelManager manager) : ConstExpression(range, manager.TYPE)
@@ -198,8 +207,24 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => InfoUtility.OnHighlight(file, manager, position, value, infos);
         public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition) => file.TryGetDefinition(manager, position, value, out definition);
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => file.FindReferences(manager, position, value, references);
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.Operator, symbolLeft);
+            collector.Add(DetailTokenType.Operator, symbolRight);
+            collector.AddType(file, manager, value);
+        }
     }
-    internal class ConstNullExpression(TextRange range) : ConstExpression(range, NULL) { }
-    internal class ConstHandleNullExpression(TextRange range, Type type) : ConstExpression(range, type) { }
-    internal class ConstEntityNullExpression(TextRange range, Manager.KernelManager manager) : ConstExpression(range, manager.ENTITY) { }
+    internal class ConstNullExpression(TextRange range) : ConstExpression(range, NULL)
+    {
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.KeywordConst, range);
+
+    }
+    internal class ConstHandleNullExpression(TextRange range, Type type) : ConstExpression(range, type)
+    {
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.KeywordConst, range);
+    }
+    internal class ConstEntityNullExpression(TextRange range, Manager.KernelManager manager) : ConstExpression(range, manager.ENTITY)
+    {
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.KeywordConst, range);
+    }
 }

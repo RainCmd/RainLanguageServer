@@ -1,4 +1,5 @@
-﻿using LanguageServer.Parameters.TextDocument;
+﻿using LanguageServer.Parameters;
+using LanguageServer.Parameters.TextDocument;
 using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
 using System.Text;
 
@@ -251,6 +252,21 @@ namespace RainLanguageServer.RainLanguage
                         return statement.FindReferences(manager, position, references);
             return false;
         }
+        protected void CollectSemanticToken(Manager manager, SemanticTokenCollector collector, List<FileType> returns, List<FileParameter> parameters, LogicBlock? block)
+        {
+            for (var i = 0; i < returns.Count; i++)
+                collector.AddType(returns[i], manager, this.returns[i]);
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                collector.AddType(parameters[i].type, manager, signature[i]);
+                var name = parameters[i].name;
+                if (name != null)
+                    collector.Add(DetailTokenType.Parameter, name.Value);
+            }
+            if (block != null)
+                foreach (var statement in block.statements)
+                    statement.CollectSemanticToken(manager, collector);
+        }
     }
     internal class AbstractFunction(FileFunction file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -261,6 +277,11 @@ namespace RainLanguageServer.RainLanguage
         public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => OnHighlight(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
         public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition) => TryGetDefinition(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, out definition);
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => FindReferences(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, references);
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.GlobalFunction, name);
+            CollectSemanticToken(manager, collector, fileFunction.returns, fileFunction.parameters, logicBlock);
+        }
     }
     internal class AbstractEnum(FileEnum file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
@@ -306,6 +327,11 @@ namespace RainLanguageServer.RainLanguage
                     return expression.FindReferences(manager, position, references);
                 return false;
             }
+            public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+            {
+                collector.Add(DetailTokenType.EnumElement, name);
+                expression?.CollectSemanticToken(manager, collector);
+            }
         }
         public readonly FileEnum fileEnum = file;
         public readonly List<Element> elements = [];
@@ -345,6 +371,12 @@ namespace RainLanguageServer.RainLanguage
                 if (element.fileElement.range.Contain(position))
                     return element.FindReferences(manager, position, references);
             return false;
+        }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.EnumType, name);
+            foreach (var element in elements)
+                element.CollectSemanticToken(manager, collector);
         }
     }
     internal class AbstractStruct(FileStruct file, AbstractSpace space, TextRange name, Declaration declaration)
@@ -390,6 +422,7 @@ namespace RainLanguageServer.RainLanguage
                 }
                 return fileVariable.type.FindReferences(manager, position, type, references);
             }
+            public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.MemberField, name);
         }
         internal class Function(FileStruct.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -405,6 +438,11 @@ namespace RainLanguageServer.RainLanguage
             public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => OnHighlight(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
             public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition) => TryGetDefinition(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, out definition);
             public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => FindReferences(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, references);
+            public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+            {
+                collector.Add(DetailTokenType.MemberFunction, name);
+                CollectSemanticToken(manager, collector, fileFunction.returns, fileFunction.parameters, logicBlock);
+            }
         }
         public readonly FileStruct fileStruct = file;
         public readonly List<Variable> variables = [];
@@ -458,6 +496,12 @@ namespace RainLanguageServer.RainLanguage
                     return function.FindReferences(manager, position, references);
             return false;
         }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.StructType, name);
+            foreach (var variable in variables) variable.CollectSemanticToken(manager, collector);
+            foreach (var function in functions) function.CollectSemanticToken(manager, collector);
+        }
     }
     internal class AbstractInterface(FileInterface file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
@@ -477,6 +521,11 @@ namespace RainLanguageServer.RainLanguage
             public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => OnHighlight(manager, position, fileFunction.returns, fileFunction.parameters, null, infos);
             public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition) => TryGetDefinition(manager, position, fileFunction.returns, fileFunction.parameters, null, out definition);
             public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => FindReferences(manager, position, fileFunction.returns, fileFunction.parameters, null, references);
+            public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+            {
+                collector.Add(DetailTokenType.MemberFunction, name);
+                CollectSemanticToken(manager, collector, fileFunction.returns, fileFunction.parameters, null);
+            }
         }
         public readonly FileInterface fileInterface = file;
         public readonly List<Type> inherits = [];
@@ -530,6 +579,14 @@ namespace RainLanguageServer.RainLanguage
                 if (function.fileFunction.range.Contain(position))
                     return function.FindReferences(manager, position, references);
             return false;
+        }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.InterfaceType, name);
+            for (var i = 0; i < fileInterface.inherits.Count; i++)
+                collector.AddType(fileInterface.inherits[i], manager, inherits[i]);
+            foreach (var function in functions)
+                function.CollectSemanticToken(manager, collector);
         }
     }
     internal class AbstractClass(FileClass file, AbstractSpace space, TextRange name, Declaration declaration)
@@ -589,6 +646,12 @@ namespace RainLanguageServer.RainLanguage
                     return expression.FindReferences(manager, position, references);
                 return fileVariable.range.Contain(position);
             }
+            public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+            {
+                collector.Add(DetailTokenType.MemberField, name);
+                collector.AddType(fileVariable.type, manager, type);
+                expression?.CollectSemanticToken(manager, collector);
+            }
         }
         internal class Constructor(FileClass.Constructor file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -616,6 +679,12 @@ namespace RainLanguageServer.RainLanguage
             {
                 if (expression != null && expression.range.Contain(position)) return expression.FindReferences(manager, position, references);
                 return (FindReferences(manager, position, fileConstructor.returns, fileConstructor.parameters, logicBlock, references));
+            }
+            public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+            {
+                collector.Add(DetailTokenType.Constructor, name);
+                expression?.CollectSemanticToken(manager, collector);
+                CollectSemanticToken(manager, collector, fileConstructor.returns, fileConstructor.parameters, logicBlock);
             }
         }
         internal class Function(FileClass.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
@@ -653,6 +722,11 @@ namespace RainLanguageServer.RainLanguage
                     return true;
                 }
                 return FindReferences(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, references);
+            }
+            public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+            {
+                collector.Add(DetailTokenType.MemberFunction, name);
+                CollectSemanticToken(manager, collector, fileFunction.returns, fileFunction.parameters, logicBlock);
             }
         }
         public readonly FileClass fileClass = file;
@@ -764,6 +838,20 @@ namespace RainLanguageServer.RainLanguage
                     return statement.FindReferences(manager, position, references);
             return false;
         }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.HandleType, name);
+            for (var i = 0; i < fileClass.inherits.Count; i++)
+            {
+                if (fileClass.inherits.Count == inherits.Count) collector.AddType(fileClass.inherits[i], manager, inherits[i]);
+                else if (i == 0) collector.AddType(fileClass.inherits[i], manager, parent);
+                else collector.AddType(fileClass.inherits[i], manager, inherits[i - 1]);
+            }
+            foreach (var member in variables) member.CollectSemanticToken(manager, collector);
+            foreach (var member in constructors) member.CollectSemanticToken(manager, collector);
+            foreach (var member in functions) member.CollectSemanticToken(manager, collector);
+            foreach (var statement in descontructorLogicBlock.statements) statement.CollectSemanticToken(manager, collector);
+        }
     }
     internal class AbstractDelegate(FileDelegate file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -773,6 +861,11 @@ namespace RainLanguageServer.RainLanguage
         public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => OnHighlight(manager, position, fileDelegate.returns, fileDelegate.parameters, null, infos);
         public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition) => TryGetDefinition(manager, position, fileDelegate.returns, fileDelegate.parameters, null, out definition);
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => FindReferences(manager, position, fileDelegate.returns, fileDelegate.parameters, null, references);
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.DelegateType, name);
+            CollectSemanticToken(manager, collector, fileDelegate.returns, fileDelegate.parameters, null);
+        }
     }
     internal class AbstractTask(FileTask file, AbstractSpace space, TextRange name, Declaration declaration, Tuple returns)
         : AbstractDeclaration(file, space, name, declaration)
@@ -816,6 +909,12 @@ namespace RainLanguageServer.RainLanguage
                     return true;
             return false;
         }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.TaskType, name);
+            for (var i = 0; i < returns.Count; i++)
+                collector.AddType(fileTask.returns[i], manager, returns[i]);
+        }
     }
     internal class AbstractNative(FileNative file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -825,6 +924,11 @@ namespace RainLanguageServer.RainLanguage
         public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => OnHighlight(manager, position, fileNative.returns, fileNative.parameters, null, infos);
         public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition) => TryGetDefinition(manager, position, fileNative.returns, fileNative.parameters, null, out definition);
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => FindReferences(manager, position, fileNative.returns, fileNative.parameters, null, references);
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.NativeFunction, name);
+            CollectSemanticToken(manager, collector, fileNative.returns, fileNative.parameters, null);
+        }
     }
     internal class AbstractSpace(AbstractSpace? parent, string name)
     {

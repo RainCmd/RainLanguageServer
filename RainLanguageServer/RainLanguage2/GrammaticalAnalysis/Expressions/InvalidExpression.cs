@@ -59,6 +59,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                     return expression.FindReferences(manager, position, references);
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            foreach (var expression in expressions)
+                expression.CollectSemanticToken(manager, collector);
+        }
     }
     internal class InvalidKeyworldExpression(TextRange range) : InvalidExpression(range) { }
     internal class InvalidOperationExpression : Expression
@@ -103,6 +109,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (parameters != null && parameters.range.Contain(position))
                 return parameters.FindReferences(manager, position, references);
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.Operator, symbol);
+            parameters?.CollectSemanticToken(manager, collector);
         }
     }
 }

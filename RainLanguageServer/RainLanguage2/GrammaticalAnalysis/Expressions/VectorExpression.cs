@@ -45,6 +45,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (target.range.Contain(position)) return target.FindReferences(manager, position, references);
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            target.CollectSemanticToken(manager, collector);
+            collector.Add(DetailTokenType.MemberField, member);
+        }
     }
     internal class VectorConstructorExpression : Expression
     {
@@ -91,6 +97,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (type.range.Contain(position)) return type.FindReferences(manager, position, references);
             if (parameters.range.Contain(position)) return parameters.FindReferences(manager, position, references);
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            type.CollectSemanticToken(manager, collector);
+            parameters.CollectSemanticToken(manager, collector);
         }
     }
 }

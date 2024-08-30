@@ -57,6 +57,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             }
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            if (local.parameter) collector.Add(DetailTokenType.Parameter, identifier);
+            else collector.Add(DetailTokenType.Local, identifier);
+        }
     }
     internal class VariableDeclarationLocalExpression(TextRange range, Local local, TextRange identifier, TypeExpression typeExpression, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, identifier, attribute, manager)
     {
@@ -86,6 +92,11 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (typeExpression.range.Contain(position)) return typeExpression.FindReferences(manager, position, references);
             return base.FindReferences(manager, position, references);
         }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            typeExpression.CollectSemanticToken(manager, collector);
+            base.CollectSemanticToken(manager, collector);
+        }
     }
     internal class VariableKeyworldLocalExpression(TextRange range, Local local, Type type, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, type, identifier, attribute, manager)
     {
@@ -98,6 +109,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             }
             info = default;
             return false;
+        }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.KeywordVariable, identifier);
         }
     }
     internal class VariableGlobalExpression : Expression
@@ -161,6 +176,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 return true;
             }
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
+            collector.AddNamespace(name);
+            collector.Add(DetailTokenType.GlobalVariable, name.name);
         }
     }
     internal class VariableMemberExpression : Expression
@@ -237,6 +259,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 return true;
             }
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            target?.CollectSemanticToken(manager, collector);
+            if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
+            collector.Add(DetailTokenType.MemberField, identifier);
         }
     }
 }

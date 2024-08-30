@@ -3,7 +3,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class TypeExpression : Expression
     {
-        public readonly TextRange? qualifier;
+        public readonly TextRange? qualifier; // global
         public readonly FileType file;
         public readonly Type type;
         public override bool Valid => true;
@@ -27,6 +27,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition) => file.TryGetDefinition(manager, position, type, out definition);
 
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => file.FindReferences(manager, position, type, references);
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.AddType(file, manager, type);
+            if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
+        }
     }
     internal class TypeKeyworldExpression(TextRange range, TextRange? qualifier, FileType file, Type type) : TypeExpression(range, qualifier, file, type) { }
 }

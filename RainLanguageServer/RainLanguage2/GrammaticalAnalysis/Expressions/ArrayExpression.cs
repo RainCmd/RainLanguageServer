@@ -1,7 +1,4 @@
-﻿
-using System;
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class ArrayCreateExpression : Expression
     {
@@ -49,6 +46,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (length.range.Contain(position)) return length.FindReferences(manager, position, references);
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            type.CollectSemanticToken(manager, collector);
+            length.CollectSemanticToken(manager, collector);
+        }
     }
     internal class ArrayInitExpression : Expression
     {
@@ -95,6 +98,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (type != null && type.range.Contain(position)) return type.FindReferences(manager, position, references);
             if (elements.range.Contain(position)) return elements.FindReferences(manager, position, references);
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            type?.CollectSemanticToken(manager, collector);
+            elements.CollectSemanticToken(manager, collector);
         }
     }
     internal class ArrayEvaluationExpression : Expression
@@ -148,6 +157,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (index.range.Contain(position)) return index.FindReferences(manager, position, references);
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            array.CollectSemanticToken(manager, collector);
+            index.CollectSemanticToken(manager, collector);
+        }
     }
     internal class StringEvaluationExpression : Expression
     {
@@ -195,6 +210,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (index.range.Contain(position)) return index.FindReferences(manager, position, references);
             return false;
         }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            source.CollectSemanticToken(manager, collector);
+            index.CollectSemanticToken(manager, collector);
+        }
     }
     internal class ArraySubExpression : Expression
     {
@@ -241,6 +262,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (source.range.Contain(position)) return source.FindReferences(manager, position, references);
             if (indies.range.Contain(position)) return indies.FindReferences(manager, position, references);
             return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            source.CollectSemanticToken(manager, collector);
+            indies.CollectSemanticToken(manager, collector);
         }
     }
 }
