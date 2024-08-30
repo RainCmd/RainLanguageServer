@@ -30,13 +30,9 @@ namespace RainLanguageServer.RainLanguage
         private readonly List<Message> messages = [];
         public void Add(Message message) => messages.Add(message);
         public void Add(TextRange range, ErrorLevel level, string message) => Add(new Message(range, level, message));
-        public void Add(IList<TextRange> ranges, ErrorLevel level, string message) => Add(ranges[0].start & ranges[^1].end, level, message);
         public void Clear() => messages.Clear();
 
-        public IEnumerator<Message> GetEnumerator()
-        {
-            return messages.GetEnumerator();
-        }
+        public IEnumerator<Message> GetEnumerator() => messages.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator()
         {

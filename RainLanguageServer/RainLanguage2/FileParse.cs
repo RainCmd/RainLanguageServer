@@ -535,7 +535,7 @@ namespace RainLanguageServer.RainLanguage
                 }
                 else space.collector.Add((lexical.anchor.end - 1) & lexical.anchor.end, ErrorLevel.Error, "需要输入标识符");
             }
-            else if (TryParseVariable(line, lexical.anchor.end, out var name, out var type, out var expression, space.collector))
+            else if (TryParseVariable(line, lexical.anchor.start, out var name, out var type, out var expression, space.collector))
             {
                 var file = new FileVariable(space, visibility, name, false, type, expression);
                 file.attributes.AddRange(attributes);
@@ -544,7 +544,7 @@ namespace RainLanguageServer.RainLanguage
                 annotations.Clear();
                 space.variables.Add(file);
             }
-            else if (TryParseTupleDeclaration(line, lexical.anchor.end, out var tuple, out name, space.collector))
+            else if (TryParseTupleDeclaration(line, lexical.anchor.start, out var tuple, out name, space.collector))
             {
                 var parameterRange = ParseParameters(line, name.end, out var parameters, space.collector);
                 CheckEnd(line, parameterRange.end, space.collector);
@@ -611,7 +611,7 @@ namespace RainLanguageServer.RainLanguage
                         if (parentIndent < 0 || line.indent > parentIndent) space.collector.Add(line[line.indent..(line.indent + 1)], ErrorLevel.Error, "对齐错误");
                         else
                         {
-                            space.space.attributes.AddRange(attributes);
+                            reader.Rollback();
                             break;
                         }
                     }

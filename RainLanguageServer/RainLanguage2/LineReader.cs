@@ -18,9 +18,9 @@
         public void Rollback() => line--;
         public TextLine GetLastValidLine()
         {
-            for (var i = line; i >= 0; i--)
+            for (var i = line; i > 0; i--)
             {
-                var result = document[i];
+                var result = document[i - 1];
                 if (result.indent >= 0) return result;
             }
             return document[0];

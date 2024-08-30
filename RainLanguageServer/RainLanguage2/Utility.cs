@@ -173,7 +173,7 @@
             {
                 if (lexical.type == LexicalType.Word)
                 {
-                    if (allowKeyword && !KeyWords.IsKeyWorld(name.ToString())) return true;
+                    if (allowKeyword || !KeyWords.IsKeyWorld(name.ToString())) return true;
                     collector.Add(name, ErrorLevel.Error, "关键字不能作为名称");
                     return false;
                 }
