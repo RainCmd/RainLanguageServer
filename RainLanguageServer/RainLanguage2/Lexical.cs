@@ -401,27 +401,30 @@ namespace RainLanguageServer.RainLanguage
                             }
                             var dot = false;
                             index = 1;
-                            for (var symbol = segment[index]; symbol != '\0'; symbol = segment[index++])
+                            while (true)
                             {
-                                if (char.IsDigit(symbol) || symbol == '_') index++;
+                                var symbol = segment[index++];
+                                if (char.IsDigit(symbol) || symbol == '_') continue;
                                 else if (symbol == '.')
                                 {
                                     if (dot)
                                     {
-                                        lexical = new Lexical(segment[..index], LexicalType.ConstReal);
+                                        lexical = new Lexical(segment[..(index - 1)], LexicalType.ConstReal);
                                         return true;
                                     }
                                     else if (!char.IsDigit(segment[index + 1]))
                                     {
-                                        lexical = new Lexical(segment[..index], LexicalType.ConstNumber);
+                                        lexical = new Lexical(segment[..(index - 1)], LexicalType.ConstNumber);
                                         return true;
                                     }
                                     dot = true;
                                 }
-                                else break;
+                                else
+                                {
+                                    lexical = new Lexical(segment[..(index - 1)], dot ? LexicalType.ConstReal : LexicalType.ConstNumber);
+                                    return true;
+                                }
                             }
-                            lexical = new Lexical(segment[..index], dot ? LexicalType.ConstReal : LexicalType.ConstNumber);
-                            return true;
                         }
                         else if (IsLetter(segment[0]))
                         {

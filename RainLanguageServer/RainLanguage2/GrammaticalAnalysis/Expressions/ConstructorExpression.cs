@@ -72,7 +72,7 @@
                     definition = callable.name;
                     return true;
                 }
-                if (callables != null)
+                if (callables != null && callables.Count > 0)
                 {
                     definition = callables[0].name;
                     return true;

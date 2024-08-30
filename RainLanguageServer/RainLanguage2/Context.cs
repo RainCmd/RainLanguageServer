@@ -152,7 +152,7 @@ namespace RainLanguageServer.RainLanguage
         public bool TryFindMember<T>(Manager manager, TextRange name, Type type, out List<T> members) where T : AbstractDeclaration
         {
             members = [];
-            if (type.dimension == 0) type = manager.kernelManager.ARRAY;
+            if (type.dimension > 0) type = manager.kernelManager.ARRAY;
             else if (type.code == TypeCode.Enum) type = manager.kernelManager.ENUM;
             else if (type.code == TypeCode.Task) type = manager.kernelManager.TASK;
             else if (type.code == TypeCode.Delegate) type = manager.kernelManager.DELEGATE;

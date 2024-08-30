@@ -18,7 +18,7 @@ namespace RainLanguageServer.RainLanguage
         private static TextRange TrimLine(TextLine line, TextPosition start)
         {
             if (line.indent < 0) return line.start & line.start;
-            return start & GetLastLexicalEnd(line, start);
+            return line.start & GetLastLexicalEnd(line, start);
         }
         private static bool TryParseAttribute(TextLine line, List<TextRange> attributes, MessageCollector collector)
         {
@@ -106,13 +106,12 @@ namespace RainLanguageServer.RainLanguage
             if (Lexical.TryAnalysis(line, name.end, out var lexical, space.collector))
             {
                 if (lexical.type != LexicalType.Assignment) space.collector.Add(lexical.anchor, ErrorLevel.Error, "应输入 =");
-                if (Lexical.TryAnalysis(line, lexical.anchor.end, out var expressionLexical, space.collector))
+                else if (Lexical.TryAnalysis(line, lexical.anchor.end, out var expressionLexical, space.collector))
                 {
-                    var range = TrimLine(line, expressionLexical.anchor.end);
+                    var range = TrimLine(line, lexical.anchor.end);
                     return new FileEnum.Element(space, name, expressionLexical.anchor.start & range.end) { range = range };
                 }
-                else if (lexical.type == LexicalType.Assignment)
-                    space.collector.Add(lexical.anchor, ErrorLevel.Error, "缺少表达式");
+                else space.collector.Add(lexical.anchor, ErrorLevel.Error, "缺少表达式");
             }
             return new FileEnum.Element(space, name, null) { range = name };
         }
@@ -375,7 +374,7 @@ namespace RainLanguageServer.RainLanguage
                             {
                                 var parameterRange = ParseParameters(memberLine, memberName.end, out var parameters, space.collector);
                                 CheckEnd(memberLine, parameterRange.end, space.collector);
-                                var member = new FileStruct.Function(space, visibility, lexical.anchor, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
+                                var member = new FileStruct.Function(space, visibility, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
                                 member.attributes.AddRange(attributes);
                                 attributes.Clear();
                                 file.functions.Add(member);
@@ -537,7 +536,7 @@ namespace RainLanguageServer.RainLanguage
             }
             else if (TryParseVariable(line, lexical.anchor.start, out var name, out var type, out var expression, space.collector))
             {
-                var file = new FileVariable(space, visibility, name, false, type, expression);
+                var file = new FileVariable(space, visibility, name, false, type, expression) { range = TrimLine(line, expression != null ? expression.Value.end : name.end) };
                 file.attributes.AddRange(attributes);
                 attributes.Clear();
                 file.annotation.AddRange(annotations);
@@ -548,11 +547,13 @@ namespace RainLanguageServer.RainLanguage
             {
                 var parameterRange = ParseParameters(line, name.end, out var parameters, space.collector);
                 CheckEnd(line, parameterRange.end, space.collector);
-                var file = new FileFunction(space, visibility, name, parameters, tuple);
+                var file = new FileFunction(space, visibility, name, parameters, tuple) { range = TrimLine(line, parameterRange.end) };
                 file.attributes.AddRange(attributes);
                 attributes.Clear();
                 file.annotation.AddRange(annotations);
                 annotations.Clear();
+                ParseBlock(reader, line.indent, file.body);
+                file.range &= reader.GetLastValidLine();
                 space.functions.Add(file);
             }
             else space.collector.Add((lexical.anchor.end - 1) & lexical.anchor.end, ErrorLevel.Error, "需要输入标识符");

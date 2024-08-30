@@ -23,9 +23,12 @@ namespace RainLanguageServer
             {
                 if (root == null) yield break;
                 foreach (var path in Directory.GetFiles(root, "*.rain", SearchOption.AllDirectories))
-                    if (server.TryGetDoc(path, out var document)) yield return document;
-                    else using (var sr = File.OpenText(path))
-                            yield return new TextDocument(path, sr.ReadToEnd());
+                {
+                    string unifiedPath = new UnifiedPath(path);
+                    if (server.TryGetDoc(unifiedPath, out var document)) yield return document;
+                    else using (var sr = File.OpenText(unifiedPath))
+                            yield return new TextDocument(unifiedPath, sr.ReadToEnd());
+                }
             }
 
             IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

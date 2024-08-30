@@ -201,7 +201,7 @@
                         space.collector.Add(function.name, ErrorLevel.Error, "成员函数名不能与类型名相同");
                     }
                     var declaration = new Declaration(library.library, function.visibility, DeclarationCategory.ClassFunction, abstractClass.functions.Count, abstractClass.declaration.index);
-                    var classFunction = new AbstractClass.Function(function, space.space, function.name, declaration, parameters, returns, valid && IsValidMemberName(function.range, space.collector));
+                    var classFunction = new AbstractClass.Function(function, space.space, function.name, declaration, parameters, returns, valid && IsValidMemberName(function.name, space.collector));
                     abstractClass.functions.Add(classFunction);
                 }
             }

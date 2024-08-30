@@ -29,7 +29,7 @@ namespace RainLanguageServer.RainLanguage
                 for (var index = space; index != null; index = index.parent)
                 {
                     sb.Insert(0, '.');
-                    sb.Append(index.name);
+                    sb.Insert(0, index.name);
                 }
                 return sb.ToString();
             }

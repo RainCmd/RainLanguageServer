@@ -102,7 +102,7 @@
                         if (stack.Count == 0 && flag.ContainAny(SplitFlag.Comma))
                         {
                             left = range[..index];
-                            right = range[lexical.anchor.end.charactor..];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
                         break;
@@ -110,7 +110,7 @@
                         if (stack.Count == 0 && flag.ContainAny(SplitFlag.Semicolon))
                         {
                             left = range[..index];
-                            right = range[lexical.anchor.end.charactor..];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
                         break;
@@ -118,7 +118,7 @@
                         if (stack.Count == 0 && flag.ContainAny(SplitFlag.Assignment))
                         {
                             left = range[..index];
-                            right = range[lexical.anchor.end.charactor..];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
                         break;
@@ -127,7 +127,7 @@
                         if (stack.Count == 0 && flag.ContainAny(SplitFlag.Lambda))
                         {
                             left = range[..index];
-                            right = range[lexical.anchor.end.charactor..];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
                         break;
@@ -169,7 +169,7 @@
                         if (stack.Count == 0 && flag.ContainAny(SplitFlag.Question))
                         {
                             left = range[..index];
-                            right = range[lexical.anchor.end.charactor..];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
                         break;
@@ -183,7 +183,7 @@
                         if (stack.Count == 0 && flag.ContainAny(SplitFlag.QuestionNull))
                         {
                             left = range[..index];
-                            right = range[lexical.anchor.end.charactor..];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
                         break;
@@ -195,7 +195,7 @@
                         else if (flag.ContainAny(SplitFlag.Colon))
                         {
                             left = range[..index];
-                            right = range[lexical.anchor.end.charactor..];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
                         break;

@@ -20,11 +20,10 @@ namespace RainLanguageServer.RainLanguage
             public readonly Type TYPE = GetType(kernel.structs, "type");
             public readonly Type STRING = GetType(kernel.structs, "string");
             public readonly Type ENTITY = GetType(kernel.structs, "entity");
-            public readonly Type HANDLE = GetType(kernel.structs, "handle");
-            public readonly Type INTERFACE = GetType(kernel.structs, "interface");
-            public readonly Type DELEGATE = GetType(kernel.structs, "Delegate");
-            public readonly Type TASK = GetType(kernel.structs, "Task");
-            public readonly Type ARRAY = GetType(kernel.structs, "array");
+            public readonly Type HANDLE = GetType(kernel.classes, "handle");
+            public readonly Type DELEGATE = GetType(kernel.classes, "Delegate");
+            public readonly Type TASK = GetType(kernel.classes, "Task");
+            public readonly Type ARRAY = GetType(kernel.classes, "array");
 
             private static Type GetType<T>(List<T> declarations, string name) where T : AbstractDeclaration
             {
@@ -56,7 +55,6 @@ namespace RainLanguageServer.RainLanguage
         public Manager(string name, string kernelPath, string[]? imports, Func<string, TextDocument[]> relyLoader, Func<IEnumerable<TextDocument>> documentLoader, Func<IEnumerable<TextDocument>> opendDocumentLoader)
         {
             library = new AbstractLibrary(LIBRARY_SELF, name);
-            librarys.Add(LIBRARY_SELF, library);
             if (imports != null) this.imports.AddRange(imports);
             this.relyLoader = relyLoader;
             kernelPath = new UnifiedPath(kernelPath);
@@ -327,6 +325,7 @@ namespace RainLanguageServer.RainLanguage
             librarys.Clear();
             kernel.Clear();
             ParseLibrary(kernel, kernelDocuments);
+            librarys.Add(LIBRARY_SELF, library);
             if (documentLoader != null)
             {
                 foreach (var document in documentLoader())
@@ -334,6 +333,7 @@ namespace RainLanguageServer.RainLanguage
                     var reader = new LineReader(document);
                     var file = new FileSpace(null, null, library, document, []);
                     FileParse.ParseSpace(file, reader, -1);
+                    file.range = document[0].start & document[document.LineCount - 1].end;
                     fileSpaces.Add(document.path, file);
                     allFileSpaces.Add(document.path, file);
                 }
@@ -487,7 +487,7 @@ namespace RainLanguageServer.RainLanguage
         }
         public static string ToRainScheme(string library, string? path = null)
         {
-            if (!string.IsNullOrEmpty(path)) return $"{SCHEME}:{library}.rain";
+            if (string.IsNullOrEmpty(path)) return $"{SCHEME}:{library}.rain";
             else return $"{SCHEME}:{library}/{path}.rain";
         }
     }

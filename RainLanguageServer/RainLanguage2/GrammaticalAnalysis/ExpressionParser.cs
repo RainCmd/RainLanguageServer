@@ -167,7 +167,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                         else
                                         {
                                             constructors.Clear();
-                                            collector.Add(expression.range, ErrorLevel.Error, "未找到匹配的构造函数");
+                                            if (abstractClass.constructors.Count > 0 && bracket.tuple.Count > 0)
+                                                collector.Add(expression.range, ErrorLevel.Error, "未找到匹配的构造函数");
                                             foreach (var constructor in abstractClass.constructors) constructors.Add(constructor);
                                             expression = new ConstructorExpression(expression.range & bracket.range, type, null, constructors, bracket, manager.kernelManager);
                                         }
@@ -1035,7 +1036,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         }
                         else if (lexical.anchor == KeyWords.THIS)
                         {
-                            if (context.declaration == null || context.declaration is not AbstractClass)
+                            if (context.declaration == null)
                             {
                                 PushInvalidExpression(expressionStack, lexical.anchor, attribute, "当前上下文中不可用", new InvalidKeyworldExpression(lexical.anchor));
                                 attribute = ExpressionAttribute.Invalid;
@@ -1855,7 +1856,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 {
                     if (TryExplicitTypes(parameters, callable.signature, types))
                     {
-                        var measure = Convert(parameters.tuple, new TypeSpan(types));
+                        var measure = Convert(new TypeSpan(types), callable.signature);
                         if (measure >= 0)
                             if (results.Count == 0 || measure < min)
                             {
@@ -2337,8 +2338,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             }
             else if (subType.code == TypeCode.Interface)
             {
-                if (baseType == manager.kernelManager.INTERFACE) return 1;
-                else if (baseType == manager.kernelManager.HANDLE) return 2;
+                if (baseType == manager.kernelManager.HANDLE) return 2;
                 else if (baseType.code == TypeCode.Interface) return manager.GetInterfaceInheritDeep(baseType, subType);
             }
             else if (subType.code == TypeCode.Handle && (baseType.code == TypeCode.Handle || baseType.code == TypeCode.Interface))

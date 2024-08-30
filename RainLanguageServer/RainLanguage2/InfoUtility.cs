@@ -65,7 +65,9 @@ namespace RainLanguageServer.RainLanguage
             if (manager.TryGetDeclaration(type, out var declaration))
             {
                 var sb = new StringBuilder();
-                if (GetQualifier(type.library, declaration.space, space, sb)) sb.Append('.');
+                if (addCode || type.library != Manager.LIBRARY_KERNEL)
+                    if (GetQualifier(type.library, declaration.space, space, sb)) 
+                        sb.Append('.');
                 sb.Append(declaration.name.ToString());
                 if (addCode)
                 {
@@ -255,7 +257,7 @@ namespace RainLanguageServer.RainLanguage
             if (declaration == null)
             {
                 var count = callable.space.declarations[callable.name.ToString()].Count;
-                if (count > 1) sb.Append($" +{count} 个重载");
+                if (count > 1) sb.Append($" (+{count}个重载)");
             }
             else
             {
