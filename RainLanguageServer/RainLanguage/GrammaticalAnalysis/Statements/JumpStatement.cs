@@ -6,13 +6,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
     {
         public readonly TextRange symbol;
         public readonly Expression? condition;
-        public readonly List<TextRange>? group;
+        public List<TextRange>? group;
 
-        public JumpStatement(TextRange symbol, List<TextRange>? group, Expression? condition)
+        public JumpStatement(TextRange symbol, Expression? condition)
         {
             range = condition == null ? symbol : symbol & condition.range;
             this.symbol = symbol;
-            this.group = group;
             this.condition = condition;
         }
 
@@ -40,6 +39,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
             condition?.CollectSemanticToken(manager, collector);
         }
     }
-    internal class BreakStatement(TextRange symbol, List<TextRange>? group, Expression? condition) : JumpStatement(symbol, group, condition) { }
-    internal class ContinueStatement(TextRange symbol, List<TextRange>? group, Expression? condition) : JumpStatement(symbol, group, condition) { }
+    internal class BreakStatement(TextRange symbol, Expression? condition) : JumpStatement(symbol, condition) { }
+    internal class ContinueStatement(TextRange symbol, Expression? condition) : JumpStatement(symbol, condition) { }
 }

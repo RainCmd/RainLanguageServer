@@ -239,11 +239,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     else if (condition.tuple[0] != manager.kernelManager.BOOL) collector.Add(condition.range, ErrorLevel.Error, "表达式返回值不是一个布尔值");
                                 }
                             }
-                            if (!TryGetLoopStatement(stack, out var loop))
-                                collector.Add(lexical.anchor, ErrorLevel.Error, "brack语句必须while或for循环中");
-                            var jump = new BreakStatement(lexical.anchor, loop?.group, condition);
-                            loop?.group.Add(lexical.anchor);
-                            stack.Peek().Add(jump);
+                            stack.Peek().Add(new BreakStatement(lexical.anchor, condition));
                         }
                         else if (lexical.anchor == KeyWords.CONTINUE)
                         {
@@ -258,11 +254,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     else if (condition.tuple[0] != manager.kernelManager.BOOL) collector.Add(condition.range, ErrorLevel.Error, "表达式返回值不是一个布尔值");
                                 }
                             }
-                            if (!TryGetLoopStatement(stack, out var loop))
-                                collector.Add(lexical.anchor, ErrorLevel.Error, "continue语句必须while或for循环中");
-                            var jump = new ContinueStatement(lexical.anchor, loop?.group, condition);
-                            loop?.group.Add(lexical.anchor);
-                            stack.Peek().Add(jump);
+                            stack.Peek().Add(new ContinueStatement(lexical.anchor, condition));
                         }
                         else if (lexical.anchor == KeyWords.RETURN)
                         {
@@ -358,18 +350,60 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         }
                     }
                 }
+                Trim(logicBlock.statements);
                 var parameter = new ExpressionParameter(manager, collector);
                 foreach (var statement in logicBlock.statements)
                     statement.Read(parameter);
             }
             for (var i = 0; i < logicBlock.statements.Count; i++)
+            {
+                CheckFunctionStatementValidity(logicBlock.statements[i], null, false);
                 if (CheckReturn(logicBlock.statements[i]))
                 {
                     InaccessibleCodeWarning(logicBlock.statements, i);
                     return;
                 }
+            }
             if (returns.Count > 0)
                 collector.Add(name, ErrorLevel.Error, "不是所有路径都有返回值");
+        }
+        private void CheckFunctionStatementValidity(Statement statement, List<TextRange>? loopGroup, bool exited)
+        {
+            if (statement is BlockStatement blockStatement)
+            {
+                foreach (var item in blockStatement.statements)
+                    CheckFunctionStatementValidity(item, loopGroup, exited);
+            }
+            else if (statement is BranchStatement branchStatement)
+            {
+                if (branchStatement.trueBranch != null) CheckFunctionStatementValidity(branchStatement.trueBranch, loopGroup, exited);
+                if (branchStatement.falseBranch != null) CheckFunctionStatementValidity(branchStatement.falseBranch, loopGroup, exited);
+            }
+            else if (statement is LoopStatement loopStatement)
+            {
+                if (loopStatement.loopBlock != null) CheckFunctionStatementValidity(loopStatement.loopBlock, loopStatement.group, exited);
+                if (loopStatement.elseBlock != null) CheckFunctionStatementValidity(loopStatement.elseBlock, loopGroup, exited);
+            }
+            else if (statement is TryStatement tryStatement)
+            {
+                if (tryStatement.tryBlock != null) CheckFunctionStatementValidity(tryStatement.tryBlock, loopGroup, exited);
+                foreach (var item in tryStatement.catchBlocks)
+                    CheckFunctionStatementValidity(item.block, null, true);
+                if (tryStatement.finallyBlock != null) CheckFunctionStatementValidity(tryStatement.finallyBlock, null, true);
+            }
+            else if (statement is JumpStatement jumpStatement)
+            {
+                if (loopGroup == null) collector.Add(jumpStatement.symbol, ErrorLevel.Error, "不在循环语句中");
+                else
+                {
+                    jumpStatement.group = loopGroup;
+                    loopGroup.Add(jumpStatement.symbol);
+                }
+            }
+            else if (statement is ReturnStatement returnStatement)
+            {
+                if (exited) collector.Add(returnStatement.symbol, ErrorLevel.Error, "catch和finally中不能返回");
+            }
         }
         private static void Trim(List<Statement> statements)
         {
