@@ -64,7 +64,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                         if (TryGetFunction(methodMember.range, methodMember.callables, bracket.tuple, out var callable))
                                         {
                                             bracket = bracket.Replace(AssignmentConvert(bracket.expression, callable.signature));
-                                            expression = new InvokerMemberExpression(methodMember.range & bracket.range, callable.returns, methodMember.symbol, methodMember.range, methodMember.target, callable, bracket, manager.kernelManager);
+                                            expression = new InvokerMemberExpression(methodMember.range & bracket.range, callable.returns, methodMember.symbol, methodMember.member, methodMember.target, callable, bracket, manager.kernelManager);
                                             expressionStack.Push(expression);
                                             attribute = expression.attribute;
                                             goto label_next_lexical;
@@ -79,7 +79,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                         if (TryGetFunction(methodVirtual.range, methodVirtual.callables, bracket.tuple, out var callable))
                                         {
                                             bracket = bracket.Replace(AssignmentConvert(bracket.expression, callable.signature));
-                                            expression = new InvokerVirtualExpression(methodVirtual.range & bracket.range, callable.returns, methodVirtual.symbol, methodVirtual.range, methodVirtual.target, callable, bracket, manager.kernelManager);
+                                            expression = new InvokerVirtualExpression(methodVirtual.range & bracket.range, callable.returns, methodVirtual.symbol, methodVirtual.member, methodVirtual.target, callable, bracket, manager.kernelManager);
                                             expressionStack.Push(expression);
                                             attribute = expression.attribute;
                                             goto label_next_lexical;

@@ -211,7 +211,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     condition = parser.Parse(range);
                                     back = null;
                                 }
-                                if (condition.Valid && !(condition.attribute.ContainAny(ExpressionAttribute.Value) && condition.tuple[0] != manager.kernelManager.BOOL))
+                                if (condition.Valid && !(condition.attribute.ContainAny(ExpressionAttribute.Value) && condition.tuple[0] == manager.kernelManager.BOOL))
                                     collector.Add(condition.range, ErrorLevel.Error, "表达式返回值不是布尔类型");
                                 var loop = new ForStatement(lexical.anchor, condition, separator1.anchor, separator2.type == LexicalType.Semicolon ? separator2.anchor : null, front, back);
                                 loop.group.Add(lexical.anchor);

@@ -422,7 +422,11 @@ namespace RainLanguageServer.RainLanguage
                 }
                 return fileVariable.type.FindReferences(manager, position, type, references);
             }
-            public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.MemberField, name);
+            public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+            {
+                collector.AddType(fileVariable.type, manager, type);
+                collector.Add(DetailTokenType.MemberField, name);
+            }
         }
         internal class Function(FileStruct.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
