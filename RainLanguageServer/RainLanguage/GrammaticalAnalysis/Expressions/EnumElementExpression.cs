@@ -75,7 +75,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             type.CollectSemanticToken(manager, collector);
             collector.Add(DetailTokenType.Operator, symbol);
-            collector.Add(DetailTokenType.EnumElement, symbol);
+            collector.Add(DetailTokenType.MemberElement, symbol);
         }
     }
 }

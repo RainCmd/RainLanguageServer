@@ -8,18 +8,21 @@ namespace RainLanguageServer.RainLanguage
     {
         GlobalVariable,
         GlobalFunction,
-        EnumType,
-        EnumElement,
-        StructType,
-        InterfaceType,
-        HandleType,
-        MemberField,
-        MemberFunction,
-        Constructor,
-        DelegateType,
-        TaskType,
         NativeFunction,
 
+        TypeEnum,
+        TypeStruct,
+        TypeInterface,
+        TypeHandle,
+        TypeDelegate,
+        TypeTask,
+
+        MemberElement,
+        MemberField,
+        MemberFunction,
+        MemberConstructor,
+
+        Constant,
         Parameter,
         Local,
 
@@ -27,13 +30,14 @@ namespace RainLanguageServer.RainLanguage
         KeywordType,
         KeywordVariable,// this base global
         KeywordConst,//true false null
+
         Numeric,
         String,
-        Operator,
-        Constant,
-        Namespace,
 
+        Namespace,
         Label,
+
+        Operator,
     }
     internal static class InfoUtility
     {
@@ -66,7 +70,7 @@ namespace RainLanguageServer.RainLanguage
             {
                 var sb = new StringBuilder();
                 if (addCode || type.library != Manager.LIBRARY_KERNEL)
-                    if (GetQualifier(type.library, declaration.space, space, sb)) 
+                    if (GetQualifier(type.library, declaration.space, space, sb))
                         sb.Append('.');
                 sb.Append(declaration.name.ToString());
                 if (addCode)
@@ -438,22 +442,22 @@ namespace RainLanguageServer.RainLanguage
                 {
                     case TypeCode.Invalid: goto default;
                     case TypeCode.Struct:
-                        collector.Add(DetailTokenType.StructType, range);
+                        collector.Add(DetailTokenType.TypeStruct, range);
                         break;
                     case TypeCode.Enum:
-                        collector.Add(DetailTokenType.EnumType, range);
+                        collector.Add(DetailTokenType.TypeEnum, range);
                         break;
                     case TypeCode.Handle:
-                        collector.Add(DetailTokenType.HandleType, range);
+                        collector.Add(DetailTokenType.TypeHandle, range);
                         break;
                     case TypeCode.Interface:
-                        collector.Add(DetailTokenType.InterfaceType, range);
+                        collector.Add(DetailTokenType.TypeInterface, range);
                         break;
                     case TypeCode.Delegate:
-                        collector.Add(DetailTokenType.DelegateType, range);
+                        collector.Add(DetailTokenType.TypeDelegate, range);
                         break;
                     case TypeCode.Task:
-                        collector.Add(DetailTokenType.TaskType, range);
+                        collector.Add(DetailTokenType.TypeTask, range);
                         break;
                     default:
                         collector.Add(DetailTokenType.Label, range);
@@ -473,77 +477,86 @@ namespace RainLanguageServer.RainLanguage
             switch (type)
             {
                 case DetailTokenType.GlobalVariable:
-                    collector.AddRange(SemanticTokenType.Variable, range);
+                    collector.AddRange(SemanticTokenType.Variable, SemanticTokenModifier.Static, range);
                     break;
                 case DetailTokenType.GlobalFunction:
-                    collector.AddRange(SemanticTokenType.Function, range);
-                    break;
-                case DetailTokenType.EnumType:
-                    collector.AddRange(SemanticTokenType.Enum, range);
-                    break;
-                case DetailTokenType.EnumElement:
-                    collector.AddRange(SemanticTokenType.EnumMember, range);
-                    break;
-                case DetailTokenType.StructType:
-                    collector.AddRange(SemanticTokenType.Struct, range);
-                    break;
-                case DetailTokenType.InterfaceType:
-                    collector.AddRange(SemanticTokenType.Interface, range);
-                    break;
-                case DetailTokenType.HandleType:
-                    collector.AddRange(SemanticTokenType.Class, range);
-                    break;
-                case DetailTokenType.MemberField:
-                    collector.AddRange(SemanticTokenType.Variable, range);
-                    break;
-                case DetailTokenType.MemberFunction:
-                    collector.AddRange(SemanticTokenType.Function, range);
-                    break;
-                case DetailTokenType.Constructor:
-                    collector.AddRange(SemanticTokenType.Class, range);
-                    break;
-                case DetailTokenType.DelegateType:
-                    collector.AddRange(SemanticTokenType.Type, range);
-                    break;
-                case DetailTokenType.TaskType:
-                    collector.AddRange(SemanticTokenType.Type, range);
+                    collector.AddRange(SemanticTokenType.Function, SemanticTokenModifier.Static, range);
                     break;
                 case DetailTokenType.NativeFunction:
-                    collector.AddRange(SemanticTokenType.Function, range);
+                    collector.AddRange(SemanticTokenType.Function, SemanticTokenModifier.Static, range);
+                    break;
+
+                case DetailTokenType.TypeEnum:
+                    collector.AddRange(SemanticTokenType.Enum, SemanticTokenModifier.Definition, range);
+                    break;
+                case DetailTokenType.TypeStruct:
+                    collector.AddRange(SemanticTokenType.Struct, SemanticTokenModifier.Definition, range);
+                    break;
+                case DetailTokenType.TypeInterface:
+                    collector.AddRange(SemanticTokenType.Interface, SemanticTokenModifier.Definition, range);
+                    break;
+                case DetailTokenType.TypeHandle:
+                    collector.AddRange(SemanticTokenType.Class, SemanticTokenModifier.Definition, range);
+                    break;
+                case DetailTokenType.TypeDelegate:
+                    collector.AddRange(SemanticTokenType.Type, SemanticTokenModifier.Definition, range);
+                    break;
+                case DetailTokenType.TypeTask:
+                    collector.AddRange(SemanticTokenType.Type, SemanticTokenModifier.Definition, range);
+                    break;
+
+                case DetailTokenType.MemberElement:
+                    collector.AddRange(SemanticTokenType.EnumMember, SemanticTokenModifier.Readonly, range);
+                    break;
+                case DetailTokenType.MemberField:
+                    collector.AddRange(SemanticTokenType.Variable, SemanticTokenModifier.Documentation, range);
+                    break;
+                case DetailTokenType.MemberFunction:
+                    collector.AddRange(SemanticTokenType.Function, SemanticTokenModifier.Documentation, range);
+                    break;
+                case DetailTokenType.MemberConstructor:
+                    collector.AddRange(SemanticTokenType.Type, SemanticTokenModifier.Documentation, range);
+                    break;
+
+                case DetailTokenType.Constant:
+                    collector.AddRange(SemanticTokenType.Macro, SemanticTokenModifier.Readonly, range);
                     break;
                 case DetailTokenType.Parameter:
-                    collector.AddRange(SemanticTokenType.Parameter, range);
+                    collector.AddRange(SemanticTokenType.Parameter, SemanticTokenModifier.Modification, range);
                     break;
                 case DetailTokenType.Local:
-                    collector.AddRange(SemanticTokenType.Variable, range);
+                    collector.AddRange(SemanticTokenType.Variable, SemanticTokenModifier.Modification, range);
                     break;
+
                 case DetailTokenType.KeywordCtrl:
+                    collector.AddRange(SemanticTokenType.Keyword, SemanticTokenModifier.Async, range);
                     break;
                 case DetailTokenType.KeywordType:
-                    collector.AddRange(SemanticTokenType.Keyword, range);
+                    collector.AddRange(SemanticTokenType.Type, SemanticTokenModifier.DefaultLibrary, range);
                     break;
                 case DetailTokenType.KeywordVariable:
-                    collector.AddRange(SemanticTokenType.Keyword, range);
+                    collector.AddRange(SemanticTokenType.Variable, SemanticTokenModifier.DefaultLibrary, range);
                     break;
                 case DetailTokenType.KeywordConst:
-                    collector.AddRange(SemanticTokenType.Keyword, range);
+                    collector.AddRange(SemanticTokenType.Macro, SemanticTokenModifier.Readonly, range);
                     break;
+
                 case DetailTokenType.Numeric:
-                    collector.AddRange(SemanticTokenType.Number, range);
+                    collector.AddRange(SemanticTokenType.Number, SemanticTokenModifier.Readonly, range);
                     break;
                 case DetailTokenType.String:
+                    collector.AddRange(SemanticTokenType.String, SemanticTokenModifier.Readonly, range);
                     break;
-                case DetailTokenType.Operator:
-                    collector.AddRange(SemanticTokenType.Operator, range);
-                    break;
-                case DetailTokenType.Constant:
-                    collector.AddRange(SemanticTokenType.Const, range);
-                    break;
+
                 case DetailTokenType.Namespace:
-                    collector.AddRange(SemanticTokenType.Namespace, range);
+                    collector.AddRange(SemanticTokenType.Namespace, SemanticTokenModifier.Documentation, range);
                     break;
                 case DetailTokenType.Label:
-                    collector.AddRange(SemanticTokenType.Label, range);
+                    collector.AddRange(SemanticTokenType.Label, SemanticTokenModifier.Documentation, range);
+                    break;
+
+                case DetailTokenType.Operator:
+                    collector.AddRange(SemanticTokenType.Operator, SemanticTokenModifier.Documentation, range);
                     break;
             }
         }

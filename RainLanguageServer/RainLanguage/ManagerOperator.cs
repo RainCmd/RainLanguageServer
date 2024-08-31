@@ -164,7 +164,13 @@ namespace RainLanguageServer.RainLanguage
             foreach (var child in space.children)
                 CollectSemanticToken(manager, collector, child);
             if (space.name != null)
-                collector.AddRange(SemanticTokenType.Namespace, space.name.Value);
+                collector.Add(DetailTokenType.Namespace, space.name.Value);
+            foreach (var import in space.imports)
+                for (var i = 0; i < import.names.Count; i++)
+                {
+                    if (i > 0) collector.Add(DetailTokenType.Operator, import.names[i - 1].end & import.names[i].start);
+                    collector.Add(DetailTokenType.Namespace, import.names[i]);
+                }
             foreach (var declaration in space.variables) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
             foreach (var declaration in space.functions) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
             foreach (var declaration in space.enums) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
@@ -227,18 +233,18 @@ namespace RainLanguageServer.RainLanguage
                 {
                     infos.Add(new CodeLenInfo(abstractClass.name, $"引用：{abstractClass.references.Count}"));
                     infos.Add(new CodeLenInfo(abstractClass.name, $"子类：{abstractClass.implements.Count}"));
-                    foreach(var member in abstractClass.variables)
+                    foreach (var member in abstractClass.variables)
                     {
                         infos.Add(new CodeLenInfo(member.name, $"读取：{member.references.Count}"));
                         infos.Add(new CodeLenInfo(member.name, $"写入：{member.write.Count}"));
                     }
-                    foreach(var member in abstractClass.functions)
+                    foreach (var member in abstractClass.functions)
                     {
                         infos.Add(new CodeLenInfo(member.name, $"引用：{member.references.Count}"));
                         infos.Add(new CodeLenInfo(member.name, $"实现：{member.implements.Count}"));
                         infos.Add(new CodeLenInfo(member.name, $"覆盖：{member.overrides.Count}"));
                     }
-                    foreach(var member in abstractClass.constructors)
+                    foreach (var member in abstractClass.constructors)
                         infos.Add(new CodeLenInfo(member.name, $"引用：{member.references.Count}"));
                 }
             foreach (var file in space.delegates)

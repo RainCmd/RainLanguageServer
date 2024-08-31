@@ -329,7 +329,7 @@ namespace RainLanguageServer.RainLanguage
             }
             public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
             {
-                collector.Add(DetailTokenType.EnumElement, name);
+                collector.Add(DetailTokenType.MemberElement, name);
                 expression?.CollectSemanticToken(manager, collector);
             }
         }
@@ -374,7 +374,7 @@ namespace RainLanguageServer.RainLanguage
         }
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            collector.Add(DetailTokenType.EnumType, name);
+            collector.Add(DetailTokenType.TypeEnum, name);
             foreach (var element in elements)
                 element.CollectSemanticToken(manager, collector);
         }
@@ -498,7 +498,7 @@ namespace RainLanguageServer.RainLanguage
         }
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            collector.Add(DetailTokenType.StructType, name);
+            collector.Add(DetailTokenType.TypeStruct, name);
             foreach (var variable in variables) variable.CollectSemanticToken(manager, collector);
             foreach (var function in functions) function.CollectSemanticToken(manager, collector);
         }
@@ -582,7 +582,7 @@ namespace RainLanguageServer.RainLanguage
         }
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            collector.Add(DetailTokenType.InterfaceType, name);
+            collector.Add(DetailTokenType.TypeInterface, name);
             for (var i = 0; i < fileInterface.inherits.Count; i++)
                 collector.AddType(fileInterface.inherits[i], manager, inherits[i]);
             foreach (var function in functions)
@@ -682,7 +682,7 @@ namespace RainLanguageServer.RainLanguage
             }
             public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
             {
-                collector.Add(DetailTokenType.Constructor, name);
+                collector.Add(DetailTokenType.MemberConstructor, name);
                 expression?.CollectSemanticToken(manager, collector);
                 CollectSemanticToken(manager, collector, fileConstructor.returns, fileConstructor.parameters, logicBlock);
             }
@@ -840,7 +840,7 @@ namespace RainLanguageServer.RainLanguage
         }
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            collector.Add(DetailTokenType.HandleType, name);
+            collector.Add(DetailTokenType.TypeHandle, name);
             for (var i = 0; i < fileClass.inherits.Count; i++)
             {
                 if (fileClass.inherits.Count == inherits.Count) collector.AddType(fileClass.inherits[i], manager, inherits[i]);
@@ -863,7 +863,7 @@ namespace RainLanguageServer.RainLanguage
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => FindReferences(manager, position, fileDelegate.returns, fileDelegate.parameters, null, references);
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            collector.Add(DetailTokenType.DelegateType, name);
+            collector.Add(DetailTokenType.TypeDelegate, name);
             CollectSemanticToken(manager, collector, fileDelegate.returns, fileDelegate.parameters, null);
         }
     }
@@ -911,7 +911,7 @@ namespace RainLanguageServer.RainLanguage
         }
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            collector.Add(DetailTokenType.TaskType, name);
+            collector.Add(DetailTokenType.TypeTask, name);
             for (var i = 0; i < returns.Count; i++)
                 collector.AddType(fileTask.returns[i], manager, returns[i]);
         }
