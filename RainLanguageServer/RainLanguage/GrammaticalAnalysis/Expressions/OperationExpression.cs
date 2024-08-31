@@ -16,6 +16,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (tuple.Count == 1) attribute = ExpressionAttribute.Value | tuple[0].GetAttribute(manager);
             else attribute = ExpressionAttribute.Tuple;
         }
+        public override bool Calculability() => callable.declaration.library == Manager.LIBRARY_KERNEL && parameters.Calculability();
         public override void Read(ExpressionParameter parameter)
         {
             callable.references.Add(symbol);

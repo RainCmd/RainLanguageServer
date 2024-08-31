@@ -243,11 +243,14 @@ namespace RainLanguageServer.RainLanguage
                 }
             foreach (var rely in relies)
                 if (rely.declarations.TryGetValue(name, out var declarations))
-                {
                     foreach (var declaration in declarations)
                         if (IsVisiable(manager, declaration) && manager.TryGetDeclaration(declaration, out var result))
                             results.Add(result);
-                }
+            if (!relies.Contains(manager.kernel))
+                if (manager.kernel.declarations.TryGetValue(name, out var declarations))
+                    foreach (var declaration in declarations)
+                        if (IsVisiable(manager, declaration) && manager.TryGetDeclaration(declaration, out var result))
+                            results.Add(result);
             return results.Count > 0;
         }
         public List<AbstractDeclaration> FindDeclaration(Manager manager, TextRange name, MessageCollector collector)

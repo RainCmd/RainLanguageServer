@@ -22,6 +22,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             return expression.TryEvaluateIndices(indices);
         }
+        public override bool Calculability() => expression.Calculability();
         public override void Read(ExpressionParameter parameter) => expression.Read(parameter);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
