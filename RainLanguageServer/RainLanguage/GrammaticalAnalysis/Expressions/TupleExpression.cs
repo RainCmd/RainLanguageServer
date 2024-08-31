@@ -2,159 +2,145 @@
 {
     internal class TupleExpression : Expression
     {
-        public readonly List<Expression> expressions;
-        private TupleExpression(TextRange range, Tuple types, List<Expression> expressions) : base(range, types)
+        public readonly IList<Expression> expressions;
+        public override bool Valid
+        {
+            get
+            {
+                foreach (var expression in expressions) if (!expression.Valid) return false;
+                return true;
+            }
+        }
+        public TupleExpression(TextRange range, Tuple tuple, IList<Expression> expressions) : base(range, tuple)
         {
             this.expressions = expressions;
             attribute = ExpressionAttribute.Assignable;
             foreach (var expression in expressions) attribute &= expression.attribute;
-            if (types.Count == 1) attribute |= ExpressionAttribute.Value;
+            if (tuple.Count == 1) attribute |= ExpressionAttribute.Value;
             else attribute |= ExpressionAttribute.Tuple;
         }
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
+        public TupleExpression(TextRange range) : this(range, Tuple.Empty, empty) { }
+        public override bool TryEvaluateIndices(List<long> indices)
+        {
+            foreach (var expression in expressions)
+                if (!expression.TryEvaluateIndices(indices)) return false;
+            return true;
+        }
+        public override void Read(ExpressionParameter parameter)
+        {
+            foreach (var expression in expressions) expression.Read(parameter);
+        }
+        public static Expression Create(IList<Expression> expressions, MessageCollector collector)
+        {
+            if (expressions.Count == 0) throw new Exception("至少需要一个表达式，否则无法计算表达式范围");
+            var types = new List<Type>();
+            foreach (var expression in expressions)
+            {
+                if (expression.attribute == ExpressionAttribute.Invalid) return new InvalidExpression(expressions);
+                else if (expression.attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple)) types.AddRange(expression.tuple);
+                else
+                {
+                    collector.Add(expression.range, ErrorLevel.Error, "无效的操作");
+                    return new InvalidExpression(expressions);
+                }
+            }
+            return new TupleExpression(expressions[0].range & expressions[^1].range, new Tuple([.. types]), expressions);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
             foreach (var expression in expressions)
                 if (expression.range.Contain(position))
                     return expression.OnHover(manager, position, out info);
-            return base.OnHover(manager, position, out info);
+            info = default;
+            return false;
         }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
             foreach (var expression in expressions)
                 if (expression.range.Contain(position))
                     return expression.OnHighlight(manager, position, infos);
-            return base.OnHighlight(manager, position, infos);
+            return false;
         }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
         {
             foreach (var expression in expressions)
                 if (expression.range.Contain(position))
-                    return expression.TryGetDeclaration(manager, position, out result);
-            return base.TryGetDeclaration(manager, position, out result);
-        }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
-        {
-            foreach (var expression in expressions)
-                expression.CollectSemanticToken(collector);
-        }
-        public override void Read(ExpressionParameter parameter)
-        {
-            foreach (var e in expressions) e.Read(parameter);
-        }
-        public override void Write(ExpressionParameter parameter)
-        {
-            foreach (var e in expressions) e.Write(parameter);
-        }
-        public override bool TryEvaluateIndices(List<long> indices)
-        {
-            foreach (var expression in expressions)
-                if (!expression.TryEvaluateIndices(indices))
-                    return false;
-            return true;
+                    return expression.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
         }
 
-        public static Expression Create(List<Expression> expressions, MessageCollector collector)
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
-            if (expressions.Count == 0) return Empty;
-            var types = new List<Type>();
             foreach (var expression in expressions)
-            {
-                if (expression.Valid)
-                {
-                    if (expression.attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple | ExpressionAttribute.Assignable))
-                        types.AddRange(expression.types);
-                    else
-                    {
-                        collector.Add(expression.range, CErrorLevel.Error, "无效的操作");
-                        return new InvalidExpression(expression);
-                    }
-                }
-                else return new InvalidExpression(expression);
-            }
-            return new TupleExpression(new TextRange(expressions[0].range.start, expressions[^1].range.end), new Tuple(types), expressions);
+                if (expression.range.Contain(position))
+                    return expression.FindReferences(manager, position, references);
+            return false;
         }
-        public static TupleExpression CreateEmpty(TextRange range) => new(range, new Tuple([]), []);
 
-        public static TupleExpression Empty = new(default, new Tuple([]), []);
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            foreach(var expression in expressions)
+                expression.CollectSemanticToken(manager, collector);
+        }
+
+        private static readonly IList<Expression> empty = [];
     }
     internal class TupleEvaluationExpression : Expression
     {
         public readonly Expression source;
-        public readonly Expression indices;
-        public TupleEvaluationExpression(TextRange range, Tuple types, Expression source, Expression indices) : base(range, types)
+        public readonly BracketExpression indices;
+        public override bool Valid => true;
+        public TupleEvaluationExpression(TextRange range, Tuple tuple, Expression source, BracketExpression indices, Manager.KernelManager manager) : base(range, tuple)
         {
             this.source = source;
             this.indices = indices;
-            if (types.Count == 1) attribute = ExpressionAttribute.Value | types[0].GetAttribute();
+            if (tuple.Count == 1) attribute = ExpressionAttribute.Value | tuple[0].GetAttribute(manager);
             else attribute = ExpressionAttribute.Tuple;
-        }
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
-        {
-            if (source.range.Contain(position)) return source.OnHover(manager, position, out info);
-            else if (indices.range.Contain(position)) return indices.OnHover(manager, position, out info);
-            return base.OnHover(manager, position, out info);
-        }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (source.range.Contain(position)) return source.OnHighlight(manager, position, infos);
-            else if (indices.range.Contain(position)) return indices.OnHighlight(manager, position, infos);
-            return base.OnHighlight(manager, position, infos);
-        }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
-        {
-            if (source.range.Contain(position)) return source.TryGetDeclaration(manager, position, out result);
-            else if (indices.range.Contain(position)) return indices.TryGetDeclaration(manager, position, out result);
-            return base.TryGetDeclaration(manager, position, out result);
-        }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
-        {
-            source.CollectSemanticToken(collector);
-            indices.CollectSemanticToken(collector);
         }
         public override void Read(ExpressionParameter parameter)
         {
             source.Read(parameter);
             indices.Read(parameter);
         }
-    }
-    internal class TupleAssignmentExpression : Expression
-    {
-        public readonly Expression left;
-        public readonly Expression right;
-        public TupleAssignmentExpression(TextRange range, Expression left, Expression right) : base(range, left.types)
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
-            this.left = left;
-            this.right = right;
-            attribute = left.attribute & ~ExpressionAttribute.Assignable;
+            if (source.range.Contain(position)) return source.OnHover(manager, position, out info);
+            if (indices.range.Contain(position)) return indices.OnHover(manager, position, out info);
+            info = default;
+            return false;
         }
-        public override bool Valid => left.Valid && left.attribute.ContainAll(ExpressionAttribute.Assignable);
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
-            if (left.range.Contain(position)) return left.OnHover(manager, position, out info);
-            else if (right.range.Contain(position)) return right.OnHover(manager, position, out info);
-            return base.OnHover(manager, position, out info);
+            if (source.range.Contain(position)) return source.OnHighlight(manager, position, infos);
+            if (indices.range.Contain(position)) return indices.OnHighlight(manager, position, infos);
+            return false;
         }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
         {
-            if (left.range.Contain(position)) return left.OnHighlight(manager, position, infos);
-            else if (right.range.Contain(position)) return right.OnHighlight(manager, position, infos);
-            return base.OnHighlight(manager, position, infos);
+            if (source.range.Contain(position)) return source.TryGetDefinition(manager, position, out definition);
+            if (indices.range.Contain(position)) return indices.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
         }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
-            if (left.range.Contain(position)) return left.TryGetDeclaration(manager, position, out result);
-            else if (right.range.Contain(position)) return right.TryGetDeclaration(manager, position, out result);
-            return base.TryGetDeclaration(manager, position, out result);
+            if (source.range.Contain(position)) return source.FindReferences(manager, position, references);
+            if (indices.range.Contain(position)) return indices.FindReferences(manager, position, references);
+            return false;
         }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            left.CollectSemanticToken(collector);
-            right.CollectSemanticToken(collector);
-        }
-        public override void Read(ExpressionParameter parameter)
-        {
-            if (Valid) left.Write(parameter);
-            right.Read(parameter);
+            source.CollectSemanticToken(manager, collector);
+            indices.CollectSemanticToken(manager, collector);
         }
     }
 }

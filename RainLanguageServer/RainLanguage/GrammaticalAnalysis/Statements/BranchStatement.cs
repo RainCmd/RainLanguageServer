@@ -1,55 +1,47 @@
 ﻿
+using System;
+
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
-    internal class BranchStatement : Statement
+    internal class BranchStatement(TextRange ifSymbol, Expression condition, List<TextRange> group) : Statement
     {
-        public readonly Expression condition;
+        public readonly TextRange ifSymbol = ifSymbol;
+        public TextRange? elseSymbol;
+        public readonly Expression condition = condition;
         public BlockStatement? trueBranch, falseBranch;
-        public List<TextRange> group;
-        public BranchStatement(TextRange anchor, Expression condition, List<TextRange> group):base(anchor)
+        public readonly List<TextRange> group = group;
+
+        public override void Operator(Action<Expression> action)
         {
-            this.condition = condition;
-            this.group = group;
-            group.Add(anchor);
+            action(condition);
+            trueBranch?.Operator(action);
+            falseBranch?.Operator(action);
         }
-        public override void Read(ExpressionParameter parameter)
+        public override bool Operator(TextPosition position, ExpressionOperator action)
         {
-            condition.Read(parameter);
-            trueBranch?.Read(parameter);
-            falseBranch?.Read(parameter);
+            if (condition.range.Contain(position)) return action(condition);
+            if (trueBranch != null && trueBranch.range.Contain(position)) return trueBranch.Operator(position, action);
+            if (falseBranch != null && falseBranch.range.Contain(position)) return falseBranch.Operator(position, action);
+            return false;
         }
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
+        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
         {
-            if (condition.range.Contain(position)) return condition.OnHover(manager, position, out info);
-            else if (trueBranch != null && trueBranch.range.Contain(position)) return trueBranch.OnHover(manager, position, out info);
-            else if (falseBranch != null && falseBranch.range.Contain(position)) return falseBranch.OnHover(manager, position, out info);
-            return base.OnHover(manager, position, out info);
-        }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (anchor.Contain(position))
+            if (ifSymbol.Contain(position) || (elseSymbol != null && elseSymbol.Value.Contain(position)))
             {
-                foreach (var anchor in group)
-                    infos.Add(new HighlightInfo(anchor, LanguageServer.Parameters.TextDocument.DocumentHighlightKind.Text));
+                InfoUtility.HighlightGroup(group, infos);
                 return true;
             }
-            else if (condition.range.Contain(position)) return condition.OnHighlight(manager, position, infos);
-            else if (trueBranch != null && trueBranch.range.Contain(position)) return trueBranch.OnHighlight(manager, position, infos);
-            else if (falseBranch != null && falseBranch.range.Contain(position)) return falseBranch.OnHighlight(manager, position, infos);
-            return base.OnHighlight(manager, position, infos);
+            if (trueBranch != null && trueBranch.range.Contain(position)) return trueBranch.TryHighlightGroup(position, infos);
+            if (falseBranch != null && falseBranch.range.Contain(position)) return falseBranch.TryHighlightGroup(position, infos);
+            return false;
         }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            if (condition.range.Contain(position)) return condition.TryGetDeclaration(manager, position, out result);
-            else if (trueBranch != null && trueBranch.range.Contain(position)) return trueBranch.TryGetDeclaration(manager, position, out result);
-            else if (falseBranch != null && falseBranch.range.Contain(position)) return falseBranch.TryGetDeclaration(manager, position, out result);
-            return base.TryGetDeclaration(manager, position, out result);
-        }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
-        {
-            condition.CollectSemanticToken(collector);
-            trueBranch?.CollectSemanticToken(collector);
-            falseBranch?.CollectSemanticToken(collector);
+            collector.Add(DetailTokenType.KeywordCtrl, ifSymbol);
+            if (elseSymbol != null) collector.Add(DetailTokenType.KeywordCtrl, elseSymbol.Value);
+            condition.CollectSemanticToken(manager, collector);
+            trueBranch?.CollectSemanticToken(manager, collector);
+            falseBranch?.CollectSemanticToken(manager, collector);
         }
     }
 }

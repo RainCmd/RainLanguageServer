@@ -1,22 +1,22 @@
 ﻿
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
-    internal class LogicExpression : Expression
+    internal class AssignmentExpression : Expression
     {
         public readonly TextRange symbol;
-        public readonly Expression left, right;
+        public readonly Expression left;
+        public readonly Expression right;
         public override bool Valid => true;
-
-        public LogicExpression(TextRange range, TextRange symbol, Expression left, Expression right, Manager.KernelManager manager) : base(range, manager.BOOL)
+        public AssignmentExpression(TextRange range, TextRange symbol, Expression left, Expression right) : base(range, left.tuple)
         {
             this.symbol = symbol;
             this.left = left;
             this.right = right;
-            attribute = ExpressionAttribute.Value;
+            attribute = left.attribute & ~ExpressionAttribute.Assignable;
         }
         public override void Read(ExpressionParameter parameter)
         {
-            left.Read(parameter);
+            if (left.attribute.ContainAny(ExpressionAttribute.Assignable)) left.Write(parameter);
             right.Read(parameter);
         }
 

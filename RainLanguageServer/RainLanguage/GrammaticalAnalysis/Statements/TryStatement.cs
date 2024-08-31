@@ -1,76 +1,77 @@
-﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
+﻿
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
-    internal class TryStatement(TextRange anchor) : Statement(anchor)
+    internal class TryStatement(TextRange trySymbol) : Statement
     {
-        public class CatchBlock(Expression condition, BlockStatement block)
+        public readonly struct CatchBlock(TextRange catchSymbol, Expression? expression, BlockStatement block)
         {
-            public Expression condition = condition;
-            public BlockStatement block = block;
+            public readonly TextRange catchSymbol = catchSymbol;
+            public readonly Expression? expression = expression;
+            public readonly BlockStatement block = block;
         }
+        public readonly TextRange trySymbol = trySymbol;
+        public TextRange? finallySymbol;
         public BlockStatement? tryBlock;
         public readonly List<CatchBlock> catchBlocks = [];
         public BlockStatement? finallyBlock;
-        public readonly List<TextRange> group = [anchor];
-        public override void Read(ExpressionParameter parameter)
+        public readonly List<TextRange> group = [];
+        public override void Operator(Action<Expression> action)
         {
-            tryBlock?.Read(parameter);
+            tryBlock?.Operator(action);
             foreach (var catchBlock in catchBlocks)
             {
-                catchBlock.condition.Read(parameter);
-                catchBlock.block.Read(parameter);
+                if (catchBlock.expression != null) action(catchBlock.expression);
+                catchBlock.block.Operator(action);
             }
-            finallyBlock?.Read(parameter);
+            finallyBlock?.Operator(action);
         }
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
+        public override bool Operator(TextPosition position, ExpressionOperator action)
         {
-            if (tryBlock != null && tryBlock.range.Contain(position)) return tryBlock.OnHover(manager, position, out info);
-            else if (finallyBlock != null && finallyBlock.range.Contain(position)) return finallyBlock.OnHover(manager, position, out info);
-            else
+            if (tryBlock != null && tryBlock.range.Contain(position)) return tryBlock.Operator(position, action);
+            foreach (var catchBlock in catchBlocks)
             {
-                foreach (var catchBlock in catchBlocks)
-                    if (catchBlock.condition.range.Contain(position)) return catchBlock.condition.OnHover(manager, position, out info);
-                    else if (catchBlock.block.range.Contain(position)) return catchBlock.block.OnHover(manager, position, out info);
+                if (catchBlock.expression != null && catchBlock.expression.range.Contain(position)) return action(catchBlock.expression);
+                if (catchBlock.block.range.Contain(position)) return catchBlock.block.Operator(position, action);
             }
-            return base.OnHover(manager, position, out info);
+            if (finallyBlock != null && finallyBlock.range.Contain(position)) return finallyBlock.Operator(position, action);
+            return false;
         }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
+        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
         {
-            if (anchor.Contain(position))
+            if (trySymbol.Contain(position))
             {
-                foreach (var anchor in group)
-                    infos.Add(new HighlightInfo(anchor, LanguageServer.Parameters.TextDocument.DocumentHighlightKind.Text));
+                InfoUtility.HighlightGroup(group, infos);
                 return true;
             }
-            else if (tryBlock != null && tryBlock.range.Contain(position)) return tryBlock.OnHighlight(manager, position, infos);
-            else if (finallyBlock != null && finallyBlock.range.Contain(position)) return finallyBlock.OnHighlight(manager, position, infos);
-            else
+            if (finallySymbol != null && finallySymbol.Value.Contain(position))
             {
-                foreach (var catchBlock in catchBlocks)
-                    if (catchBlock.condition.range.Contain(position)) return catchBlock.condition.OnHighlight(manager, position, infos);
-                    else if (catchBlock.block.range.Contain(position)) return catchBlock.block.OnHighlight(manager, position, infos);
+                InfoUtility.HighlightGroup(group, infos);
+                return true;
             }
-            return base.OnHighlight(manager, position, infos);
-        }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
-        {
-            if (tryBlock != null && tryBlock.range.Contain(position)) return tryBlock.TryGetDeclaration(manager, position, out result);
-            else if (finallyBlock != null && finallyBlock.range.Contain(position)) return finallyBlock.TryGetDeclaration(manager, position, out result);
-            else
-            {
-                foreach (var catchBlock in catchBlocks)
-                    if (catchBlock.condition.range.Contain(position)) return catchBlock.condition.TryGetDeclaration(manager, position, out result);
-                    else if (catchBlock.block.range.Contain(position)) return catchBlock.block.TryGetDeclaration(manager, position, out result);
-            }
-            return base.TryGetDeclaration(manager, position, out result);
-        }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
-        {
-            tryBlock?.CollectSemanticToken(collector);
-            finallyBlock?.CollectSemanticToken(collector);
             foreach (var catchBlock in catchBlocks)
             {
-                catchBlock.condition.CollectSemanticToken(collector);
-                catchBlock.block.CollectSemanticToken(collector);
+                if (catchBlock.catchSymbol.Contain(position))
+                {
+                    InfoUtility.HighlightGroup(group, infos);
+                    return true;
+                }
+                if (catchBlock.block.range.Contain(position)) return catchBlock.block.TryHighlightGroup(position, infos);
+            }
+            if (tryBlock != null && tryBlock.range.Contain(position)) return tryBlock.TryHighlightGroup(position, infos);
+            if (finallyBlock != null && finallyBlock.range.Contain(position)) return finallyBlock.TryHighlightGroup(position, infos);
+            return false;
+        }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.KeywordCtrl, trySymbol);
+            if (finallySymbol != null) collector.Add(DetailTokenType.KeywordCtrl, finallySymbol.Value);
+            tryBlock?.CollectSemanticToken(manager, collector);
+            finallyBlock?.CollectSemanticToken(manager, collector);
+            foreach (var catchBlock in catchBlocks)
+            {
+                collector.Add(DetailTokenType.KeywordCtrl, catchBlock.catchSymbol);
+                catchBlock.expression?.CollectSemanticToken(manager, collector);
+                catchBlock.block?.CollectSemanticToken(manager, collector);
             }
         }
     }

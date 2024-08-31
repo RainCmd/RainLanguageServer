@@ -1,13 +1,20 @@
 ﻿
+
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
-    internal class ExpressionStatement(Expression expression) : Statement(expression.range)
+    internal class ExpressionStatement : Statement
     {
-        public readonly Expression expression = expression;
-        public override void Read(ExpressionParameter parameter) => expression.Read(parameter);
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info) => expression.OnHover(manager, position, out info);
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos) => expression.OnHighlight(manager, position, infos);
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result) => expression.TryGetDeclaration(manager, position, out result);
-        public override void CollectSemanticToken(SemanticTokenCollector collector) => expression.CollectSemanticToken(collector);
+        public readonly Expression expression;
+
+        public ExpressionStatement(Expression expression)
+        {
+            range = expression.range;
+            this.expression = expression;
+        }
+
+        public override void Operator(Action<Expression> action) => action(expression);
+        public override bool Operator(TextPosition position, ExpressionOperator action) => expression.range.Contain(position) && action(expression);
+        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos) => false;
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => expression.CollectSemanticToken(manager, collector);
     }
 }

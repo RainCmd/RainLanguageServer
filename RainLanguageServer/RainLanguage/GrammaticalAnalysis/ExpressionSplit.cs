@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
     internal enum SplitFlag
     {
-        //left					right
+        //                      left					right
         Bracket0 = 0x001,       //(						)
         Bracket1 = 0x002,       //[						]
         Bracket2 = 0x004,       //{						}
@@ -26,15 +20,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         {
             return (flag & value) != 0;
         }
-        public static Lexical Split(TextRange range, TextPosition start, SplitFlag flag, out TextRange left, out TextRange right, MessageCollector collector)
-        {
-            return Split(range, start - range.start, flag, out left, out right, collector);
-        }
-        public static Lexical Split(TextRange range, int start, SplitFlag flag, out TextRange left, out TextRange right, MessageCollector collector)
+        public static Lexical Split(TextRange range, SplitFlag flag, out TextRange left, out TextRange right, MessageCollector collector)
         {
             var stack = new Stack<Lexical>();
-            for (var index = start; Lexical.TryAnalysis(range, index, out var lexical, collector); index = lexical.anchor.end - range.start)
-            {
+            for (var index = 0; Lexical.TryAnalysis(range, index, out var lexical, collector); index = lexical.anchor.end - range.start)
                 switch (lexical.type)
                 {
                     case LexicalType.Unknow: break;
@@ -44,80 +33,92 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         stack.Push(lexical);
                         break;
                     case LexicalType.BracketRight0:
-                        if (stack.Count > 0)
                         {
-                            var bracket = stack.Pop();
-                            if (bracket.type == LexicalType.BracketLeft0 || bracket.type == LexicalType.QuestionInvoke)
+                            var matched = false;
+                            while (stack.Count > 0)
                             {
-                                if (stack.Count == 0 && flag.ContainAny(SplitFlag.Bracket0))
+                                var bracket = stack.Pop();
+                                if (bracket.type == LexicalType.BracketLeft0 || lexical.type == LexicalType.QuestionInvoke)
                                 {
-                                    left = bracket.anchor;
-                                    right = lexical.anchor;
-                                    return lexical;
+                                    if (stack.Count == 0 && flag.ContainAny(SplitFlag.Bracket0))
+                                    {
+                                        left = bracket.anchor;
+                                        right = lexical.anchor;
+                                        return lexical;
+                                    }
+                                    matched = true;
+                                    break;
                                 }
-                                break;
+                                else collector.Add(bracket.anchor, ErrorLevel.Error, "缺少配对的符号");
                             }
-                            else collector.Add(bracket.anchor, CErrorLevel.Error, "缺少配对的括号");
+                            if (!matched) collector.Add(lexical.anchor, ErrorLevel.Error, "缺少配对的符号");
                         }
-                        collector.Add(lexical.anchor, CErrorLevel.Error, "缺少配对的括号");
                         break;
                     case LexicalType.BracketRight1:
-                        if (stack.Count > 0)
                         {
-                            var bracket = stack.Pop();
-                            if (bracket.type == LexicalType.BracketLeft1 || bracket.type == LexicalType.QuestionIndex)
+                            var matched = false;
+                            while (stack.Count > 0)
                             {
-                                if (stack.Count == 0 && flag.ContainAny(SplitFlag.Bracket1))
+                                var bracket = stack.Pop();
+                                if (bracket.type == LexicalType.BracketLeft1 || lexical.type == LexicalType.QuestionIndex)
                                 {
-                                    left = bracket.anchor;
-                                    right = lexical.anchor;
-                                    return lexical;
+                                    if (stack.Count == 0 && flag.ContainAny(SplitFlag.Bracket1))
+                                    {
+                                        left = bracket.anchor;
+                                        right = lexical.anchor;
+                                        return lexical;
+                                    }
+                                    matched = true;
+                                    break;
                                 }
-                                break;
+                                else collector.Add(bracket.anchor, ErrorLevel.Error, "缺少配对的符号");
                             }
-                            else collector.Add(bracket.anchor, CErrorLevel.Error, "缺少配对的括号");
+                            if (!matched) collector.Add(lexical.anchor, ErrorLevel.Error, "缺少配对的符号");
                         }
-                        collector.Add(lexical.anchor, CErrorLevel.Error, "缺少配对的括号");
                         break;
                     case LexicalType.BracketRight2:
-                        if (stack.Count > 0)
                         {
-                            var bracket = stack.Pop();
-                            if (bracket.type == LexicalType.BracketLeft2)
+                            var matched = false;
+                            while (stack.Count > 0)
                             {
-                                if (stack.Count == 0 && flag.ContainAny(SplitFlag.Bracket2))
+                                var bracket = stack.Pop();
+                                if (bracket.type == LexicalType.BracketLeft2)
                                 {
-                                    left = bracket.anchor;
-                                    right = lexical.anchor;
-                                    return lexical;
+                                    if (stack.Count == 0 && flag.ContainAny(SplitFlag.Bracket2))
+                                    {
+                                        left = bracket.anchor;
+                                        right = lexical.anchor;
+                                        return lexical;
+                                    }
+                                    matched = true;
+                                    break;
                                 }
-                                break;
+                                else collector.Add(bracket.anchor, ErrorLevel.Error, "缺少配对的符号");
                             }
-                            else collector.Add(bracket.anchor, CErrorLevel.Error, "缺少配对的括号");
+                            if (!matched) collector.Add(lexical.anchor, ErrorLevel.Error, "缺少配对的符号");
                         }
-                        collector.Add(lexical.anchor, CErrorLevel.Error, "缺少配对的括号");
                         break;
                     case LexicalType.Comma:
                         if (stack.Count == 0 && flag.ContainAny(SplitFlag.Comma))
                         {
-                            left = range[start..index];
-                            right = new(lexical.anchor.end, range.end);
+                            left = range[..index];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
                         break;
                     case LexicalType.Semicolon:
                         if (stack.Count == 0 && flag.ContainAny(SplitFlag.Semicolon))
                         {
-                            left = range[start..index];
-                            right = new TextRange(lexical.anchor.end, range.end);
+                            left = range[..index];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
                         break;
                     case LexicalType.Assignment:
                         if (stack.Count == 0 && flag.ContainAny(SplitFlag.Assignment))
                         {
-                            left = range[start..index];
-                            right = new TextRange(lexical.anchor.end, range.end);
+                            left = range[..index];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
                         break;
@@ -125,8 +126,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                     case LexicalType.Lambda:
                         if (stack.Count == 0 && flag.ContainAny(SplitFlag.Lambda))
                         {
-                            left = range[start..index];
-                            right = new TextRange(lexical.anchor.end, range.end);
+                            left = range[..index];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
                         break;
@@ -167,11 +168,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                     case LexicalType.Question:
                         if (stack.Count == 0 && flag.ContainAny(SplitFlag.Question))
                         {
-                            left = range[start..index];
-                            right = new TextRange(lexical.anchor.end, range.end);
+                            left = range[..index];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
-                        stack.Push(lexical);
                         break;
                     case LexicalType.QuestionDot:
                     case LexicalType.QuestionRealInvoke: break;
@@ -182,8 +182,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                     case LexicalType.QuestionNull:
                         if (stack.Count == 0 && flag.ContainAny(SplitFlag.QuestionNull))
                         {
-                            left = range[start..index];
-                            right = new TextRange(lexical.anchor.end, range.end);
+                            left = range[..index];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
                         break;
@@ -194,11 +194,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         }
                         else if (flag.ContainAny(SplitFlag.Colon))
                         {
-                            left = range[start..index];
-                            right = new TextRange(lexical.anchor.end, range.end);
+                            left = range[..index];
+                            right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
-                        collector.Add(lexical.anchor, CErrorLevel.Error, "缺少配对的问号");
                         break;
                     case LexicalType.ConstReal:
                     case LexicalType.ConstNumber:
@@ -208,64 +207,9 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                     case LexicalType.ConstString:
                     case LexicalType.TemplateString:
                     case LexicalType.Word:
-                    case LexicalType.Backslash:
-                    case LexicalType.KeyWord_namespace:
-                    case LexicalType.KeyWord_import:
-                    case LexicalType.KeyWord_native:
-                    case LexicalType.KeyWord_public:
-                    case LexicalType.KeyWord_internal:
-                    case LexicalType.KeyWord_space:
-                    case LexicalType.KeyWord_protected:
-                    case LexicalType.KeyWord_private:
-                    case LexicalType.KeyWord_enum:
-                    case LexicalType.KeyWord_struct:
-                    case LexicalType.KeyWord_class:
-                    case LexicalType.KeyWord_interface:
-                    case LexicalType.KeyWord_const:
-                    case LexicalType.KeyWord_global:
-                    case LexicalType.KeyWord_base:
-                    case LexicalType.KeyWord_this:
-                    case LexicalType.KeyWord_true:
-                    case LexicalType.KeyWord_false:
-                    case LexicalType.KeyWord_null:
-                    case LexicalType.KeyWord_var:
-                    case LexicalType.KeyWord_bool:
-                    case LexicalType.KeyWord_byte:
-                    case LexicalType.KeyWord_char:
-                    case LexicalType.KeyWord_integer:
-                    case LexicalType.KeyWord_real:
-                    case LexicalType.KeyWord_real2:
-                    case LexicalType.KeyWord_real3:
-                    case LexicalType.KeyWord_real4:
-                    case LexicalType.KeyWord_type:
-                    case LexicalType.KeyWord_string:
-                    case LexicalType.KeyWord_handle:
-                    case LexicalType.KeyWord_entity:
-                    case LexicalType.KeyWord_delegate:
-                    case LexicalType.KeyWord_task:
-                    case LexicalType.KeyWord_array:
-                    case LexicalType.KeyWord_if:
-                    case LexicalType.KeyWord_elseif:
-                    case LexicalType.KeyWord_else:
-                    case LexicalType.KeyWord_while:
-                    case LexicalType.KeyWord_for:
-                    case LexicalType.KeyWord_break:
-                    case LexicalType.KeyWord_continue:
-                    case LexicalType.KeyWord_return:
-                    case LexicalType.KeyWord_is:
-                    case LexicalType.KeyWord_as:
-                    case LexicalType.KeyWord_start:
-                    case LexicalType.KeyWord_new:
-                    case LexicalType.KeyWord_wait:
-                    case LexicalType.KeyWord_exit:
-                    case LexicalType.KeyWord_try:
-                    case LexicalType.KeyWord_catch:
-                    case LexicalType.KeyWord_finally:
-                        break;
+                    case LexicalType.Backslash: break;
                 }
-            }
-            left = default;
-            right = default;
+            left = right = default;
             return default;
         }
     }

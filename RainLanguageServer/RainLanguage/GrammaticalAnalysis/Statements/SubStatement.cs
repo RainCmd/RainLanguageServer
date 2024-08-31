@@ -1,44 +1,21 @@
 ﻿
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
-    internal class SubStatement : Statement
+    internal class SubStatement(Statement parent) : Statement
     {
-        public readonly Statement parent;
-        public readonly List<TextRange> group;
-        public BlockStatement? Block
+        public readonly Statement parent = parent;
+
+        public BlockStatement CreateBlock(TextRange range)
         {
-            get
-            {
-                if (parent is BranchStatement branch) return branch.falseBranch;
-                else if (parent is LoopStatement loop) return loop.elseBlock;
-                else if (parent is TryStatement @try) return @try.finallyBlock;
-                return null;
-            }
-            set
-            {
-                if (parent is BranchStatement branch) branch.falseBranch = value;
-                else if (parent is LoopStatement loop) loop.elseBlock = value;
-                else if (parent is TryStatement @try) @try.finallyBlock = value;
-            }
+            if (parent is BranchStatement branchStatement) return branchStatement.falseBranch = new BlockStatement(range);
+            else if (parent is LoopStatement loopStatement) return loopStatement.elseBlock = new BlockStatement(range);
+            else if (parent is TryStatement tryStatement) return tryStatement.finallyBlock = new BlockStatement(range);
+            else throw new InvalidOperationException();
         }
-        public SubStatement(TextRange anchor, Statement parent, List<TextRange> group) : base(anchor)
-        {
-            this.parent = parent;
-            this.group = group;
-            group.Add(anchor);
-        }
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info) => parent.OnHover(manager, position, out info);
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (anchor.Contain(position))
-            {
-                foreach (var anchor in group)
-                    infos.Add(new HighlightInfo(anchor, LanguageServer.Parameters.TextDocument.DocumentHighlightKind.Text));
-                return true;
-            }
-            return parent.OnHighlight(manager, position, infos);
-        }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result) => parent.TryGetDeclaration(manager, position, out result);
-        public override void CollectSemanticToken(SemanticTokenCollector collector) => parent.CollectSemanticToken(collector);
+
+        public override void Operator(Action<Expression> action) => throw new NotImplementedException();
+        public override bool Operator(TextPosition position, ExpressionOperator action) => throw new NotImplementedException();
+        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos) => throw new NotImplementedException();
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => throw new NotImplementedException();
     }
 }

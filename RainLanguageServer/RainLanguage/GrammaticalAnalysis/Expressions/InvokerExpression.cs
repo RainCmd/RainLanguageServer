@@ -1,203 +1,246 @@
-﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal abstract class InvokerExpression : Expression
     {
-        public readonly Expression parameters;
-        public InvokerExpression(TextRange range, List<Type> returns, Expression parameters) : base(range, new Tuple(returns))
+        public readonly BracketExpression parameters;
+        public override bool Valid => true;
+
+        public InvokerExpression(TextRange range, Tuple tuple, BracketExpression parameters, Manager.KernelManager manager) : base(range, tuple)
         {
             this.parameters = parameters;
-            if (returns.Count == 1) attribute = ExpressionAttribute.Value | returns[0].GetAttribute();
+            if (tuple.Count == 1) attribute = ExpressionAttribute.Value | tuple[0].GetAttribute(manager);
             else attribute = ExpressionAttribute.Tuple;
         }
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
-        {
-            if (parameters.range.Contain(position)) return parameters.OnHover(manager, position, out info);
-            else return base.OnHover(manager, position, out info);
-        }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (parameters.range.Contain(position)) return parameters.OnHighlight(manager, position, infos);
-            else return base.OnHighlight(manager, position, infos);
-        }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
-        {
-            if (parameters.range.Contain(position)) return parameters.TryGetDeclaration(manager, position, out result);
-            else return base.TryGetDeclaration(manager, position, out result);
-        }
-        public override void CollectSemanticToken(SemanticTokenCollector collector) => parameters.CollectSemanticToken(collector);
-        public override void Read(ExpressionParameter parameter) => parameters.Read(parameter);
     }
-    internal class InvokerDelegateExpression(TextRange range, List<Type> returns, Expression parameters, Expression invoker) : InvokerExpression(range, returns, parameters)
+    internal class InvokerDelegateExpression(TextRange range, Tuple tuple, Expression invoker, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
     {
         public readonly Expression invoker = invoker;
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
+
+        public override void Read(ExpressionParameter parameter)
+        {
+            invoker.Read(parameter);
+            parameters.Read(parameter);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
             if (invoker.range.Contain(position)) return invoker.OnHover(manager, position, out info);
-            else return base.OnHover(manager, position, out info);
+            if (parameters.range.Contain(position)) return parameters.OnHover(manager, position, out info);
+            info = default;
+            return false;
         }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
             if (invoker.range.Contain(position)) return invoker.OnHighlight(manager, position, infos);
-            else return base.OnHighlight(manager, position, infos);
+            if (parameters.range.Contain(position)) return parameters.OnHighlight(manager, position, infos);
+            return false;
         }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
         {
-            if (invoker.range.Contain(position)) return invoker.TryGetDeclaration(manager, position, out result);
-            else return base.TryGetDeclaration(manager, position, out result);
+            if (invoker.range.Contain(position)) return invoker.TryGetDefinition(manager, position, out definition);
+            if (parameters.range.Contain(position)) return parameters.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
         }
-        public override void Read(ExpressionParameter parameter)
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
-            base.Read(parameter);
-            invoker.Read(parameter);
+            if (invoker.range.Contain(position)) return invoker.FindReferences(manager, position, references);
+            if (parameters.range.Contain(position)) return parameters.FindReferences(manager, position, references);
+            return false;
         }
-    }
-    internal class InvokerFunctionExpression(TextRange range, Expression parameters, CompilingCallable callable, TextRange methodRange) : InvokerExpression(range, callable.returns, parameters)
-    {
-        public readonly CompilingCallable callable = callable;
-        public readonly TextRange methodRange = methodRange;
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            if (methodRange.Contain(position))
-            {
-                info = new HoverInfo(methodRange, callable.ToString(manager), true);
-                return true;
-            }
-            else return base.OnHover(manager, position, out info);
-        }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (methodRange.Contain(position))
-            {
-                callable.OnHighlight(manager, infos);
-                return true;
-            }
-            else return base.OnHighlight(manager, position, infos);
-        }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
-        {
-            if (methodRange.Contain(position))
-            {
-                result = callable;
-                return result != null;
-            }
-            else return base.TryGetDeclaration(manager, position, out result);
-        }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
-        {
-            if (callable.declaration.category == DeclarationCategory.Function) collector.AddRange(SemanticTokenType.Function, methodRange);
-            else collector.AddRange(SemanticTokenType.Method, methodRange);
-        }
-        public override void Read(ExpressionParameter parameter)
-        {
-            base.Read(parameter);
-            callable.references.Add(methodRange);
+            invoker.CollectSemanticToken(manager, collector);
+            parameters.CollectSemanticToken(manager, collector);
         }
     }
-    internal class InvokerMemberExpression(TextRange range, Expression parameters, Expression target, CompilingCallable callable, TextRange methodRange) : InvokerExpression(range, callable.returns, parameters)
+    internal class InvokerFunctionExpression(TextRange range, Tuple tuple, TextRange? qualifier, QualifiedName name, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
     {
-        public readonly Expression target = target;
-        public readonly CompilingCallable callable = callable;
-        public readonly TextRange methodRange = methodRange;
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
-        {
-            if (target.range.Contain(position)) return target.OnHover(manager, position, out info);
-            else if (methodRange.Contain(position))
-            {
-                info = new HoverInfo(methodRange, callable.ToString(manager), true);
-                return true;
-            }
-            else return base.OnHover(manager, position, out info);
-        }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
-            else if (methodRange.Contain(position))
-            {
-                callable.OnHighlight(manager, infos);
-                return true;
-            }
-            else return base.OnHighlight(manager, position, infos);
-        }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
-        {
-            if (target.range.Contain(position)) return target.TryGetDeclaration(manager, position, out result);
-            else if (methodRange.Contain(position))
-            {
-                result = callable;
-                return result != null;
-            }
-            else return base.TryGetDeclaration(manager, position, out result);
-        }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
-        {
-            target.CollectSemanticToken(collector);
-            collector.AddRange(SemanticTokenType.Method, methodRange);
-            base.CollectSemanticToken(collector);
-        }
+        public readonly TextRange? qualifier = qualifier;
+        public readonly QualifiedName name = name;
+        public readonly AbstractCallable callable = callable;
+
         public override void Read(ExpressionParameter parameter)
         {
-            base.Read(parameter);
-            target.Read(parameter);
-            callable.references.Add(methodRange);
+            callable.references.Add(name.name);
+            parameters.Read(parameter);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (InfoUtility.OnHover(name.qualify, position, out info)) return true;
+            if (name.name.Contain(position))
+            {
+                info = new HoverInfo(name.name, callable.Info(manager, null, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (InfoUtility.OnHighlight(name.qualify, position, callable.space, infos)) return true;
+            if (name.name.Contain(position))
+            {
+                InfoUtility.Highlight(callable, infos);
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.OnHighlight(manager, position, infos);
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (name.name.Contain(position))
+            {
+                definition = callable.name;
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (InfoUtility.FindReferences(name.qualify, position, callable.space, references)) return true;
+            if (name.name.Contain(position))
+            {
+                references.AddRange(callable.references);
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.FindReferences(manager, position, references);
+            return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
+            collector.AddNamespace(name);
+            collector.Add(DetailTokenType.GlobalFunction, name.name);
         }
     }
-    internal class InvokerVirtualMemberExpression(TextRange range, Expression parameters, Expression target, CompilingCallable callable, TextRange methodRange) : InvokerExpression(range, callable.returns, parameters)
+    internal class InvokerMemberExpression(TextRange range, Tuple tuple, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
     {
-        public readonly Expression target = target;
-        public readonly CompilingCallable callable = callable;
-        public readonly TextRange methodRange = methodRange;
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
-        {
-            if (target.range.Contain(position)) return target.OnHover(manager, position, out info);
-            else if (methodRange.Contain(position))
-            {
-                info = new HoverInfo(methodRange, callable.ToString(manager), true);
-                return true;
-            }
-            else return base.OnHover(manager, position, out info);
-        }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
-            else if (methodRange.Contain(position))
-            {
-                callable.OnHighlight(manager, infos);
-                return true;
-            }
-            else return base.OnHighlight(manager, position, infos);
-        }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
-        {
-            if (target.range.Contain(position)) return target.TryGetDeclaration(manager, position, out result);
-            else if (methodRange.Contain(position))
-            {
-                result = callable;
-                return result != null;
-            }
-            else return base.TryGetDeclaration(manager, position, out result);
-        }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
-        {
-            target.CollectSemanticToken(collector);
-            collector.AddRange(SemanticTokenType.Method, methodRange);
-            base.CollectSemanticToken(collector);
-        }
+        public readonly TextRange? symbol = symbol;
+        public readonly TextRange method = method;
+        public readonly Expression? target = target;
+        public readonly AbstractCallable callable = callable;
+
         public override void Read(ExpressionParameter parameter)
         {
-            base.Read(parameter);
-            if (callable is CompilingVirtualFunction virtualFunction) Reference(virtualFunction, methodRange);
-            else if (callable is CompilingAbstractFunction abstractFunction)
-            {
-                abstractFunction.references.Add(methodRange);
-                foreach (var implement in abstractFunction.implements)
-                    Reference(implement, methodRange);
-            }
+            target?.Read(parameter);
+            callable.references.Add(method);
+            parameters.Read(parameter);
         }
-        private static void Reference(CompilingVirtualFunction function, TextRange range)
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
-            function.references.Add(range);
-            foreach (var implement in function.implements)
-                Reference(implement, range);
+            if (target != null && target.range.Contain(position)) return target.OnHover(manager, position, out info);
+            if (method.Contain(position))
+            {
+                manager.TryGetDefineDeclaration(callable.declaration, out var declaration);
+                info = new HoverInfo(method, callable.Info(manager, declaration, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
+            if (method.Contain(position))
+            {
+                InfoUtility.Highlight(callable, infos);
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.OnHighlight(manager, position, infos);
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (target != null && target.range.Contain(position)) return target.TryGetDefinition(manager, position, out definition);
+            if (method.Contain(position))
+            {
+                definition = callable.name;
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (target != null && target.range.Contain(position)) return target.FindReferences(manager, position, references);
+            if (method.Contain(position))
+            {
+                references.AddRange(callable.references);
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.FindReferences(manager, position, references);
+            return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            target?.CollectSemanticToken(manager, collector);
+            if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
+            collector.Add(DetailTokenType.MemberFunction, method);
+        }
+    }
+    internal class InvokerVirtualExpression(TextRange range, Tuple tuple, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerMemberExpression(range, tuple, symbol, method, target, callable, parameters, manager)
+    {
+        public override void Read(ExpressionParameter parameter)
+        {
+            target?.Read(parameter);
+            if (callable is AbstractClass.Function function) Reference(function);
+            else callable.references.Add(method);
+            parameters.Read(parameter);
+        }
+        private void Reference(AbstractClass.Function function)
+        {
+            function.references.Add(method);
+            foreach (var item in function.implements)
+                Reference(item);
+        }
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
+            if (method.Contain(position))
+            {
+                InfoUtility.Highlight(callable, infos);
+                if (callable is AbstractClass.Function function)
+                    foreach (var item in function.overrides)
+                        InfoUtility.Highlight(item, infos);
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.OnHighlight(manager, position, infos);
+            return false;
+        }
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (target != null && target.range.Contain(position)) return target.FindReferences(manager, position, references);
+            if (method.Contain(position))
+            {
+                references.AddRange(callable.references);
+                if (callable is AbstractClass.Function function)
+                    foreach (var item in function.overrides)
+                        references.AddRange(item.references);
+                return true;
+            }
+            if (parameters.range.Contain(position)) return parameters.FindReferences(manager, position, references);
+            return false;
         }
     }
 }

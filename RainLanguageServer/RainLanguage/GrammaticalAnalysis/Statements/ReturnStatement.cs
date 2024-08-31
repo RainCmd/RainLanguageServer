@@ -3,27 +3,33 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
     internal class ReturnStatement : Statement
     {
+        public readonly TextRange symbol;
         public readonly Expression result;
         public readonly List<TextRange> group;
-        public ReturnStatement(TextRange anchor, Expression result, List<TextRange> group) : base(anchor)
+        public ReturnStatement(TextRange symbol, Expression result, List<TextRange> group)
         {
+            range = symbol & result.range;
+            this.symbol = symbol;
             this.result = result;
             this.group = group;
-            group.Add(anchor);
+            group.Add(symbol);
         }
-        public override void Read(ExpressionParameter parameter) => result.Read(parameter);
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info) => result.OnHover(manager, position, out info);
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
+
+        public override void Operator(Action<Expression> action) => action(result);
+        public override bool Operator(TextPosition position, ExpressionOperator action) => result.range.Contain(position) && action(result);
+        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
         {
-            if (anchor.Contain(position))
+            if (symbol.Contain(position))
             {
-                foreach (var anchor in group)
-                    infos.Add(new HighlightInfo(anchor, LanguageServer.Parameters.TextDocument.DocumentHighlightKind.Text));
+                InfoUtility.HighlightGroup(group, infos);
                 return true;
             }
-            return result.OnHighlight(manager, position, infos);
+            return false;
         }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result) => this.result.TryGetDeclaration(manager, position, out result);
-        public override void CollectSemanticToken(SemanticTokenCollector collector) => result.CollectSemanticToken(collector);
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            collector.Add(DetailTokenType.KeywordCtrl, symbol);
+            result.CollectSemanticToken(manager, collector);
+        }
     }
 }

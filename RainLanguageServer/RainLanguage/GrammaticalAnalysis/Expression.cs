@@ -27,83 +27,41 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         {
             return (attribute & value) != 0;
         }
-        public static ExpressionAttribute GetAttribute(this Type type)
+        public static ExpressionAttribute GetAttribute(this Type type, Manager.KernelManager manager)
         {
-            if (type.dimension > 0 || type == Type.STRING || type == Type.ARRAY) return ExpressionAttribute.Array;
+            if (type.dimension > 0 || type == manager.STRING || type == manager.ARRAY) return ExpressionAttribute.Array;
             else if (type.code == TypeCode.Delegate) return ExpressionAttribute.Callable;
             else if (type.code == TypeCode.Task) return ExpressionAttribute.Task;
             return ExpressionAttribute.Invalid;
         }
     }
-    internal readonly struct ExpressionParameter(ASTManager manager, MessageCollector collector)
+    internal readonly struct ExpressionParameter(Manager manager, MessageCollector collector)
     {
-        public readonly ASTManager manager = manager;
+        public readonly Manager manager = manager;
         public readonly MessageCollector collector = collector;
     }
-    internal abstract class Expression(TextRange range, Tuple types)
+    internal abstract class Expression(TextRange range, Tuple tuple)
     {
-        public static readonly Type BLURRY = new("BLURRY", TypeCode.Invalid, [], 0);
-        public static readonly Type NULL = new("NULL", TypeCode.Invalid, [], 0);
         public readonly TextRange range = range;
-        public readonly Tuple types = types;
-        public ExpressionAttribute attribute = ExpressionAttribute.Invalid;
-        public virtual bool Valid => true;
-        public InvalidExpression ToInvalid()
+        public readonly Tuple tuple = tuple;
+        public ExpressionAttribute attribute;
+        public abstract bool Valid { get; }
+        public Expression ToInvalid()
         {
-            if (this is InvalidExpression invalid) return invalid;
-            return new InvalidExpression(this);
+            if (Valid) return new InvalidExpression(this, tuple);
+            return this;
         }
-
-        public virtual bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
-        {
-            info = default;
-            return false;
-        }
-        public virtual bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos) => false;
-        public virtual bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
-        {
-            result = default;
-            return false;
-        }
-        public virtual bool CollectCompletions(ASTManager manager, Context context, TextPosition position, List<CompletionInfo> infos) => false;//todo 表达式补全
-        public virtual void CollectSemanticToken(SemanticTokenCollector collector) { }
-        public abstract void Read(ExpressionParameter parameter);
-        public virtual void Write(ExpressionParameter parameter) => throw new NotImplementedException();
-        public virtual bool TryEvaluate(out bool value)
-        {
-            value = default;
-            return false;
-        }
-        public virtual bool TryEvaluate(out byte value)
-        {
-            value = default;
-            return false;
-        }
-        public virtual bool TryEvaluate(out char value)
-        {
-            value = default;
-            return false;
-        }
-        public virtual bool TryEvaluate(out long value)
-        {
-            value = default;
-            return false;
-        }
-        public virtual bool TryEvaluate(out double value)
-        {
-            value = default;
-            return false;
-        }
-        public virtual bool TryEvaluate(out string? value)
-        {
-            value = default;
-            return false;
-        }
-        public virtual bool TryEvaluate(out Type value)
-        {
-            value = default;
-            return false;
-        }
+        public static readonly Type BLURRY = new(-3, TypeCode.Invalid, 0, 0);
+        public static readonly Type NULL = new(-3, TypeCode.Invalid, 1, 0);
+        public static readonly Tuple TUPLE_BLURRY = new([BLURRY]);
         public virtual bool TryEvaluateIndices(List<long> indices) => false;
+        public virtual bool Calculability() { return false; }
+        public abstract void Read(ExpressionParameter parameter);
+        public virtual void Write(ExpressionParameter parameter) => parameter.collector.Add(range, ErrorLevel.Error, "表达式不可赋值");
+        public abstract bool OnHover(Manager manager, TextPosition position, out HoverInfo info);
+        public abstract bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos);
+        public abstract bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition);
+        public abstract bool FindReferences(Manager manager, TextPosition position, List<TextRange> references);
+        public abstract void CollectSemanticToken(Manager manager, SemanticTokenCollector collector);
     }
 }

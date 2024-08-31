@@ -1,104 +1,206 @@
-﻿using System.Text;
+﻿using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage
 {
-    enum DeclarationCategory
+    internal enum DeclarationCategory
     {
-        //                    library		        name                signature
-        Invalid,              //程序集名            名称路径            -
-        Variable,             //程序集名            名称路径            -
-        Function,             //程序集名            名称路径            参数类型列表
-        Enum,                 //程序集名            名称路径            -
-        EnumElement,          //程序集名            名称路径            -
-        Struct,               //程序集名            名称路径            -
-        StructVariable,       //程序集名            名称路径            -
-        StructFunction,       //程序集名            名称路径            参数类型列表
-        Class,                //程序集名            名称路径            -
-        Constructor,          //程序集名            名称路径            参数类型列表
-        ClassVariable,        //程序集名            名称路径            -
-        ClassFunction,        //程序集名            名称路径            参数类型列表
-        Interface,            //程序集名            名称路径            -
-        InterfaceFunction,    //程序集名            名称路径            参数类型列表
-        Delegate,             //程序集名            名称路径            参数类型列表
-        Task,                 //程序集名            名称路径            -
-        Native,               //程序集名            名称路径            参数类型列表
+        //                    library		        visibility                index         define
+        Invalid,              //程序集              可见性                    索引          -    
+        Variable,             //程序集              可见性                    索引          -    
+        Function,             //程序集              可见性                    索引          -    
+        Enum,                 //程序集              可见性                    索引          -    
+        EnumElement,          //程序集              可见性                    索引          枚举索引    
+        Struct,               //程序集              可见性                    索引          -    
+        StructVariable,       //程序集              可见性                    索引          结构体索引    
+        StructFunction,       //程序集              可见性                    索引          结构体索引    
+        Class,                //程序集              可见性                    索引          -    
+        Constructor,          //程序集              可见性                    索引          类索引    
+        ClassVariable,        //程序集              可见性                    索引          类索引    
+        ClassFunction,        //程序集              可见性                    索引          类索引    
+        Interface,            //程序集              可见性                    索引          -    
+        InterfaceFunction,    //程序集              可见性                    索引          接口索引    
+        Delegate,             //程序集              可见性                    索引          -    
+        Task,                 //程序集              可见性                    索引          -    
+        Native,               //程序集              可见性                    索引          -    
     }
-    internal readonly struct Declaration(string library, Visibility visibility, DeclarationCategory category, string[] name, Tuple signature) : IEquatable<Declaration>
+    internal readonly struct Declaration(int library, Visibility visibility, DeclarationCategory category, int index, int define) : IEquatable<Declaration>
     {
-        public readonly string library = library;
+        public readonly int library = library;
         public readonly Visibility visibility = visibility;
         public readonly DeclarationCategory category = category;
-        public readonly string[] name = name;//不包括程序集名
-        public readonly Tuple signature = signature;
-        public bool Vaild => name != null;
-        public Type GetDefineType()
+        public readonly int index = index;
+        public readonly int define = define;
+        public Declaration(int library, Visibility visibility, DeclarationCategory category, int index) : this(library, visibility, category, index, 0) { }
+        public Type DefineType
         {
-            switch (category)
+            get
             {
-                case DeclarationCategory.Invalid:
-                case DeclarationCategory.Variable:
-                case DeclarationCategory.Function:
-                    break;
-                case DeclarationCategory.Enum: return new Type(library, TypeCode.Enum, name, 0);
-                case DeclarationCategory.EnumElement: return new Type(library, TypeCode.Enum, name[0..(name.Length - 1)], 0);
-                case DeclarationCategory.Struct: return new Type(library, TypeCode.Struct, name, 0);
-                case DeclarationCategory.StructVariable:
-                case DeclarationCategory.StructFunction: return new Type(library, TypeCode.Struct, name[0..(name.Length - 1)], 0);
-                case DeclarationCategory.Class: return new Type(library, TypeCode.Handle, name, 0);
-                case DeclarationCategory.Constructor:
-                case DeclarationCategory.ClassVariable:
-                case DeclarationCategory.ClassFunction: return new Type(library, TypeCode.Handle, name[0..(name.Length - 1)], 0);
-                case DeclarationCategory.Interface: return new Type(library, TypeCode.Interface, name, 0);
-                case DeclarationCategory.InterfaceFunction: return new Type(library, TypeCode.Interface, name[0..(name.Length - 1)], 0);
-                case DeclarationCategory.Delegate: return new Type(library, TypeCode.Delegate, name, 0);
-                case DeclarationCategory.Task: return new Type(library, TypeCode.Task, name, 0);
-                case DeclarationCategory.Native:
-                    break;
-            }
-            return default;
-        }
-        public bool Equals(Declaration declaration)
-        {
-            if (Vaild && declaration.Vaild)
-            {
-                if (name != null && declaration.name != null)
+                switch (category)
                 {
-                    if (declaration.name.Length != name.Length) return false;
-                    for (int i = 0; i < name.Length; i++)
-                        if (name[i] != declaration.name[i])
-                            return false;
+                    case DeclarationCategory.Invalid:
+                    case DeclarationCategory.Variable:
+                    case DeclarationCategory.Function:
+                        break;
+                    case DeclarationCategory.Enum:
+                        return new Type(library, TypeCode.Enum, index, 0);
+                    case DeclarationCategory.EnumElement:
+                        return new Type(library, TypeCode.Enum, define, 0);
+                    case DeclarationCategory.Struct:
+                        return new Type(library, TypeCode.Struct, index, 0);
+                    case DeclarationCategory.StructVariable:
+                    case DeclarationCategory.StructFunction:
+                        return new Type(library, TypeCode.Struct, define, 0);
+                    case DeclarationCategory.Class:
+                        return new Type(library, TypeCode.Handle, index, 0);
+                    case DeclarationCategory.Constructor:
+                    case DeclarationCategory.ClassVariable:
+                    case DeclarationCategory.ClassFunction:
+                        return new Type(library, TypeCode.Handle, define, 0);
+                    case DeclarationCategory.Interface:
+                        return new Type(library, TypeCode.Interface, index, 0);
+                    case DeclarationCategory.InterfaceFunction:
+                        return new Type(library, TypeCode.Interface, define, 0);
+                    case DeclarationCategory.Delegate:
+                        return new Type(library, TypeCode.Delegate, index, 0);
+                    case DeclarationCategory.Task:
+                        return new Type(library, TypeCode.Task, index, 0);
+                    case DeclarationCategory.Native:
+                        break;
                 }
-                else if (name != declaration.name) return false;
-                return library == declaration.library &&
-                       visibility == declaration.visibility &&
-                       category == declaration.category &&
-                       signature == declaration.signature;
+                throw new InvalidOperationException();
             }
-            else return !Vaild && !declaration.Vaild;
         }
-        public override readonly bool Equals(object? obj)
+        public bool Equals(Declaration other) => library == other.library && category == other.category && index == other.index && define == other.define;
+        public override bool Equals([NotNullWhen(true)] object? obj) => obj is Declaration other && Equals(other);
+        public override int GetHashCode() => HashCode.Combine(library, category, index, define);
+        public static bool operator ==(Declaration a, Declaration b) => a.Equals(b);
+        public static bool operator !=(Declaration a, Declaration b) => !a.Equals(b);
+    }
+    internal enum TypeCode
+    {
+        Invalid,
+        Struct,
+        Enum,
+        Handle,
+        Interface,
+        Delegate,
+        Task,
+    }
+    internal readonly struct Type(int library, TypeCode code, int index, int dimension) : IEquatable<Type>
+    {
+        public readonly int library = library;
+        public readonly TypeCode code = code;
+        public readonly int index = index;
+        public readonly int dimension = dimension;
+        public bool Managed => dimension > 0 || code >= TypeCode.Handle;
+        public Type(Type type, int dimension) : this(type.library, type.code, type.index, dimension) { }
+        public bool Equals(Type other) => library == other.library && code == other.code && index == other.index && dimension == other.dimension;
+        public static bool operator ==(Type left, Type right) => left.Equals(right);
+        public static bool operator !=(Type left, Type right) => !left.Equals(right);
+        public override bool Equals(object? obj) => obj is Type type && Equals(type);
+        public override int GetHashCode() => HashCode.Combine(library, code, index, dimension);
+    }
+    internal readonly struct Tuple(params Type[] types) : IEquatable<Tuple>, IEnumerable<Type>
+    {
+        private readonly Type[] types = types ?? Empty.types;
+        public int Count => types.Length;
+        public Type this[int index] => types[index];
+        public TypeSpan this[Range range] => new(types[range]);
+        public bool Equals(Tuple other)
         {
-            return obj is Declaration declaration && Equals(declaration);
+            if (types == other.types) return true;
+            if (types.Length != other.types.Length) return false;
+            for (int i = 0; i < types.Length; i++)
+                if (types[i] != other.types[i]) return false;
+            return true;
         }
-        public override readonly int GetHashCode()
+        public static bool operator ==(Tuple left, Tuple right) => left.Equals(right);
+        public static bool operator !=(Tuple left, Tuple right) => !left.Equals(right);
+        public override bool Equals(object? obj) => obj is Tuple tuple && Equals(tuple);
+        public static implicit operator Tuple(Type[] types) => new(types);
+        public static implicit operator Tuple(Type type) => new(type);
+        public static implicit operator TypeSpan(Tuple tuple) => new(tuple.types);
+        public override int GetHashCode()
         {
-            if (!Vaild) return 0;
-            var result = HashCode.Combine(library, visibility, category, signature);
-            foreach (var item in name) result = HashCode.Combine(item, result);
+            var result = new HashCode();
+            if (types != null)
+                foreach (var type in types)
+                    result.Add(type.GetHashCode());
+            return result.ToHashCode();
+        }
+
+        public IEnumerator<Type> GetEnumerator()
+        {
+            foreach (var type in types) yield return type;
+        }
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+        public static readonly Tuple Empty = new([]);
+    }
+    internal readonly struct TypeSpan : IEquatable<TypeSpan>, IEnumerable<Type>
+    {
+        private readonly int start, count;
+        private readonly IList<Type> types;
+        public int Count => count;
+        public Type this[int index] => types[start + index];
+        public TypeSpan this[Range range]
+        {
+            get
+            {
+                var start = range.Start.GetOffset(count);
+                var end = range.End.GetOffset(count);
+                return new(this.start + start, end - start, types);
+            }
+        }
+
+        public TypeSpan(IList<Type> types)
+        {
+            start = 0; count = types.Count;
+            this.types = types;
+        }
+        public TypeSpan(int start, int count, IList<Type> types)
+        {
+            this.start = start; this.count = count;
+            this.types = types;
+        }
+        public bool Equals(TypeSpan other)
+        {
+            if (count != other.count) return false;
+            for (int i = 0; i < count; i++)
+                if (this[i] != other[i]) return false;
+            return true;
+        }
+        public static bool operator ==(TypeSpan left, TypeSpan right) => left.Equals(right);
+        public static bool operator !=(TypeSpan left, TypeSpan right) => !left.Equals(right);
+        public static implicit operator TypeSpan(Type[] types) => new(types);
+        public static implicit operator Tuple(TypeSpan span)
+        {
+            if (span.start == 0 && span.count == span.types.Count && span.types is Type[] array) return new Tuple(array);
+            var result = new Type[span.count];
+            for (int i = 0; i < span.count; i++)
+                result[i] = span[i];
             return result;
         }
-        public override string ToString()
+        public override bool Equals(object? obj) => obj is TypeSpan span && Equals(span);
+        public override int GetHashCode()
         {
-            if (!Vaild) return "无效的定义";
-            var sb = new StringBuilder(library);
-            foreach(var item in name)
-            {
-                sb.Append('.');
-                sb.Append(item);
-            }
-            return sb.ToString();
+            var result = new HashCode();
+            foreach (var type in this)
+                result.Add(type.GetHashCode());
+            return result.ToHashCode();
         }
-        public static bool operator ==(Declaration lhs, Declaration rhs) => lhs.Equals(rhs);
-        public static bool operator !=(Declaration lhs, Declaration rhs) => !lhs.Equals(rhs);
+        public IEnumerator<Type> GetEnumerator()
+        {
+            for (var i = 0; i < count; ++i)
+                yield return this[i];
+        }
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
     }
 }

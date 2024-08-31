@@ -1,54 +1,81 @@
-﻿using System.Text;
-
+﻿
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class EnumElementExpression : Expression
     {
-        public readonly CompilingEnum compiling;
-        public readonly CompilingEnum.Element element;
-        public readonly TextRange elementRange;
-        public EnumElementExpression(TextRange range, CompilingEnum compiling, CompilingEnum.Element element, TextRange elementRange) : base(range, new Tuple([compiling.declaration.GetDefineType()]))
+        public readonly TextRange symbol;
+        public readonly TextRange identifier;
+        public readonly AbstractEnum abstractEnum;
+        public readonly AbstractEnum.Element element;
+        public readonly TypeExpression type;
+        public override bool Valid => true;
+
+        public EnumElementExpression(TextRange range, TextRange symbol, TextRange identifier, AbstractEnum abstractEnum, AbstractEnum.Element element, TypeExpression type) : base(range, type.type)
         {
-            this.compiling = compiling;
+            this.symbol = symbol;
+            this.identifier = identifier;
+            this.abstractEnum = abstractEnum;
             this.element = element;
-            this.elementRange = elementRange;
-            attribute = ExpressionAttribute.Value;
-        }
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
-        {
-            if (elementRange.Contain(position))
-            {
-                var sb = new StringBuilder();
-                sb.AppendLine("``` cs");
-                sb.AppendLine($"{compiling.name}.{element.name} = {element.value}");
-                sb.AppendLine("```");
-                info = new HoverInfo(elementRange, sb.ToString(), true);
-                return true;
-            }
-            else
-            {
-                var sb = new StringBuilder();
-                sb.AppendLine("``` cs");
-                info = new HoverInfo(range, $"enum {compiling.GetFullName()}", true);
-                sb.AppendLine("```");
-                info = new HoverInfo(range, $"enum {compiling.GetFullName()}", true);
-                return true;
-            }
+            this.type = type;
+            attribute = ExpressionAttribute.Constant;
         }
         public override void Read(ExpressionParameter parameter)
         {
-            compiling.references.Add(range);
-            element.references.Add(elementRange);
+            abstractEnum.references.Add(type.range);
+            element.references.Add(identifier);
         }
-        public override bool TryEvaluate(out long value)
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
-            if (element.value != null)
+            if (type.range.Contain(position)) return type.OnHover(manager, position, out info);
+            if (identifier.Contain(position))
             {
-                value = element.value.Value;
+                info = new HoverInfo(identifier, element.CodeInfo(manager, ManagerOperator.GetSpace(manager, position)), true);
                 return true;
             }
-            value = default;
+            info = default;
             return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (type.range.Contain(position)) return type.OnHighlight(manager, position, infos);
+            if (identifier.Contain(position))
+            {
+                InfoUtility.Highlight(element, infos);
+                return true;
+            }
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (type.range.Contain(position)) return type.TryGetDefinition(manager, position, out definition);
+            if (identifier.Contain(position))
+            {
+                definition = element.name;
+                return true;
+            }
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (type.range.Contain(position)) return type.FindReferences(manager, position, references);
+            if (identifier.Contain(position))
+            {
+                references.AddRange(element.references);
+                return true;
+            }
+            return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            type.CollectSemanticToken(manager, collector);
+            collector.Add(DetailTokenType.Operator, symbol);
+            collector.Add(DetailTokenType.MemberElement, symbol);
         }
     }
 }

@@ -3,43 +3,21 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class QuestionExpression : Expression
     {
+        public readonly TextRange questionSymbol;
+        public readonly TextRange? elseSymbol;
         public readonly Expression condition;
         public readonly Expression left;
         public readonly Expression? right;
         public override bool Valid => left.Valid;
-        public QuestionExpression(TextRange range, Expression condition, Expression left, Expression? right) : base(range, left.types)
+
+        public QuestionExpression(TextRange range, TextRange questionSymbol, TextRange? elseSymbol, Expression condition, Expression left, Expression? right) : base(range, left.tuple)
         {
+            this.questionSymbol = questionSymbol;
+            this.elseSymbol = elseSymbol;
             this.condition = condition;
             this.left = left;
             this.right = right;
             attribute = left.attribute & ~ExpressionAttribute.Assignable;
-        }
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
-        {
-            if (condition.range.Contain(position)) return condition.OnHover(manager, position, out info);
-            else if (left.range.Contain(position)) return left.OnHover(manager, position, out info);
-            else if (right != null && right.range.Contain(position)) return right.OnHover(manager, position, out info);
-            return base.OnHover(manager, position, out info);
-        }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (condition.range.Contain(position)) return condition.OnHighlight(manager, position, infos);
-            else if (left.range.Contain(position)) return left.OnHighlight(manager, position, infos);
-            else if (right != null && right.range.Contain(position)) return right.OnHighlight(manager, position, infos);
-            return base.OnHighlight(manager, position, infos);
-        }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
-        {
-            if (condition.range.Contain(position)) return condition.TryGetDeclaration(manager, position, out result);
-            else if (left.range.Contain(position)) return left.TryGetDeclaration(manager, position, out result);
-            else if (right != null && right.range.Contain(position)) return right.TryGetDeclaration(manager, position, out result);
-            return base.TryGetDeclaration(manager, position, out result);
-        }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
-        {
-            condition.CollectSemanticToken(collector);
-            left.CollectSemanticToken(collector);
-            right?.CollectSemanticToken(collector);
         }
         public override void Read(ExpressionParameter parameter)
         {
@@ -47,45 +25,48 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             left.Read(parameter);
             right?.Read(parameter);
         }
-    }
-    internal class QuestionNullExpression : Expression
-    {
-        public Expression left;
-        public Expression right;
-        public override bool Valid => left.Valid && right.Valid;
-        public QuestionNullExpression(Expression left, Expression right) : base(left.range & right.range, left.types)
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
-            this.left = left;
-            this.right = right;
-            attribute = left.attribute & ~ExpressionAttribute.Assignable;
-        }
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
-        {
+            if (condition.range.Contain(position)) return condition.OnHover(manager, position, out info);
             if (left.range.Contain(position)) return left.OnHover(manager, position, out info);
-            else if (right.range.Contain(position)) return right.OnHover(manager, position, out info);
-            return base.OnHover(manager, position, out info);
+            if (right != null && right.range.Contain(position)) return right.OnHover(manager, position, out info);
+            info = default;
+            return false;
         }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
+            if (condition.range.Contain(position)) return condition.OnHighlight(manager, position, infos);
             if (left.range.Contain(position)) return left.OnHighlight(manager, position, infos);
-            else if (right.range.Contain(position)) return right.OnHighlight(manager, position, infos);
-            return base.OnHighlight(manager, position, infos);
+            if (right != null && right.range.Contain(position)) return right.OnHighlight(manager, position, infos);
+            return false;
         }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
         {
-            if (left.range.Contain(position)) return left.TryGetDeclaration(manager, position, out result);
-            else if (right.range.Contain(position)) return right.TryGetDeclaration(manager, position, out result);
-            return base.TryGetDeclaration(manager, position, out result);
+            if (condition.range.Contain(position)) return condition.TryGetDefinition(manager, position, out definition);
+            if (left.range.Contain(position)) return left.TryGetDefinition(manager, position, out definition);
+            if (right != null && right.range.Contain(position)) return right.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
         }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
-            left.CollectSemanticToken(collector);
-            right.CollectSemanticToken(collector);
+            if (condition.range.Contain(position)) return condition.FindReferences(manager, position, references);
+            if (left.range.Contain(position)) return left.FindReferences(manager, position, references);
+            if (right != null && right.range.Contain(position)) return right.FindReferences(manager, position, references);
+            return false;
         }
-        public override void Read(ExpressionParameter parameter)
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            left.Read(parameter);
-            right.Read(parameter);
+            collector.Add(DetailTokenType.Operator, questionSymbol);
+            if (elseSymbol != null) collector.Add(DetailTokenType.Operator, elseSymbol.Value);
+            condition.CollectSemanticToken(manager, collector);
+            left.CollectSemanticToken(manager, collector);
+            right?.CollectSemanticToken(manager, collector);
         }
     }
 }

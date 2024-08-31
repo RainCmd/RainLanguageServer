@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
     internal enum TokenType
     {
@@ -51,6 +45,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
     {
         public readonly Lexical lexical = lexical;
         public readonly TokenType type = type;
+
         public int Priority => (int)type >> 4;
         public ExpressionAttribute Precondition
         {

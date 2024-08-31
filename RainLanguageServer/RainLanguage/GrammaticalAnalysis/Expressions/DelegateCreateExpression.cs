@@ -1,210 +1,283 @@
-﻿using System.Text;
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal abstract class DelegateCreateExpression : Expression
     {
-        public readonly CompilingCallable callable;
-        public DelegateCreateExpression(TextRange range, Type type, CompilingCallable callable) : base(range, new Tuple([type]))
+        public readonly AbstractCallable callable;
+        public override bool Valid => true;
+        public DelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager) : base(range, type)
         {
             this.callable = callable;
-            attribute = ExpressionAttribute.Value | type.GetAttribute();
+            attribute = ExpressionAttribute.Value | type.GetAttribute(manager);
         }
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
-        {
-            info = new HoverInfo(range, callable.ToString(manager), true);
-            return true;
-        }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            callable.OnHighlight(manager, infos);
-            return true;
-        }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
-        {
-            result = callable;
-            return result != null;
-        }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
-        {
-            if (callable.declaration.category == DeclarationCategory.Function) collector.AddRange(SemanticTokenType.Function, range);
-            else collector.AddRange(SemanticTokenType.Method, range);
-        }
-        public override void Read(ExpressionParameter parameter) => callable.references.Add(range);
     }
-    internal class FunctionDelegateCreateExpression(TextRange range, Type type, CompilingCallable callable) : DelegateCreateExpression(range, type, callable) { }
-    internal class MemberFunctionDelegateCreateExpression(TextRange range, Type type, CompilingCallable callable, Expression source, TextRange methodRange) : DelegateCreateExpression(range, type, callable)
+    internal class FunctionDelegateCreateExpression(TextRange range, TextRange? qualifier, QualifiedName name, Type type, AbstractCallable callable, Manager.KernelManager manager) : DelegateCreateExpression(range, type, callable, manager)
     {
-        public readonly Expression source = source;
-        public readonly TextRange methodRange = methodRange;
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
+        public readonly TextRange? qualifier = qualifier;
+        public readonly QualifiedName name = name;
+        public override void Read(ExpressionParameter parameter) => callable.references.Add(name.name);
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
-            if (source.range.Contain(position)) return source.OnHover(manager, position, out info);
-            else if (methodRange.Contain(position))
+            if (InfoUtility.OnHover(name.qualify, position, out info)) return true;
+            if (name.name.Contain(position))
             {
-                info = new HoverInfo(methodRange, callable.ToString(manager), true);
+                info = new HoverInfo(name.name, callable.Info(manager, null, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
                 return true;
             }
             info = default;
             return false;
         }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
-            if (source.range.Contain(position)) return source.OnHighlight(manager, position, infos);
-            else if (methodRange.Contain(position))
+            if (InfoUtility.OnHighlight(name.qualify, position, callable.space, infos)) return true;
+            if (name.name.Contain(position))
             {
-                callable.OnHighlight(manager, infos);
+                InfoUtility.Highlight(callable, infos);
                 return true;
             }
             return false;
         }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
         {
-            if (source.range.Contain(position)) return source.TryGetDeclaration(manager, position, out result);
-            else if (methodRange.Contain(position))
+            if (name.name.Contain(position))
             {
-                result = callable;
-                return result != null;
+                definition = callable.name;
+                return true;
             }
-            result = default;
+            definition = default;
             return false;
         }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
-            source.CollectSemanticToken(collector);
-            collector.AddRange(SemanticTokenType.Method, methodRange);
-            base.CollectSemanticToken(collector);
+            if (InfoUtility.FindReferences(name.qualify, position, callable.space, references)) return true;
+            if (name.name.Contain(position))
+            {
+                references.AddRange(callable.references);
+                return true;
+            }
+            return false;
         }
-        public override void Read(ExpressionParameter parameter)
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            source.Read(parameter);
-            if (callable is CompilingVirtualFunction function)
-                function.references.Add(methodRange);
+            if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
+            collector.AddNamespace(name);
+            collector.Add(DetailTokenType.GlobalFunction, name.name);
         }
     }
-    internal class VirtualFunctionDelegateCreateExpression(TextRange range, Type type, CompilingCallable callable, Expression source, TextRange methodRange) : DelegateCreateExpression(range, type, callable)
+    internal class MemberFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
     {
-        public readonly Expression source = source;
-        public readonly TextRange methodRange = methodRange;
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
+        public readonly Expression? target = target;
+        public readonly TextRange? symbol = symbol;
+        public readonly TextRange member = member;
+
+        public override void Read(ExpressionParameter parameter)
         {
-            if (source.range.Contain(position)) return source.OnHover(manager, position, out info);
-            else if (methodRange.Contain(position))
+            target?.Read(parameter);
+            callable.references.Add(member);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHover(manager, position, out info);
+            if (member.Contain(position))
             {
-                info = new HoverInfo(methodRange, callable.ToString(manager), true);
+                manager.TryGetDefineDeclaration(callable.declaration, out var abstractDeclaration);
+                info = new HoverInfo(member, callable.Info(manager, abstractDeclaration, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
                 return true;
             }
             info = default;
             return false;
         }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
-            if (source.range.Contain(position)) return source.OnHighlight(manager, position, infos);
-            else if (methodRange.Contain(position))
+            if (target != null && target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
+            if (member.Contain(position))
             {
-                callable.OnHighlight(manager, infos);
+                InfoUtility.Highlight(callable, infos);
                 return true;
             }
             return false;
         }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
         {
-            if (source.range.Contain(position)) return source.TryGetDeclaration(manager, position, out result);
-            else if (methodRange.Contain(position))
+            if (target != null && target.range.Contain(position)) return target.TryGetDefinition(manager, position, out definition);
+            if (member.Contain(position))
             {
-                result = callable;
-                return result != null;
+                definition = callable.name;
+                return true;
             }
-            result = default;
+            definition = default;
             return false;
         }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
-            source.CollectSemanticToken(collector);
-            collector.AddRange(SemanticTokenType.Method, methodRange);
-            base.CollectSemanticToken(collector);
-        }
-        public override void Read(ExpressionParameter parameter)
-        {
-            source.Read(parameter);
-            if (callable is CompilingVirtualFunction virtualFunction)
-                Reference(virtualFunction);
-            if (callable is CompilingAbstractFunction abstractFunction)
+            if (target != null && target.range.Contain(position)) return target.FindReferences(manager, position, references);
+            if (member.Contain(position))
             {
-                abstractFunction.references.Add(methodRange);
-                foreach (var implement in abstractFunction.implements)
-                    Reference(implement);
+                references.AddRange(callable.references);
+                return true;
             }
+            return false;
         }
-        private void Reference(CompilingVirtualFunction function)
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            function.references.Add(methodRange);
-            foreach (var implement in function.implements)
-                Reference(implement);
+            target?.CollectSemanticToken(manager, collector);
+            if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
+            collector.Add(DetailTokenType.MemberFunction, member);
         }
     }
-    internal class LambdaDelegateCreateExpression(TextRange range, Type type, CompilingCallable callable, List<Local> parameters, TextRange symbol, Expression lambdaBody) : DelegateCreateExpression(range, type, callable)
+    internal class VirtualFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
     {
-        public readonly List<Local> parameters = parameters;
+        public readonly Expression? target = target;
+        public readonly TextRange? symbol = symbol;
+        public readonly TextRange member = member;
+
+        public override void Read(ExpressionParameter parameter)
+        {
+            target?.Read(parameter);
+            if (callable is AbstractClass.Function function) Reference(function);
+            else callable.references.Add(member);
+        }
+
+        private void Reference(AbstractClass.Function function)
+        {
+            function.references.Add(member);
+            foreach (var item in function.implements)
+                Reference(item);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHover(manager, position, out info);
+            if (member.Contain(position))
+            {
+                manager.TryGetDefineDeclaration(callable.declaration, out var abstractDeclaration);
+                info = new HoverInfo(member, callable.Info(manager, abstractDeclaration, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                return true;
+            }
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (target != null && target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
+            if (member.Contain(position))
+            {
+                InfoUtility.Highlight(callable, infos);
+                if (callable is AbstractClass.Function function)
+                    foreach (var item in function.overrides)
+                        InfoUtility.Highlight(item, infos);
+                return true;
+            }
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (target != null && target.range.Contain(position)) return target.TryGetDefinition(manager, position, out definition);
+            if (member.Contain(position))
+            {
+                definition = callable.name;
+                return true;
+            }
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (target != null && target.range.Contain(position)) return target.FindReferences(manager, position, references);
+            if (member.Contain(position))
+            {
+                references.AddRange(callable.references);
+                if (callable is AbstractClass.Function function)
+                    foreach (var item in function.overrides)
+                        references.AddRange(item.references);
+                return true;
+            }
+            return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            target?.CollectSemanticToken(manager, collector);
+            if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
+            collector.Add(DetailTokenType.MemberFunction, member);
+        }
+    }
+    internal class LambdaDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, List<Local> parmeters, TextRange symbol, Expression body) : DelegateCreateExpression(range, type, callable, manager)
+    {
+        public readonly List<Local> parmeters = parmeters;
         public readonly TextRange symbol = symbol;
-        public readonly Expression lambdaBody = lambdaBody;
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
+        public readonly Expression body = body;
+
+        public override void Read(ExpressionParameter parameter) => body.Read(parameter);
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
-            foreach (var local in parameters)
+            foreach (var local in parmeters)
                 if (local.range.Contain(position))
                 {
-                    var sb = new StringBuilder();
-                    sb.AppendLine("``` cs");
-                    sb.AppendLine($"(lambda参数) {local.type.ToString(false, null)} {local.range.ToString()}");
-                    sb.AppendLine("```");
-                    info = new HoverInfo(local.range, sb.ToString(), true);
+                    info = local.Hover(manager, position);
                     return true;
                 }
-            if (symbol.Contain(position))
-            {
-                info = new HoverInfo(symbol, callable.ToString(manager), true);
-                return true;
-            }
-            else if (lambdaBody.range.Contain(position)) return lambdaBody.OnHover(manager, position, out info);
+            if (body.range.Contain(position)) return body.OnHover(manager, position, out info);
             info = default;
             return false;
         }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
-            foreach (var local in parameters)
+            foreach (var local in parmeters)
                 if (local.range.Contain(position))
                 {
-                    infos.Add(new HighlightInfo(local.range, LanguageServer.Parameters.TextDocument.DocumentHighlightKind.Text));
-                    foreach (var range in local.read)
-                        infos.Add(new HighlightInfo(range, LanguageServer.Parameters.TextDocument.DocumentHighlightKind.Read));
-                    foreach (var range in local.write)
-                        infos.Add(new HighlightInfo(range, LanguageServer.Parameters.TextDocument.DocumentHighlightKind.Write));
+                    local.OnHighlight(infos);
                     return true;
                 }
-            if (lambdaBody.range.Contain(position)) return lambdaBody.OnHighlight(manager, position, infos);
+            if (body.range.Contain(position)) return body.OnHighlight(manager, position, infos);
             return false;
         }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
         {
-            if (symbol.Contain(position))
-            {
-                result = callable;
-                return result != null;
-            }
-            else if (lambdaBody.range.Contain(position)) return lambdaBody.TryGetDeclaration(manager, position, out result);
-            result = default;
+            foreach (var local in parmeters)
+                if (local.range.Contain(position))
+                {
+                    definition = local.range;
+                    return true;
+                }
+            if (body.range.Contain(position)) return body.TryGetDefinition(manager, position, out definition);
+            definition = default;
             return false;
         }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
-            foreach (var parameter in parameters)
-                collector.AddRange(SemanticTokenType.Parameter, parameter.range);
-            lambdaBody.CollectSemanticToken(collector);
+            foreach (var local in parmeters)
+                if (local.range.Contain(position))
+                {
+                    local.FindReferences(references);
+                    return true;
+                }
+            if (body.range.Contain(position)) return body.FindReferences(manager, position, references);
+            return false;
         }
-        public override void Read(ExpressionParameter parameter)
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            base.Read(parameter);
-            lambdaBody.Read(parameter);
+            foreach (var local in parmeters)
+                collector.Add(DetailTokenType.Local, local.range);
+            collector.Add(DetailTokenType.Operator, symbol);
+            body.CollectSemanticToken(manager, collector);
         }
     }
 }

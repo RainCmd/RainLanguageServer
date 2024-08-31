@@ -1,87 +1,77 @@
-﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
+﻿
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
-    internal class LoopStatement(TextRange anchor, Expression? condition) : Statement(anchor)
+    internal class LoopStatement : Statement
     {
-        public readonly Expression? condition = condition;
+        public readonly TextRange symbol;
+        public TextRange? elseSymbol;
+        public readonly Expression? condition;
         public BlockStatement? loopBlock, elseBlock;
-        public readonly List<TextRange> group = [anchor];
-        public override void Read(ExpressionParameter parameter)
+        public readonly List<TextRange> group = [];
+
+        public LoopStatement(TextRange symbol, Expression? condition)
         {
-            condition?.Read(parameter);
-            loopBlock?.Read(parameter);
-            elseBlock?.Read(parameter);
+            this.symbol = symbol;
+            this.condition = condition;
+            group.Add(symbol);
         }
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
+        public override void Operator(Action<Expression> action)
         {
-            if (condition != null && condition.range.Contain(position)) return condition.OnHover(manager, position, out info);
-            else if (loopBlock != null && loopBlock.range.Contain(position)) return loopBlock.OnHover(manager, position, out info);
-            else if (elseBlock != null && elseBlock.range.Contain(position)) return elseBlock.OnHover(manager, position, out info);
-            return base.OnHover(manager, position, out info);
+            if (condition != null) action(condition);
+            loopBlock?.Operator(action);
+            elseBlock?.Operator(action);
         }
-        public void CollectHighlight(List<HighlightInfo> infos)
+        public override bool Operator(TextPosition position, ExpressionOperator action)
         {
-            foreach (var anchor in group)
-                infos.Add(new HighlightInfo(anchor, LanguageServer.Parameters.TextDocument.DocumentHighlightKind.Text));
+            if (condition != null && condition.range.Contain(position)) return action(condition);
+            if (loopBlock != null && loopBlock.range.Contain(position)) return loopBlock.Operator(position, action);
+            if (elseBlock != null && elseBlock.range.Contain(position)) return elseBlock.Operator(position, action);
+            return false;
         }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
+        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
         {
-            if (anchor.Contain(position))
+            if (symbol.Contain(position) || (elseSymbol != null && elseSymbol.Value.Contain(position)))
             {
-                CollectHighlight(infos);
+                InfoUtility.HighlightGroup(group, infos);
                 return true;
             }
-            else if (condition != null && condition.range.Contain(position)) return condition.OnHighlight(manager, position, infos);
-            else if (loopBlock != null && loopBlock.range.Contain(position)) return loopBlock.OnHighlight(manager, position, infos);
-            else if (elseBlock != null && elseBlock.range.Contain(position)) return elseBlock.OnHighlight(manager, position, infos);
-            return base.OnHighlight(manager, position, infos);
+            if (loopBlock != null && loopBlock.range.Contain(position)) return loopBlock.TryHighlightGroup(position, infos);
+            if (elseBlock != null && elseBlock.range.Contain(position)) return elseBlock.TryHighlightGroup(position, infos);
+            return false;
         }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            if (condition != null && condition.range.Contain(position)) return condition.TryGetDeclaration(manager, position, out result);
-            else if (loopBlock != null && loopBlock.range.Contain(position)) return loopBlock.TryGetDeclaration(manager, position, out result);
-            else if (elseBlock != null && elseBlock.range.Contain(position)) return elseBlock.TryGetDeclaration(manager, position, out result);
-            return base.TryGetDeclaration(manager, position, out result);
-        }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
-        {
-            condition?.CollectSemanticToken(collector);
-            loopBlock?.CollectSemanticToken(collector);
-            elseBlock?.CollectSemanticToken(collector);
+            collector.Add(DetailTokenType.KeywordCtrl, symbol);
+            if (elseSymbol != null) collector.Add(DetailTokenType.KeywordCtrl, elseSymbol.Value);
+            condition?.CollectSemanticToken(manager, collector);
+            loopBlock?.CollectSemanticToken(manager, collector);
+            elseBlock?.CollectSemanticToken(manager, collector);
         }
     }
-    internal class WhileStatement(TextRange anchor, Expression? condition) : LoopStatement(anchor, condition) { }
-    internal class ForStatement(TextRange anchor, Expression? front, Expression? condition, Expression? back) : LoopStatement(anchor, condition)
+    internal class WhileStatement(TextRange symbol, Expression? condition) : LoopStatement(symbol, condition) { }
+    internal class ForStatement(TextRange symbol, Expression? condition, TextRange? separator1, TextRange? separator2, Expression? front, Expression? back) : LoopStatement(symbol, condition)
     {
+        public readonly TextRange? separator1 = separator1, separator2 = separator2;//两个分隔符 ;
         public readonly Expression? front = front, back = back;
-        public override void Read(ExpressionParameter parameter)
+        public override void Operator(Action<Expression> action)
         {
-            base.Read(parameter);
-            front?.Read(parameter);
-            back?.Read(parameter);
+            base.Operator(action);
+            if (front != null) action(front);
+            if (back != null) action(back);
         }
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
+        public override bool Operator(TextPosition position, ExpressionOperator action)
         {
-            if (front != null && front.range.Contain(position)) return front.OnHover(manager, position, out info);
-            else if (back != null && back.range.Contain(position)) return back.OnHover(manager, position, out info);
-            return base.OnHover(manager, position, out info);
+            if (front != null && front.range.Contain(position)) return action(front);
+            if (back != null && back.range.Contain(position)) return action(back);
+            return base.Operator(position, action);
         }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            if (front != null && front.range.Contain(position)) return front.OnHighlight(manager, position, infos);
-            else if (back != null && back.range.Contain(position)) return back.OnHighlight(manager, position, infos);
-            return base.OnHighlight(manager, position, infos);
-        }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
-        {
-            if (front != null && front.range.Contain(position)) return front.TryGetDeclaration(manager, position, out result);
-            else if (back != null && back.range.Contain(position)) return back.TryGetDeclaration(manager, position, out result);
-            return base.TryGetDeclaration(manager, position, out result);
-        }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)
-        {
-            front?.CollectSemanticToken(collector);
-            back?.CollectSemanticToken(collector);
-            base.CollectSemanticToken(collector);
+            base.CollectSemanticToken(manager, collector);
+            if (separator1 != null) collector.Add(DetailTokenType.Operator, separator1.Value);
+            if (separator2 != null) collector.Add(DetailTokenType.Operator, separator2.Value);
+            front?.CollectSemanticToken(manager, collector);
+            back?.CollectSemanticToken(manager, collector);
         }
     }
 }

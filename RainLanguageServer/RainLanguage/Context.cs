@@ -1,40 +1,47 @@
-﻿using System.Text;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text;
 
 namespace RainLanguageServer.RainLanguage
 {
-    internal class Context(TextDocument document, CompilingSpace space, HashSet<CompilingSpace> relies, CompilingDeclaration? declaration)
+    internal readonly struct Context(TextDocument document, AbstractSpace space, HashSet<AbstractSpace> relies, AbstractDeclaration? declaration)
     {
         public readonly TextDocument document = document;
-        public readonly CompilingSpace space = space;
-        public readonly HashSet<CompilingSpace> relies = relies;
-        public readonly CompilingDeclaration? declaration = declaration;
-
-        private bool IsVisiable(ASTManager manager, Declaration declaration, bool isMember)
+        public readonly AbstractSpace space = space;
+        public readonly HashSet<AbstractSpace> relies = relies;
+        public readonly AbstractDeclaration? declaration = declaration;
+        public Context(Context context, AbstractDeclaration? declaration) : this(context.document, context.space, context.relies, declaration) { }
+        private bool IsVisiable(Manager manager, Declaration declaration, bool isMember)
         {
             if (isMember)
             {
-                if (IsVisiable(manager, manager.GetDeclaringDeclaration(declaration)!.declaration, false))
+                if (!manager.TryGetDefineDeclaration(declaration, out var abstractDeclaration)) return false;
+                if (abstractDeclaration == this.declaration) return true;
+                if (IsVisiable(manager, abstractDeclaration.declaration, false))
                     if (declaration.visibility.ContainAny(Visibility.Public | Visibility.Internal)) return true;
-                return false;
+                    else if (declaration.visibility.ContainAny(Visibility.Space)) return abstractDeclaration.space.Contain(space);
+                if (declaration.category == DeclarationCategory.ClassVariable || declaration.category == DeclarationCategory.Constructor || declaration.category == DeclarationCategory.ClassFunction)
+                {
+                    foreach (var index in manager.GetInheritIterator(this.declaration as AbstractClass))
+                        if (index == abstractDeclaration) return true;
+                    return false;
+                }
             }
             else
             {
                 if (declaration.visibility.ContainAny(Visibility.Public | Visibility.Internal)) return true;
-                else
+                if (!manager.TryGetDeclaration(declaration, out var abstractDeclaration)) return false;
+                if (abstractDeclaration.space.Contain(space))
                 {
-                    var compiling = manager.GetDeclaration(declaration)!;
-                    if (compiling.space.Contain(space))
-                    {
-                        if (declaration.visibility.ContainAny(Visibility.Space)) return true;
-                        else return compiling.name.start.document == document;
-                    }
-                    return false;
+                    if (declaration.visibility.ContainAny(Visibility.Space)) return true;
+                    else return abstractDeclaration.file.space.document == document;
                 }
             }
+            return false;
         }
-        public bool IsVisiable(ASTManager manager, Declaration declaration)
+        public bool IsVisiable(Manager manager, Declaration declaration)
         {
-            if (declaration.library == space.Library.name)
+            if (declaration.library == Manager.LIBRARY_KERNEL) return true;
+            else if (declaration.library == Manager.LIBRARY_SELF)
             {
                 switch (declaration.category)
                 {
@@ -50,34 +57,13 @@ namespace RainLanguageServer.RainLanguage
                     case DeclarationCategory.StructVariable:
                         return IsVisiable(manager, declaration, true);
                     case DeclarationCategory.StructFunction:
-                        {
-                            var define = manager.GetDeclaringDeclaration(declaration)!;
-                            if (define == this.declaration) return true;
-                            if (IsVisiable(manager, define.declaration, false))
-                                if (declaration.visibility.ContainAny(Visibility.Public | Visibility.Internal)) return true;
-                                else if (declaration.visibility.ContainAny(Visibility.Space)) return define.space.Contain(space);
-                        }
-                        return false;
+                        return IsVisiable(manager, declaration, true);
                     case DeclarationCategory.Class:
                         return IsVisiable(manager, declaration, false);
                     case DeclarationCategory.Constructor:
                     case DeclarationCategory.ClassVariable:
                     case DeclarationCategory.ClassFunction:
-                        {
-                            var define = manager.GetDeclaringDeclaration(declaration)!;
-                            if (define == this.declaration) return true;
-                            if (IsVisiable(manager, define.declaration, false))
-                                if (declaration.visibility.ContainAny(Visibility.Public | Visibility.Internal)) return true;
-                                else if (declaration.visibility.ContainAny(Visibility.Space)) return define.space.Contain(space);
-                                else if (this.declaration?.declaration.category == DeclarationCategory.Class)
-                                    if (declaration.visibility.ContainAny(Visibility.Protected))
-                                    {
-                                        var defineType = define.declaration.GetDefineType();
-                                        foreach (var index in manager.GetInheritIterator(this.declaration.declaration.GetDefineType()))
-                                            if (index == defineType) return true;
-                                    }
-                        }
-                        return false;
+                        return IsVisiable(manager, declaration, true);
                     case DeclarationCategory.Interface:
                         return IsVisiable(manager, declaration, false);
                     case DeclarationCategory.InterfaceFunction:
@@ -95,300 +81,239 @@ namespace RainLanguageServer.RainLanguage
                     case DeclarationCategory.Invalid: break;
                     case DeclarationCategory.Variable:
                     case DeclarationCategory.Function:
-                    case DeclarationCategory.Enum: return declaration.visibility.ContainAny(Visibility.Public);
-                    case DeclarationCategory.EnumElement: return manager.GetDeclaringDeclaration(declaration)!.declaration.visibility.ContainAny(Visibility.Public);
-                    case DeclarationCategory.Struct: return declaration.visibility.ContainAny(Visibility.Public);
-                    case DeclarationCategory.StructVariable: return manager.GetDeclaringDeclaration(declaration)!.declaration.visibility.ContainAny(Visibility.Public);
-                    case DeclarationCategory.StructFunction: return manager.GetDeclaringDeclaration(declaration)!.declaration.visibility.ContainAny(Visibility.Public) && declaration.visibility.ContainAny(Visibility.Public);
-                    case DeclarationCategory.Class: return declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.Enum:
+                        return declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.EnumElement:
+                        return manager.TryGetDefineDeclaration(declaration, out var abstractDeclaration) && abstractDeclaration.declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.Struct:
+                        return declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.StructVariable:
+                        return manager.TryGetDefineDeclaration(declaration, out abstractDeclaration) && abstractDeclaration.declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.StructFunction:
+                        return manager.TryGetDefineDeclaration(declaration, out abstractDeclaration) && abstractDeclaration.declaration.visibility.ContainAny(Visibility.Public) && declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.Class:
+                        return declaration.visibility.ContainAny(Visibility.Public);
                     case DeclarationCategory.Constructor:
                     case DeclarationCategory.ClassVariable:
                     case DeclarationCategory.ClassFunction:
-                        {
-                            var define = manager.GetDeclaringDeclaration(declaration);
-                            if (define!.declaration.visibility.ContainAny(Visibility.Public))
-                                if (declaration.visibility.ContainAny(Visibility.Public)) return true;
-                                else if (this.declaration != null && this.declaration.declaration.category == DeclarationCategory.Class && declaration.visibility.ContainAny(Visibility.Protected))
-                                    for (var index = this.declaration as CompilingClass; index != null; index = manager.GetSourceDeclaration(index.parent) as CompilingClass)
-                                        if (index == define)
-                                            return true;
-                        }
+                        if (manager.TryGetDefineDeclaration(declaration, out abstractDeclaration) && abstractDeclaration.declaration.visibility.ContainAny(Visibility.Public))
+                            if (declaration.visibility.ContainAny(Visibility.Public)) return true;
+                            else if (this.declaration != null && this.declaration.declaration.category == DeclarationCategory.Class && declaration.visibility.ContainAny(Visibility.Protected))
+                            {
+                                foreach (var index in manager.GetInheritIterator(this.declaration as AbstractClass))
+                                    if (index == abstractDeclaration) return true;
+                                return false;
+                            }
                         break;
-                    case DeclarationCategory.Interface: return declaration.visibility.ContainAny(Visibility.Public);
-                    case DeclarationCategory.InterfaceFunction: return manager.GetDeclaringDeclaration(declaration)!.declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.Interface:
+                        return declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.InterfaceFunction:
+                        return manager.TryGetDefineDeclaration(declaration, out abstractDeclaration) && abstractDeclaration.declaration.visibility.ContainAny(Visibility.Public);
                     case DeclarationCategory.Delegate:
                     case DeclarationCategory.Task:
-                    case DeclarationCategory.Native: return declaration.visibility.ContainAny(Visibility.Public);
+                    case DeclarationCategory.Native:
+                        return declaration.visibility.ContainAny(Visibility.Public);
                 }
             }
             return false;
         }
-        public bool TryFindSpace(ASTManager manager, TextRange name, out CompilingSpace? space, MessageCollector collector)
+        public bool TryFindSpace(Manager manager, TextRange name, [MaybeNullWhen(false)] out AbstractSpace result, MessageCollector collector)
         {
             var targetName = name.ToString();
-            for (var index = this.space; index != null; index = index.parent)
-                if (index.children.TryGetValue(targetName, out space)) return true;
-            var results = new HashSet<CompilingSpace>();
+            for (var index = space; index != null; index = index.parent)
+                if (index.children.TryGetValue(targetName, out result))
+                    return true;
+            var results = new HashSet<AbstractSpace>();
             foreach (var rely in relies)
-                if (rely.children.TryGetValue(targetName, out space)) results.Add(space!);
+                if (rely.children.TryGetValue(targetName, out result))
+                    results.Add(rely);
             if (manager.relies.TryGetValue(targetName, out var library))
                 results.Add(library);
             if (results.Count > 0)
             {
                 if (results.Count > 1)
                 {
-                    var message = new StringBuilder().AppendLine("依赖空间不明确");
-                    foreach (var result in results)
-                        message.AppendLine(result.GetFullName());
-                    collector.Add(name, CErrorLevel.Error, message.ToString());
+                    var message = new StringBuilder().AppendLine("依赖的命名空间不明确：");
+                    foreach (var target in results)
+                        message.AppendLine(target.FullName);
+                    collector.Add(name, ErrorLevel.Error, message.ToString());
                 }
-                space = results.First();
+                result = results.First();
                 return true;
             }
-            else if (targetName == manager.kernel.name)
+            else if (targetName == Manager.KERNEL)
             {
-                space = manager.kernel;
+                result = manager.kernel;
                 return true;
             }
-            space = default;
+            result = default;
             return false;
         }
-        public bool TryFindDeclaration(ASTManager manager, TextRange name, out List<CompilingDeclaration> results, MessageCollector collector)
+        public bool TryFindMember<T>(Manager manager, TextRange name, Type type, out List<T> members) where T : AbstractDeclaration
         {
-            results = [];
-            var targetName = name.ToString();
-            if (declaration?.declaration.category == DeclarationCategory.Struct)
+            members = [];
+            if (type.dimension > 0) type = manager.kernelManager.ARRAY;
+            else if (type.code == TypeCode.Enum) type = manager.kernelManager.ENUM;
+            else if (type.code == TypeCode.Task) type = manager.kernelManager.TASK;
+            else if (type.code == TypeCode.Delegate) type = manager.kernelManager.DELEGATE;
+            var memberName = name.ToString();
+            if (manager.TryGetDeclaration(type, out var declaration))
             {
-                var compilingStruct = (CompilingStruct)declaration;
-                foreach (var variable in compilingStruct.variables)
-                    if (variable.name == targetName)
-                    {
-                        results.Add(variable);
-                        return true;
-                    }
-                foreach (var function in compilingStruct.functions)
-                    if (function.name == targetName)
-                        results.Add(function);
-                if (results.Count > 0) return true;
-            }
-            else if (declaration?.declaration.category == DeclarationCategory.Class)
-            {
-                var filter = new HashSet<CompilingDeclaration>();
-                foreach (var index in manager.GetInheritIterator(declaration.declaration.GetDefineType()))
+                if (declaration is AbstractStruct abstractStruct)
                 {
-                    var @class = (CompilingClass)manager.GetSourceDeclaration(index)!;
-                    foreach (var variable in @class.variables)
-                        if (variable.name == targetName && IsVisiable(manager, variable.declaration))
+                    foreach (var member in abstractStruct.variables)
+                        if (member.name == memberName)
                         {
-                            results.Add(variable);
+                            if (member is T value)
+                                members.Add(value);
                             return true;
                         }
-                    foreach (var function in @class.functions)
-                        if (function.name == targetName && IsVisiable(manager, function.declaration) && !filter.Contains(function))
-                        {
-                            results.Add(function);
-                            CollectOverideFunctions(filter, manager, @class, function);
-                        }
+                    foreach (var member in abstractStruct.functions)
+                        if (member.name == memberName && IsVisiable(manager, member.declaration) && member is T value)
+                            members.Add(value);
                 }
+                else if (declaration is AbstractClass abstractClass)
+                {
+                    var filter = new HashSet<AbstractCallable>();
+                    foreach (var index in manager.GetInheritIterator(abstractClass))
+                    {
+                        if (members.Count == 0)
+                            foreach (var member in index.variables)
+                                if (member.name == memberName && IsVisiable(manager, member.declaration))
+                                {
+                                    if (member is T value)
+                                        members.Add(value);
+                                    return true;
+                                }
+                        foreach (var member in index.functions)
+                            if (member.name == memberName && IsVisiable(manager, member.declaration) && filter.Add(member) && member is T value)
+                            {
+                                members.Add(value);
+                                filter.AddRange(member.overrides);
+                            }
+                    }
+                }
+                else if (declaration is AbstractInterface abstractInterface)
+                {
+                    var filter = new HashSet<AbstractCallable>();
+                    foreach (var index in manager.GetInheritIterator(abstractInterface))
+                        foreach (var member in index.functions)
+                            if (filter.Add(member) && member is T value)
+                            {
+                                members.Add(value);
+                                filter.AddRange(member.overrides);
+                            }
+                }
+            }
+            return members.Count > 0;
+        }
+        public bool TryFindDeclaration(Manager manager, string name, [MaybeNullWhen(false)] out List<AbstractDeclaration> results)
+        {
+            results = [];
+            if (declaration != null)
+            {
+                if (declaration is AbstractStruct abstractStruct)
+                {
+                    foreach (var variable in abstractStruct.variables)
+                        if (variable.name == name && IsVisiable(manager, variable.declaration))
+                            results.Add(variable);
+                    foreach (var function in abstractStruct.functions)
+                        if (function.name == name && IsVisiable(manager, function.declaration))
+                            results.Add(function);
+                }
+                else if (declaration is AbstractClass abstractClass)
+                    foreach (var index in manager.GetInheritIterator(abstractClass))
+                    {
+                        foreach (var variable in index.variables)
+                            if (variable.name == name && IsVisiable(manager, variable.declaration))
+                                results.Add(variable);
+                        foreach (var function in index.functions)
+                            if (function.name == name && IsVisiable(manager, function.declaration))
+                                results.Add(function);
+                    }
                 if (results.Count > 0) return true;
             }
-
             for (var index = space; index != null; index = index.parent)
-                if (index.declarations.TryGetValue(targetName, out var declarations))
+                if (index.declarations.TryGetValue(name, out var declarations))
                 {
-                    foreach (var item in declarations)
-                        if(IsVisiable(manager, item.declaration))
-                            results.Add(item);
-                    if (results.Count > 0 && results[0].declaration.category != DeclarationCategory.Function && results[0].declaration.category != DeclarationCategory.Native) break;
+                    foreach (var declaration in declarations)
+                        if (IsVisiable(manager, declaration) && manager.TryGetDeclaration(declaration, out var result))
+                            results.Add(result);
+                    if (results.Count > 0) return true;
                 }
-            if (results.Count == 1) return true;
-            else if (results.Count > 1)
-            {
-                foreach (var declaration in results)
-                    if (declaration.declaration.category != DeclarationCategory.Function && declaration.declaration.category != DeclarationCategory.Native)
-                    {
-                        var builder = new StringBuilder().AppendLine("查找申明不明确");
-                        foreach (var item in results)
-                            builder.AppendLine(item.GetFullName());
-                        collector.Add(name, CErrorLevel.Error, builder.ToString());
-                        break;
-                    }
-                return true;
-            }
+            foreach (var rely in relies)
+                if (rely.declarations.TryGetValue(name, out var declarations))
+                {
+                    foreach (var declaration in declarations)
+                        if (IsVisiable(manager, declaration) && manager.TryGetDeclaration(declaration, out var result))
+                            results.Add(result);
+                }
+            return results.Count > 0;
+        }
+        public List<AbstractDeclaration> FindDeclaration(Manager manager, TextRange name, MessageCollector collector)
+        {
+            if (TryFindDeclaration(manager, name.ToString(), out var results)) return results;
             else
             {
-                foreach (var rely in relies)
-                    if (rely.declarations.TryGetValue(targetName, out var declarations))
-                        foreach (var declaration in declarations)
-                            if (IsVisiable(manager, declaration.declaration))
-                                results.Add(declaration);
-                if (results.Count == 1) return true;
-                else if (results.Count > 1)
+                collector.Add(name, ErrorLevel.Error, "声明未找到");
+                return [];
+            }
+        }
+        public List<AbstractDeclaration> FindDeclaration(Manager manager, List<TextRange> names, MessageCollector collector)
+        {
+            if (names.Count > 1)
+            {
+                if (TryFindSpace(manager, names[0], out var space, collector))
                 {
-                    foreach (var declaration in results)
-                        if (declaration.declaration.category != DeclarationCategory.Function && declaration.declaration.category != DeclarationCategory.Native)
+                    for (var i = 1; i < names.Count - 1; i++)
+                        if (!space.children.TryGetValue(names[i].ToString(), out space))
                         {
-                            var builder = new StringBuilder().AppendLine("查找申明不明确");
-                            foreach (var item in results)
-                                builder.AppendLine(item.GetFullName());
-                            collector.Add(name, CErrorLevel.Error, builder.ToString());
-                            break;
+                            collector.Add(names[i], ErrorLevel.Error, "命名空间未找到");
+                            return [];
                         }
-                    return true;
+                    if (space.declarations.TryGetValue(names[^1].ToString(), out var declarations)) return manager.ToDeclarations(declarations);
+                    else collector.Add(names[^1], ErrorLevel.Error, $"没有找到名称为 {names[^1]} 的声明");
                 }
+                else collector.Add(names[0], ErrorLevel.Error, "命名空间未找到");
+                return [];
             }
-            return false;
+            else return FindDeclaration(manager, names[0], collector);
         }
-        private static void CollectOverideFunctions(HashSet<CompilingDeclaration> filter, ASTManager manager, CompilingClass @class, CompilingFunction function)
+        public List<AbstractDeclaration> FindDeclaration(Manager manager, QualifiedName name, MessageCollector collector)
         {
-            var name = function.name.ToString();
-            foreach (var index in manager.GetInheritIterator(manager.GetParent(@class.declaration.GetDefineType())))
-                if (manager.GetSourceDeclaration(index) is CompilingClass compiling)
-                    foreach (var item in compiling.functions)
-                        if (item.name == name && item.declaration.signature == function.declaration.signature)
-                            filter.Add(item);
-        }
-        private static void CollectFunctions(ASTManager manager, string name, CompilingInterface @interface, List<CompilingDeclaration> results)
-        {
-            foreach (var item in @interface.callables)
-                if (item.name == name)
-                    results.Add(item);
-            foreach (var item in @interface.inherits)
-                CollectFunctions(manager, name, (CompilingInterface)manager.GetSourceDeclaration(item)!, results);
-        }
-        public bool TryFindMember(ASTManager manager, TextRange name, Type type, out List<CompilingDeclaration> results)
-        {
-            results = [];
-            if (type.dimension > 0) type = Type.ARRAY;
-            else if (type.code == TypeCode.Enum) type = Type.ENUM;
-            else if (type.code == TypeCode.Task) type = Type.TASK;
-            else if (type.code == TypeCode.Delegate) type = Type.DELEGATE;
-            var targetName = name.ToString();
-            var declaration = manager.GetSourceDeclaration(type)!;
-            if (type.code == TypeCode.Struct)
+            if (name.qualify.Count > 0)
             {
-                var compiling = (CompilingStruct)declaration;
-                foreach (var item in compiling.variables)
-                    if (item.name == targetName)
-                    {
-                        results.Add(item);
-                        return true;
-                    }
-                foreach (var item in compiling.functions)
-                    if (item.name == targetName && IsVisiable(manager, item.declaration))
-                        results.Add(item);
-            }
-            else if (type.code == TypeCode.Handle)
-            {
-                var filter = new HashSet<CompilingDeclaration>();
-                foreach (var index in manager.GetInheritIterator(declaration.declaration.GetDefineType()))
-                    if (manager.GetSourceDeclaration(index) is CompilingClass compiling)
-                    {
-                        foreach (var item in compiling.variables)
-                            if (item.name == targetName && IsVisiable(manager, item.declaration))
-                            {
-                                results.Add(item);
-                                return true;
-                            }
-                        foreach (var item in compiling.functions)
-                            if (item.name == targetName && IsVisiable(manager, item.declaration) && !filter.Contains(item))
-                            {
-                                results.Add(item);
-                                CollectOverideFunctions(filter, manager, compiling, item);
-                            }
-                    }
-            }
-            else if (type.code == TypeCode.Interface) CollectFunctions(manager, targetName, (CompilingInterface)declaration, results);
-            return results.Count > 0;
-        }
-        public bool TryFindDeclaration(ASTManager manager, List<TextRange> name, out List<CompilingDeclaration> results, MessageCollector collector)
-        {
-            results = [];
-            if (name.Count == 1)
-            {
-                var type = LexicalTypeExtend.Parse(name[0].ToString());
-                switch (type)
+                if (TryFindSpace(manager, name.qualify[0], out var space, collector))
                 {
-                    case LexicalType.KeyWord_bool: results.Add(manager.GetSourceDeclaration(Type.BOOL)!); break;
-                    case LexicalType.KeyWord_byte: results.Add(manager.GetSourceDeclaration(Type.BYTE)!); break;
-                    case LexicalType.KeyWord_char: results.Add(manager.GetSourceDeclaration(Type.CHAR)!); break;
-                    case LexicalType.KeyWord_integer: results.Add(manager.GetSourceDeclaration(Type.INT)!); break;
-                    case LexicalType.KeyWord_real: results.Add(manager.GetSourceDeclaration(Type.REAL)!); break;
-                    case LexicalType.KeyWord_real2: results.Add(manager.GetSourceDeclaration(Type.REAL2)!); break;
-                    case LexicalType.KeyWord_real3: results.Add(manager.GetSourceDeclaration(Type.REAL3)!); break;
-                    case LexicalType.KeyWord_real4: results.Add(manager.GetSourceDeclaration(Type.REAL4)!); break;
-                    case LexicalType.KeyWord_type: results.Add(manager.GetSourceDeclaration(Type.TYPE)!); break;
-                    case LexicalType.KeyWord_string: results.Add(manager.GetSourceDeclaration(Type.STRING)!); break;
-                    case LexicalType.KeyWord_entity: results.Add(manager.GetSourceDeclaration(Type.ENTITY)!); break;
-                    case LexicalType.KeyWord_handle: results.Add(manager.GetSourceDeclaration(Type.HANDLE)!); break;
-                    case LexicalType.KeyWord_interface: results.Add(manager.GetSourceDeclaration(Type.INTERFACE)!); break;
-                    case LexicalType.KeyWord_delegate: results.Add(manager.GetSourceDeclaration(Type.DELEGATE)!); break;
-                    case LexicalType.KeyWord_task: results.Add(manager.GetSourceDeclaration(Type.TASK)!); break;
-                    case LexicalType.KeyWord_array: results.Add(manager.GetSourceDeclaration(Type.ARRAY)!); break;
-                    default:
-                        var targetName = name[0].ToString();
-                        if (declaration != null)
+                    for (var i = 1; i < name.qualify.Count; i++)
+                        if (!space.children.TryGetValue(name.qualify[i].ToString(), out space))
                         {
-                            if (declaration.declaration.category == DeclarationCategory.Struct)
-                            {
-                                var compiling = (CompilingStruct)declaration;
-                                foreach (var item in compiling.variables)
-                                    if (item.name == targetName)
-                                        results.Add(item);
-                                foreach (var item in compiling.functions)
-                                    if (item.name == targetName)
-                                        results.Add(item);
-                            }
-                            else if (declaration.declaration.category == DeclarationCategory.Class)
-                            {
-                                for (var index = (CompilingClass)declaration; index != null; index = manager.GetSourceDeclaration(index.parent) as CompilingClass)
-                                {
-                                    foreach (var item in index.variables)
-                                        if (item.name == targetName && IsVisiable(manager, item.declaration))
-                                            results.Add(item);
-                                    foreach (var item in index.functions)
-                                        if (item.name == targetName && IsVisiable(manager, item.declaration))
-                                            results.Add(item);
-                                }
-                            }
-                            if (results.Count > 0) return true;
+                            collector.Add(name.qualify[i], ErrorLevel.Error, "命名空间未找到");
+                            return [];
                         }
-                        for (var index = space; index != null; index = index.parent)
-                            if (index.declarations.TryGetValue(targetName, out var declarations))
-                            {
-                                results.AddRange(declarations);
-                                return true;
-                            }
-                        foreach (var rely in relies)
-                            if (rely.declarations.TryGetValue(targetName, out var declarations))
-                                results.AddRange(declarations);
-                        break;
+                    if (space.declarations.TryGetValue(name.name.ToString(), out var declarations)) return manager.ToDeclarations(declarations);
+                    else collector.Add(name.name, ErrorLevel.Error, $"没有找到名称为 {name.name} 的声明");
                 }
+                else collector.Add(name.qualify[0], ErrorLevel.Error, "命名空间未找到");
+                return [];
             }
-            else if (name.Count > 1)
-            {
-                if (TryFindSpace(manager, name[0], out var space, collector))
-                {
-                    for (var i = 1; i < name.Count - 1; i++)
-                        if (!space!.children.TryGetValue(name[i].ToString(), out space))
-                            return false;
-                    if (space!.declarations.TryGetValue(name[^1].ToString(), out results!)) return true;
-                    else results = [];
-                }
-            }
-            return results.Count > 0;
+            else return FindDeclaration(manager, name.name, collector);
         }
-        public List<CompilingDeclaration> FindOperator(ASTManager manager, string name)
+        public List<AbstractDeclaration> FindOperation(Manager manager, string name)
         {
-            var result = new List<CompilingDeclaration>();
+            var set = new HashSet<Declaration>();
             if (manager.kernel.declarations.TryGetValue(name, out var declarations))
-                result.AddRange(declarations);
-            for (CompilingSpace? index = space; index != null; index = index.parent)
+                set.AddRange(declarations);
+            for (var index = space; index != null; index = index.parent)
                 if (index.declarations.TryGetValue(name, out declarations))
-                    result.AddRange(declarations);
+                    set.AddRange(declarations);
             foreach (var rely in relies)
                 if (rely.declarations.TryGetValue(name, out declarations))
-                    result.AddRange(declarations);
+                    set.AddRange(declarations);
+            var result = new List<AbstractDeclaration>();
+            foreach (var declaration in set)
+                if (manager.TryGetDeclaration(declaration, out var abstractDeclaration))
+                    result.Add(abstractDeclaration);
             return result;
         }
     }

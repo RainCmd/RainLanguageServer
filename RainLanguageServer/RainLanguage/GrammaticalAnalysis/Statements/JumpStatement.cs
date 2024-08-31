@@ -1,33 +1,44 @@
 ﻿
+
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
-    internal class JumpStatement(TextRange anchor, LoopStatement? loop, Expression condition) : Statement(anchor)
+    internal class JumpStatement : Statement
     {
-        public readonly LoopStatement? loop = loop;
-        public readonly Expression condition = condition;
-        public override void Read(ExpressionParameter parameter) => condition.Read(parameter);
-        public override bool OnHover(ASTManager manager, TextPosition position, out HoverInfo info)
+        public readonly TextRange symbol;
+        public readonly Expression? condition;
+        public List<TextRange>? group;
+
+        public JumpStatement(TextRange symbol, Expression? condition)
         {
-            if (condition.range.Contain(position)) return condition.OnHover(manager, position, out info);
-            return base.OnHover(manager, position, out info);
+            range = condition == null ? symbol : symbol & condition.range;
+            this.symbol = symbol;
+            this.condition = condition;
         }
-        public override bool OnHighlight(ASTManager manager, TextPosition position, List<HighlightInfo> infos)
+
+        public override void Operator(Action<Expression> action)
         {
-            if (anchor.Contain(position) && loop != null)
+            if (condition != null) action(condition);
+        }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (condition != null && condition.range.Contain(position)) return action(condition);
+            return false;
+        }
+        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
+        {
+            if (group != null && symbol.Contain(position))
             {
-                loop.CollectHighlight(infos);
+                InfoUtility.HighlightGroup(group, infos);
                 return true;
             }
-            else if (condition.range.Contain(position)) return condition.OnHighlight(manager, position, infos);
-            return base.OnHighlight(manager, position, infos);
+            return false;
         }
-        public override bool TryGetDeclaration(ASTManager manager, TextPosition position, out CompilingDeclaration? result)
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            if (condition.range.Contain(position)) return condition.TryGetDeclaration(manager, position, out result);
-            return base.TryGetDeclaration(manager, position, out result);
+            collector.Add(DetailTokenType.KeywordCtrl, symbol);
+            condition?.CollectSemanticToken(manager, collector);
         }
-        public override void CollectSemanticToken(SemanticTokenCollector collector)=>condition.CollectSemanticToken(collector);
     }
-    internal class BreakStatement(TextRange anchor, LoopStatement? loop, Expression condition) : JumpStatement(anchor, loop, condition) { }
-    internal class ContinueStatement(TextRange anchor, LoopStatement? loop, Expression condition) : JumpStatement(anchor, loop, condition) { }
+    internal class BreakStatement(TextRange symbol, Expression? condition) : JumpStatement(symbol, condition) { }
+    internal class ContinueStatement(TextRange symbol, Expression? condition) : JumpStatement(symbol, condition) { }
 }
