@@ -186,6 +186,7 @@
             this.space = space;
             this.document = document;
             this.collector = collector;
+            if (name != null) space.references.Add(name.Value);
             parent?.children.Add(this);
         }
 
