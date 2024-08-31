@@ -1,6 +1,5 @@
 ﻿using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
 using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements;
-using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
@@ -510,7 +509,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         private bool CheckReturn(Statement? statement)
         {
             if (statement is ExitStatement || statement is ReturnStatement) return true;
-            else if (statement is JumpStatement jumpStatement) return jumpStatement.condition == null;
+            else if (statement is JumpStatement jumpStatement) return jumpStatement.condition == null && jumpStatement.group != null;
             else if (statement is BlockStatement blockStatement)
             {
                 for (var i = 0; i < blockStatement.statements.Count; i++)
@@ -526,36 +525,40 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             else if (statement is BranchStatement branchStatement) return CheckReturn(branchStatement.trueBranch) && CheckReturn(branchStatement.falseBranch);
             else if (statement is LoopStatement loopStatement)
             {
-                if (loopStatement.loopBlock != null && loopStatement.condition == null)
+                if (loopStatement.loopBlock != null)
                 {
-                    var hasContinue = false;
-                    for (int i = 0; i < loopStatement.loopBlock.statements.Count; i++)
+                    if(loopStatement.condition == null)
                     {
-                        var subStatement = loopStatement.loopBlock.statements[i];
-                        if (subStatement is BreakStatement breakStatement)
+                        var hasContinue = false;
+                        for (int i = 0; i < loopStatement.loopBlock.statements.Count; i++)
                         {
-                            if (breakStatement.condition == null)
-                                InaccessibleCodeWarning(loopStatement.loopBlock.statements, i);
-                            return false;
-                        }
-                        else if (!hasContinue)
-                        {
-                            if (subStatement is ContinueStatement continueStatement)
+                            var subStatement = loopStatement.loopBlock.statements[i];
+                            if (subStatement is BreakStatement breakStatement)
                             {
-                                if (continueStatement.condition == null)
+                                if (breakStatement.condition == null)
+                                    InaccessibleCodeWarning(loopStatement.loopBlock.statements, i);
+                                return false;
+                            }
+                            else if (!hasContinue)
+                            {
+                                if (subStatement is ContinueStatement continueStatement)
+                                {
+                                    if (continueStatement.condition == null)
+                                    {
+                                        InaccessibleCodeWarning(loopStatement.loopBlock.statements, i);
+                                        return true;
+                                    }
+                                    else hasContinue = true;
+                                }
+                                if (CheckReturn(subStatement))
                                 {
                                     InaccessibleCodeWarning(loopStatement.loopBlock.statements, i);
                                     return true;
                                 }
-                                else hasContinue = true;
-                            }
-                            if (CheckReturn(subStatement))
-                            {
-                                InaccessibleCodeWarning(loopStatement.loopBlock.statements, i);
-                                return true;
                             }
                         }
                     }
+                    else CheckReturn(loopStatement.loopBlock);
                 }
                 if (loopStatement.elseBlock != null)
                 {
@@ -573,7 +576,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         private void InaccessibleCodeWarning(List<Statement> statements, int index)
         {
             if (index + 1 < statements.Count)
-                collector.Add(statements[index].range, ErrorLevel.Warning, "无法访问的代码");
+                collector.Add(statements[index + 1].range, ErrorLevel.Warning, "无法访问的代码");
         }
         public static void Parse(Manager manager, LogicBlock logicBlock, AbstractDeclaration? declaration, AbstractCallable callable, List<TextLine> body)
         {
