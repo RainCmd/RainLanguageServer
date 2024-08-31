@@ -73,6 +73,11 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             base.Read(parameter);
             typeExpression.Read(parameter);
         }
+        public override void Write(ExpressionParameter parameter)
+        {
+            base.Write(parameter);
+            typeExpression.Read(parameter);
+        }
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
             if (typeExpression.range.Contain(position)) return typeExpression.OnHover(manager, position, out info);

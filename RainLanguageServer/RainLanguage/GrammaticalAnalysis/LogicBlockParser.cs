@@ -496,17 +496,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             }
             return false;
         }
-        private static bool TryGetLoopStatement(IEnumerable<List<Statement>> statements, [MaybeNullWhen(false)] out LoopStatement result)
-        {
-            foreach (var list in statements)
-                if (list.Count > 0 && list[^1] is LoopStatement loop)
-                {
-                    result = loop;
-                    return true;
-                }
-            result = null;
-            return false;
-        }
         private void ParseBranch(Manager manager, ExpressionParser parser, List<Statement> statements, TextLine line, Lexical lexical, List<TextRange> group)
         {
             var condition = parser.Parse(lexical.anchor.end & line.end);

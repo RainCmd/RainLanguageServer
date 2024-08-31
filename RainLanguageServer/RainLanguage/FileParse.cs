@@ -1,4 +1,5 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿using LanguageServer;
+using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage
 {
@@ -213,11 +214,17 @@ namespace RainLanguageServer.RainLanguage
             }
             return bracketLeft & bracketRight;
         }
-        private static void ParseBlock(LineReader reader, int parentIndent, List<TextLine> lines)
+        private static void ParseBlock(LineReader reader, int parentIndent, List<TextLine> lines, List<TextLine> annotations)
         {
             while (reader.ReadLine(out var line))
             {
-                if (line.indent > parentIndent) lines.Add(line);
+                if (line.indent == TextLine.ANNOTATION) annotations.Add(line);
+                else if (line.indent == TextLine.EMPTY) annotations.Clear();
+                else if (line.indent > parentIndent)
+                {
+                    annotations.Clear();
+                    lines.Add(line);
+                }
                 else if (line.indent >= 0)
                 {
                     reader.Rollback();
@@ -245,7 +252,7 @@ namespace RainLanguageServer.RainLanguage
             }
         }
         private static void ParseDeclaration<T>(FileSpace space, LineReader reader, TextLine line, TextRange category,
-            Func<TextRange, T> creater, Func<T, TextLine, FileDeclaration?>? memberParser,
+            Func<TextRange, T> creater, Action<T, TextLine>? memberParser,
             List<TextRange> attributes, List<TextLine> annotations)
             where T : FileDeclaration
         {
@@ -278,9 +285,7 @@ namespace RainLanguageServer.RainLanguage
                             if (line.indent > parentIndent) space.collector.Add(line[line.indent..(line.indent + 1)], ErrorLevel.Error, "对齐错误");
                             else break;
                         }
-                        var member = memberParser(file, line);
-                        member?.annotation.AddRange(annotations);
-                        annotations.Clear();
+                        memberParser(file, line);
                     }
                 }
                 reader.Rollback();
@@ -313,6 +318,7 @@ namespace RainLanguageServer.RainLanguage
                     variable.attributes.AddRange(attributes);
                     attributes.Clear();
                     variable.annotation.AddRange(annotations);
+                    annotations.Clear();
                     space.variables.Add(variable);
                     return;
                 }
@@ -336,13 +342,13 @@ namespace RainLanguageServer.RainLanguage
                             if (memberLexical.type == LexicalType.Word)
                             {
                                 var result = ParseEnumElement(space, memberLine, memberLexical.anchor);
+                                result.annotation.AddRange(annotations);
+                                annotations.Clear();
                                 file.elements.Add(result);
-                                return result;
                             }
                             else space.collector.Add(memberLexical.anchor, ErrorLevel.Error, "应输入枚举名");
                         }
                         else space.collector.Add(lexical.anchor, ErrorLevel.Error, "应输入枚举名");
-                        return null;
                     }, attributes, annotations);
             }
             else if (lexical.anchor == KeyWords.STRUCT)
@@ -364,8 +370,9 @@ namespace RainLanguageServer.RainLanguage
                             var member = new FileStruct.Variable(space, name, type) { range = TrimLine(memberLine, name.end) };
                             member.attributes.AddRange(attributes);
                             attributes.Clear();
+                            member.annotation.AddRange(annotations);
+                            annotations.Clear();
                             file.variables.Add(member);
-                            return member;
                         }
                         else
                         {
@@ -377,14 +384,14 @@ namespace RainLanguageServer.RainLanguage
                                 var member = new FileStruct.Function(space, visibility, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
                                 member.attributes.AddRange(attributes);
                                 attributes.Clear();
+                                member.annotation.AddRange(annotations);
+                                annotations.Clear();
                                 file.functions.Add(member);
-                                ParseBlock(reader, memberLine.indent, member.body);
+                                ParseBlock(reader, memberLine.indent, member.body, annotations);
                                 member.range &= reader.GetLastValidLine();
-                                return member;
                             }
                             else space.collector.Add((index - 1) & index, ErrorLevel.Error, "需要输入标识符");
                         }
-                        return null;
                     }, attributes, annotations);
             }
             else if (lexical.anchor == KeyWords.CLASS)
@@ -406,8 +413,9 @@ namespace RainLanguageServer.RainLanguage
                             var member = new FileClass.Variable(space, visibility, name, type, expression) { range = TrimLine(memberLine, name.end) };
                             member.attributes.AddRange(attributes);
                             attributes.Clear();
+                            member.annotation.AddRange(annotations);
+                            annotations.Clear();
                             file.variables.Add(member);
-                            return member;
                         }
                         else if (Lexical.TryAnalysis(memberLine, index, out var lexical, space.collector))
                         {
@@ -422,10 +430,10 @@ namespace RainLanguageServer.RainLanguage
                                     message.AddRelated(file.descontructor.name, "已经声明的析构函数");
                                     space.collector.Add(message);
                                 }
-                                ParseBlock(reader, memberLine.indent, file.descontructor.body);
-                                file.descontructor.range &= reader.GetLastValidLine();
                                 DiscardAttributes(attributes, space.collector);
-                                return null;
+                                annotations.Clear();
+                                ParseBlock(reader, memberLine.indent, file.descontructor.body, annotations);
+                                file.descontructor.range &= reader.GetLastValidLine();
                             }
                             else
                             {
@@ -438,10 +446,11 @@ namespace RainLanguageServer.RainLanguage
                                         var member = new FileClass.Constructor(space, visibility, memberName, [], tuple, parameterRange.end & memberLine.end);
                                         member.attributes.AddRange(attributes);
                                         attributes.Clear();
+                                        member.annotation.AddRange(annotations);
+                                        annotations.Clear();
                                         file.constructors.Add(member);
-                                        ParseBlock(reader, memberLine.indent, member.body);
+                                        ParseBlock(reader, memberLine.indent, member.body, annotations);
                                         member.range &= reader.GetLastValidLine();
-                                        return member;
                                     }
                                     else
                                     {
@@ -449,16 +458,16 @@ namespace RainLanguageServer.RainLanguage
                                         var member = new FileClass.Function(space, visibility, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
                                         member.attributes.AddRange(attributes);
                                         attributes.Clear();
+                                        member.annotation.AddRange(annotations);
+                                        annotations.Clear();
                                         file.functions.Add(member);
-                                        ParseBlock(reader, memberLine.indent, member.body);
+                                        ParseBlock(reader, memberLine.indent, member.body, annotations);
                                         member.range &= reader.GetLastValidLine();
-                                        return member;
                                     }
                                 }
                                 else space.collector.Add((index - 1) & index, ErrorLevel.Error, "需要输入标识符");
                             }
                         }
-                        return null;
                     }, attributes, annotations);
 
             }
@@ -483,11 +492,11 @@ namespace RainLanguageServer.RainLanguage
                             var member = new FileInterface.Function(space, Visibility.None, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
                             member.attributes.AddRange(attributes);
                             attributes.Clear();
+                            member.annotation.AddRange(annotations);
+                            annotations.Clear();
                             file.functions.Add(member);
-                            return member;
                         }
                         else space.collector.Add((index - 1) & index, ErrorLevel.Error, "需要输入标识符");
-                        return null;
                     }, attributes, annotations);
             }
             else if (lexical.anchor == KeyWords.DELEGATE)
@@ -552,7 +561,7 @@ namespace RainLanguageServer.RainLanguage
                 attributes.Clear();
                 file.annotation.AddRange(annotations);
                 annotations.Clear();
-                ParseBlock(reader, line.indent, file.body);
+                ParseBlock(reader, line.indent, file.body, annotations);
                 file.range &= reader.GetLastValidLine();
                 space.functions.Add(file);
             }
@@ -663,7 +672,6 @@ namespace RainLanguageServer.RainLanguage
                         else space.collector.Add((lexical.anchor.end - 1) & lexical.anchor.end, ErrorLevel.Error, "需要输入标识符");
                     }
                     else space.collector.Add(lexical.anchor, ErrorLevel.Error, "应输入类型或命名空间");
-                    annotations.Clear();
                     DiscardAttributes(attributes, space.collector);
                 }
             }

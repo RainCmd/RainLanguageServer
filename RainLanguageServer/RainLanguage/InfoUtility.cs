@@ -69,23 +69,42 @@ namespace RainLanguageServer.RainLanguage
             if (manager.TryGetDeclaration(type, out var declaration))
             {
                 var sb = new StringBuilder();
-                if (addCode || type.library != Manager.LIBRARY_KERNEL)
-                    if (GetQualifier(type.library, declaration.space, space, sb))
-                        sb.Append('.');
-                sb.Append(declaration.name.ToString());
+                if (addCode)
+                {
+                    foreach (var annotation in declaration.file.annotation)
+                        sb.AppendLine(((TextRange)annotation).Trim.ToString());
+                }
                 if (addCode)
                 {
                     switch (type.code)
                     {
                         case TypeCode.Invalid: break;
-                        case TypeCode.Struct: return $"struct {sb}";
-                        case TypeCode.Enum: return $"enum {sb}";
-                        case TypeCode.Handle: return $"handle {sb}";
-                        case TypeCode.Interface: return $"interface {sb}";
-                        case TypeCode.Delegate: return $"delegate {sb}";
-                        case TypeCode.Task: return $"task {sb}";
+                        case TypeCode.Struct:
+                            sb.Append(KeyWords.STRUCT);
+                            break;
+                        case TypeCode.Enum:
+                            sb.Append(KeyWords.ENUM);
+                            break;
+                        case TypeCode.Handle:
+                            sb.Append(KeyWords.HANDLE);
+                            break;
+                        case TypeCode.Interface:
+                            sb.Append(KeyWords.INTERFACE);
+                            break;
+                        case TypeCode.Delegate:
+                            sb.Append(KeyWords.DELEGATE);
+                            break;
+                        case TypeCode.Task:
+                            sb.Append(KeyWords.TASK);
+                            break;
                     }
+                    sb.Append(' ');
                 }
+                if (addCode || type.library != Manager.LIBRARY_KERNEL)
+                    if (GetQualifier(type.library, declaration.space, space, sb))
+                        sb.Append('.');
+                sb.Append(declaration.name.ToString());
+                if(addCode) return sb.ToString();
                 else
                 {
                     for (var i = 0; i < type.dimension; i++) sb.Append("[]");
@@ -336,7 +355,11 @@ namespace RainLanguageServer.RainLanguage
         {
             if (manager.TryGetDeclaration(type, out var declaration))
             {
-                if (fileType.name.name.Contain(position)) return declaration.OnHighlight(manager, position, infos);
+                if (fileType.name.name.Contain(position))
+                {
+                    Highlight(declaration, infos);
+                    return true;
+                }
                 if (OnHighlight(fileType.name.qualify, position, declaration.space, infos)) return true;
             }
             else if (fileType.name.name.Contain(position))
