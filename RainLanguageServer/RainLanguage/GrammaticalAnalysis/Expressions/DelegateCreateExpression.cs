@@ -143,15 +143,13 @@
         public override void Read(ExpressionParameter parameter)
         {
             target?.Read(parameter);
-            if (callable is AbstractClass.Function function) Reference(function);
+            if (callable is AbstractClass.Function function)
+            {
+                function.references.Add(member);
+                foreach (var item in function.implements)
+                    item.references.Add(member);
+            }
             else callable.references.Add(member);
-        }
-
-        private void Reference(AbstractClass.Function function)
-        {
-            function.references.Add(member);
-            foreach (var item in function.implements)
-                Reference(item);
         }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)

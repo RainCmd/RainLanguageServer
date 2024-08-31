@@ -137,6 +137,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (!variable.isReadonly) attribute |= ExpressionAttribute.Assignable;
             else if (variable.declaration.library == Manager.LIBRARY_SELF) attribute |= ExpressionAttribute.Constant;
         }
+        public override bool Calculability() => variable.isReadonly && variable.calculated && variable.declaration.library == Manager.LIBRARY_SELF;
         public override void Read(ExpressionParameter parameter) => variable.references.Add(name.name);
         public override void Write(ExpressionParameter parameter) => variable.write.Add(name.name);
 
@@ -189,7 +190,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
             collector.AddNamespace(name);
-            collector.Add(DetailTokenType.GlobalVariable, name.name);
+            if (variable.isReadonly)
+                collector.Add(DetailTokenType.Constant, name.name);
+            else
+                collector.Add(DetailTokenType.GlobalVariable, name.name);
         }
     }
     internal class VariableMemberExpression : Expression

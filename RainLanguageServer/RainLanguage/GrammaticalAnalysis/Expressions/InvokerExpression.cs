@@ -204,15 +204,14 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public override void Read(ExpressionParameter parameter)
         {
             target?.Read(parameter);
-            if (callable is AbstractClass.Function function) Reference(function);
+            if (callable is AbstractClass.Function function)
+            {
+                function.references.Add(method);
+                foreach (var item in function.implements)
+                    item.references.Add(method);
+            }
             else callable.references.Add(method);
             parameters.Read(parameter);
-        }
-        private void Reference(AbstractClass.Function function)
-        {
-            function.references.Add(method);
-            foreach (var item in function.implements)
-                Reference(item);
         }
         public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {

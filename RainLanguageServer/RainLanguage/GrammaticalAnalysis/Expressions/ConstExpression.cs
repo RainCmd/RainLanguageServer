@@ -44,6 +44,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             value = default;
             return false;
         }
+        public override bool Calculability() => true;
         public override void Read(ExpressionParameter parameter) { }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)

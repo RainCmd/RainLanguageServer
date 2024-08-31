@@ -26,6 +26,13 @@
                 if (!expression.TryEvaluateIndices(indices)) return false;
             return true;
         }
+        public override bool Calculability()
+        {
+            foreach(var expression in expressions)
+                if (!expression.Calculability())
+                    return false;
+            return true;
+        }
         public override void Read(ExpressionParameter parameter)
         {
             foreach (var expression in expressions) expression.Read(parameter);

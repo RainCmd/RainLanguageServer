@@ -356,24 +356,9 @@ namespace RainLanguageServer.RainLanguage
                         constants.Add(item);
                         CheckType(item.expression, item.type, item.file.space.collector);
                     }
-                while (constants.Count > 0)
-                {
-                    var count = constants.Count;
-                    for (var i = 0; i < count; i++)
-                        if (constants[i].expression!.Calculability())
-                        {
-                            constants[i].calculated = true;
-                            count--;
-                            constants[i] = constants[count];
-                            constants.RemoveAt(count);
-                        }
-                    if (count == constants.Count)
-                    {
-                        foreach (var item in constants)
-                            item.file.space.collector.Add(item.name, ErrorLevel.Error, "无法计算常量值");
-                        break;
-                    }
-                }
+                while (constants.RemoveAll(value => value.calculated = value.expression!.Calculability()) > 0) ;
+                foreach (var item in constants)
+                    item.file.space.collector.Add(item.name, ErrorLevel.Error, "无法计算常量值");
                 foreach (var item in library.enums)
                 {
                     var context = new Context(item.file.space.document, item.space, item.file.space.relies, null);

@@ -208,16 +208,14 @@
             {
                 msg.related.Add(new RelatedInfo(callable.name, "符合条件的函数"));
                 if (callable is AbstractClass.Function function)
-                    Reference(function);
+                {
+                    function.references.Add(member);
+                    foreach (var item in function.implements)
+                        item.references.Add(member);
+                }
             }
             parameter.collector.Add(msg);
             target?.Read(parameter);
-        }
-        private void Reference(AbstractClass.Function function)
-        {
-            function.references.Add(member);
-            foreach (var item in function.implements)
-                Reference(item);
         }
 
         public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
