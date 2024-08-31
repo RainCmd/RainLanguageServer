@@ -598,7 +598,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                     case LexicalType.RealInvoker:
                         if (attribute.ContainAny(ExpressionAttribute.Value))
                         {
-                            if (Lexical.TryAnalysis(range, index, out var identifier, collector))
+                            if (Lexical.TryAnalysis(range, lexical.anchor.end, out var identifier, collector))
                             {
                                 index = identifier.anchor.end;
                                 var expression = expressionStack.Pop();
