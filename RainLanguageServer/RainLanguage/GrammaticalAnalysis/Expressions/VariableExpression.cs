@@ -60,7 +60,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            if (local.parameter) collector.Add(DetailTokenType.Parameter, identifier);
+            if (local.read.Count == 0) collector.Add(DetailTokenType.DeprecatedLocal, identifier);
+            else if (local.parameter) collector.Add(DetailTokenType.Parameter, identifier);
             else collector.Add(DetailTokenType.Local, identifier);
         }
     }

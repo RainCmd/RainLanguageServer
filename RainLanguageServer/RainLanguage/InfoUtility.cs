@@ -25,6 +25,7 @@ namespace RainLanguageServer.RainLanguage
         Constant,
         Parameter,
         Local,
+        DeprecatedLocal,
 
         KeywordCtrl,
         KeywordType,
@@ -549,6 +550,9 @@ namespace RainLanguageServer.RainLanguage
                     break;
                 case DetailTokenType.Local:
                     collector.AddRange(SemanticTokenType.Variable, SemanticTokenModifier.Modification, range);
+                    break;
+                case DetailTokenType.DeprecatedLocal:
+                    collector.AddRange(SemanticTokenType.Variable, SemanticTokenModifier.Deprecated, range);
                     break;
 
                 case DetailTokenType.KeywordCtrl:

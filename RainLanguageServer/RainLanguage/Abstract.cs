@@ -261,7 +261,12 @@ namespace RainLanguageServer.RainLanguage
                 collector.AddType(parameters[i].type, manager, signature[i]);
                 var name = parameters[i].name;
                 if (name != null)
-                    collector.Add(DetailTokenType.Parameter, name.Value);
+                {
+                    if (block != null && block.parameters[i].write.Count == 0)
+                        collector.Add(DetailTokenType.DeprecatedLocal, name.Value);
+                    else
+                        collector.Add(DetailTokenType.Parameter, name.Value);
+                }
             }
             if (block != null)
                 foreach (var statement in block.statements)

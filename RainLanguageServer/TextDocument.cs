@@ -79,6 +79,7 @@ namespace RainLanguageServer
         public bool Equals(TextRange other) => start.Equals(other.start) && end.Equals(other.end);
         public override readonly int GetHashCode() => start.GetHashCode() ^ end.GetHashCode();
         public override readonly bool Equals(object? obj) => obj is TextRange value && Equals(value);
+        public static TextRange Union(TextRange a, TextRange b) => new(a.start < b.start ? a.start : b.start, a.end > b.end ? a.end : b.end);
     }
     internal readonly struct TextLine(int line, int indent, TextPosition start, TextPosition end)
     {

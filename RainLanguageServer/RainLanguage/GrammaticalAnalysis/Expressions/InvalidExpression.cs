@@ -11,6 +11,11 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             attribute = ExpressionAttribute.Invalid;
         }
         public InvalidExpression(params Expression[] expressions) : this((IList<Expression>)expressions) { }
+        public InvalidExpression(TextRange range, IList<Expression> expressions) : base(range, Tuple.Empty)
+        {
+            this.expressions = expressions;
+            attribute = ExpressionAttribute.Invalid;
+        }
         public InvalidExpression(IList<Expression> expressions) : base(expressions[0].range & expressions[^1].range, Tuple.Empty)
         {
             this.expressions = expressions;
