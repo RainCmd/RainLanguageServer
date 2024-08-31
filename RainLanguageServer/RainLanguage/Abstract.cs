@@ -81,7 +81,7 @@ namespace RainLanguageServer.RainLanguage
                 var sb = new StringBuilder();
                 if (isReadonly) sb.Append("(常量)");
                 else sb.Append("(全局变量)");
-                sb.Append(type.Info(manager, false, space));
+                sb.Append(type.Info(manager, space));
                 sb.Append(' ');
                 sb.Append(name.ToString());
                 info = new HoverInfo(name, sb.ToString().MakedownCode(), true);
@@ -168,7 +168,7 @@ namespace RainLanguageServer.RainLanguage
                     {
                         var sb = new StringBuilder();
                         sb.Append("(参数)");
-                        sb.Append(signature[i].Info(manager, false, space));
+                        sb.Append(signature[i].Info(manager, space));
                         sb.Append(' ');
                         sb.Append(parameter.name.ToString());
                         info = new HoverInfo(parameter.range, sb.ToString().MakedownCode(), true);
@@ -303,7 +303,7 @@ namespace RainLanguageServer.RainLanguage
             {
                 if (name.Contain(position))
                 {
-                    info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
+                    info = new HoverInfo(name, this.CodeInfo(manager, space), true);
                     return true;
                 }
                 else if (expression != null && expression.range.Contain(position))
@@ -344,7 +344,7 @@ namespace RainLanguageServer.RainLanguage
         {
             if (name.Contain(position))
             {
-                info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
+                info = new HoverInfo(name, this.CodeInfo(manager, space), true);
                 return true;
             }
             foreach (var element in elements)
@@ -398,7 +398,7 @@ namespace RainLanguageServer.RainLanguage
             {
                 if (name.Contain(position))
                 {
-                    info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
+                    info = new HoverInfo(name, this.CodeInfo(manager, space), true);
                     return true;
                 }
                 return fileVariable.type.OnHover(manager, position, type, space, out info);
@@ -460,7 +460,7 @@ namespace RainLanguageServer.RainLanguage
         {
             if (name.Contain(position))
             {
-                info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
+                info = new HoverInfo(name, this.CodeInfo(manager, space), true);
                 return true;
             }
             foreach (var variable in variables)
@@ -544,7 +544,7 @@ namespace RainLanguageServer.RainLanguage
         {
             if (name.Contain(position))
             {
-                info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
+                info = new HoverInfo(name, this.CodeInfo(manager, space), true);
                 return true;
             }
             for (var i = 0; i < fileInterface.inherits.Count; i++)
@@ -613,7 +613,7 @@ namespace RainLanguageServer.RainLanguage
             {
                 if (name.Contain(position))
                 {
-                    info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
+                    info = new HoverInfo(name, this.CodeInfo(manager, space), true);
                     return true;
                 }
                 else if (fileVariable.type.OnHover(manager, position, type, space, out info)) return true;
@@ -750,7 +750,7 @@ namespace RainLanguageServer.RainLanguage
         {
             if (name.Contain(position))
             {
-                info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
+                info = new HoverInfo(name, this.CodeInfo(manager, space), true);
                 return true;
             }
             for (var i = 0; i < fileClass.inherits.Count; i++)
@@ -885,7 +885,7 @@ namespace RainLanguageServer.RainLanguage
         {
             if (name.Contain(position))
             {
-                info = new HoverInfo(name, this.Info(manager, space).MakedownCode(), true);
+                info = new HoverInfo(name, this.CodeInfo(manager, space), true);
                 return true;
             }
             for (var i = 0; i < fileTask.returns.Count; i++)

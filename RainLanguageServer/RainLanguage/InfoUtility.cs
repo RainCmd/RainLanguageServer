@@ -65,52 +65,74 @@ namespace RainLanguageServer.RainLanguage
             }
             return GetQualifier(space, root, builder);
         }
-        public static string Info(this Type type, Manager manager, bool addCode, AbstractSpace? space = null)
+        private static TextRange AnnotationTrim(TextRange line)
+        {
+            var index = 0;
+            while (index < line.Count)
+            {
+                if (char.IsWhiteSpace(line[index])) index++;
+                else if (line[index] == '/')
+                {
+                    index += 2;
+                    break;
+                }
+                else throw new Exception("目前只支持 // 开头的单行注释");
+            }
+            return (line.start + index) & line.end;
+        }
+        private static string GetAnnotation(AbstractDeclaration declaration)
+        {
+            if (declaration.file.annotation.Count == 0) return "";
+            var sb = new StringBuilder();
+            foreach (var annotation in declaration.file.annotation)
+                sb.AppendLine(AnnotationTrim(annotation).Trim.ToString());
+            return sb.ToString();
+        }
+        public static string CodeInfo(this Type type, Manager manager, AbstractSpace? space = null)
         {
             if (manager.TryGetDeclaration(type, out var declaration))
             {
                 var sb = new StringBuilder();
-                if (addCode)
+                switch (type.code)
                 {
-                    foreach (var annotation in declaration.file.annotation)
-                        sb.AppendLine(((TextRange)annotation).Trim.ToString());
+                    case TypeCode.Invalid: break;
+                    case TypeCode.Struct:
+                        sb.Append(KeyWords.STRUCT);
+                        break;
+                    case TypeCode.Enum:
+                        sb.Append(KeyWords.ENUM);
+                        break;
+                    case TypeCode.Handle:
+                        sb.Append(KeyWords.HANDLE);
+                        break;
+                    case TypeCode.Interface:
+                        sb.Append(KeyWords.INTERFACE);
+                        break;
+                    case TypeCode.Delegate:
+                        sb.Append(KeyWords.DELEGATE);
+                        break;
+                    case TypeCode.Task:
+                        sb.Append(KeyWords.TASK);
+                        break;
                 }
-                if (addCode)
-                {
-                    switch (type.code)
-                    {
-                        case TypeCode.Invalid: break;
-                        case TypeCode.Struct:
-                            sb.Append(KeyWords.STRUCT);
-                            break;
-                        case TypeCode.Enum:
-                            sb.Append(KeyWords.ENUM);
-                            break;
-                        case TypeCode.Handle:
-                            sb.Append(KeyWords.HANDLE);
-                            break;
-                        case TypeCode.Interface:
-                            sb.Append(KeyWords.INTERFACE);
-                            break;
-                        case TypeCode.Delegate:
-                            sb.Append(KeyWords.DELEGATE);
-                            break;
-                        case TypeCode.Task:
-                            sb.Append(KeyWords.TASK);
-                            break;
-                    }
-                    sb.Append(' ');
-                }
-                if (addCode || type.library != Manager.LIBRARY_KERNEL)
+                sb.Append(' ');
+                if (GetQualifier(type.library, declaration.space, space, sb)) sb.Append('.');
+                sb.Append(declaration.name.ToString());
+                return GetAnnotation(declaration) + sb.ToString().MakedownCode();
+            }
+            return "无效的类型";
+        }
+        public static string Info(this Type type, Manager manager, AbstractSpace? space = null)
+        {
+            if (manager.TryGetDeclaration(type, out var declaration))
+            {
+                var sb = new StringBuilder();
+                if (type.library != Manager.LIBRARY_KERNEL)
                     if (GetQualifier(type.library, declaration.space, space, sb))
                         sb.Append('.');
                 sb.Append(declaration.name.ToString());
-                if(addCode) return sb.ToString();
-                else
-                {
-                    for (var i = 0; i < type.dimension; i++) sb.Append("[]");
-                    return sb.ToString();
-                }
+                for (var i = 0; i < type.dimension; i++) sb.Append("[]");
+                return sb.ToString();
             }
             return "无效的类型";
         }
@@ -119,7 +141,7 @@ namespace RainLanguageServer.RainLanguage
             if (!manager.TryGetDefineDeclaration(declaration.declaration, out var abstractDeclaration)) throw new InvalidOperationException();
             var sb = new StringBuilder();
             sb.Append("(字段)");
-            sb.Append(type.Info(manager, false, space));
+            sb.Append(type.Info(manager, space));
             sb.Append(' ');
             if (GetQualifier(declaration.declaration.library, declaration.space, space, sb)) sb.Append('.');
             sb.Append(abstractDeclaration.name);
@@ -127,14 +149,14 @@ namespace RainLanguageServer.RainLanguage
             sb.Append(declaration.name);
             return sb.ToString();
         }
-        public static string Info(this AbstractDeclaration declaration, Manager manager, AbstractSpace? space = null)
+        private static string InternalInfo(AbstractDeclaration declaration, Manager manager, AbstractSpace? space)
         {
             if (declaration is AbstractVariable abstractVariable)
             {
                 var sb = new StringBuilder();
                 if (abstractVariable.isReadonly) sb.Append("(常量)");
                 else sb.Append("(全局变量)");
-                sb.Append(abstractVariable.type.Info(manager, false, space));
+                sb.Append(abstractVariable.type.Info(manager, space));
                 sb.Append(' ');
                 if (GetQualifier(declaration.declaration.library, declaration.space, space, sb)) sb.Append('.');
                 sb.Append(abstractVariable.name.ToString());
@@ -228,7 +250,7 @@ namespace RainLanguageServer.RainLanguage
                 for (var i = 0; i < abstractTask.returns.Count; i++)
                 {
                     if (i > 0) sb.Append(", ");
-                    sb.Append(abstractTask.returns[i].Info(manager, false, space));
+                    sb.Append(abstractTask.returns[i].Info(manager, space));
                 }
                 if (abstractTask.returns.Count > 0) sb.Append(' ');
                 if (GetQualifier(declaration.declaration.library, space, space, sb)) sb.Append('.');
@@ -237,6 +259,13 @@ namespace RainLanguageServer.RainLanguage
             }
             else if (declaration is AbstractNative abstractNative) return abstractNative.Info(manager, null, space);
             throw new Exception("无效的声明");
+        }
+        public static string CodeInfo(this AbstractDeclaration declaration, Manager manager, AbstractSpace? space = null)
+        {
+            var sb = new StringBuilder();
+            sb.Append(GetAnnotation(declaration));
+            sb.Append(InternalInfo(declaration, manager, space).MakedownCode());
+            return sb.ToString();
         }
         public static string Info(this AbstractCallable callable, Manager manager, AbstractDeclaration? declaration = null, AbstractSpace? space = null)
         {
@@ -254,7 +283,7 @@ namespace RainLanguageServer.RainLanguage
             for (var i = 0; i < callable.returns.Count; i++)
             {
                 if (i > 0) sb.Append(", ");
-                sb.Append(callable.returns[i].Info(manager, false, space));
+                sb.Append(callable.returns[i].Info(manager, space));
             }
             if (callable.returns.Count > 0) sb.Append(' ');
             if (declaration != null)
@@ -270,7 +299,7 @@ namespace RainLanguageServer.RainLanguage
             {
                 if (i > 0) sb.Append(", ");
                 var parameter = callable.parameters[i];
-                sb.Append(parameter.type.Info(manager, false, space));
+                sb.Append(parameter.type.Info(manager, space));
                 if (parameter.name != null)
                 {
                     sb.Append(' ');
@@ -320,7 +349,7 @@ namespace RainLanguageServer.RainLanguage
                 if (OnHover(fileType.name.qualify, position, out info)) return true;
                 if (fileType.name.name.Contain(position))
                 {
-                    info = new HoverInfo(fileType.name.name, type.Info(manager, true, space).MakedownCode(), true);
+                    info = new HoverInfo(fileType.name.name, type.CodeInfo(manager, space), true);
                     return true;
                 }
             }
@@ -332,7 +361,7 @@ namespace RainLanguageServer.RainLanguage
             var sb = new StringBuilder();
             if (local.parameter) sb.Append("(参数)");
             else sb.Append("(局部变量)");
-            sb.Append(local.type.Info(manager, false, ManagerOperator.GetSpace(manager, position)));
+            sb.Append(local.type.Info(manager, ManagerOperator.GetSpace(manager, position)));
             sb.Append(' ');
             sb.Append(local.range.ToString());
             return new HoverInfo(local.range, sb.ToString().MakedownCode(), true);

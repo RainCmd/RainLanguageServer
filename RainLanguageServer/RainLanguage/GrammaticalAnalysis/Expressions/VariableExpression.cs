@@ -111,7 +111,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             if (identifier.Contain(position) && manager.TryGetDeclaration(local.type, out var declaration))
             {
-                info = new HoverInfo(identifier, declaration.Info(manager, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                info = new HoverInfo(identifier, declaration.CodeInfo(manager, ManagerOperator.GetSpace(manager, position)), true);
                 return true;
             }
             info = default;
@@ -145,7 +145,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (InfoUtility.OnHover(name.qualify, position, out info)) return true;
             if (name.name.Contain(position))
             {
-                info = new HoverInfo(name.name, variable.Info(manager, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                info = new HoverInfo(name.name, variable.CodeInfo(manager, ManagerOperator.GetSpace(manager, position)), true);
                 return true;
             }
             info = default;
@@ -227,7 +227,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (target != null && target.range.Contain(position)) return target.OnHover(manager, position, out info);
             if (identifier.Contain(position))
             {
-                info = new HoverInfo(identifier, member.Info(manager, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                info = new HoverInfo(identifier, member.CodeInfo(manager, ManagerOperator.GetSpace(manager, position)), true);
                 return true;
             }
             info = default;

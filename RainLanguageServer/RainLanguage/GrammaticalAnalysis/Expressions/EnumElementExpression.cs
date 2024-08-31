@@ -30,7 +30,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (type.range.Contain(position)) return type.OnHover(manager, position, out info);
             if (identifier.Contain(position))
             {
-                info = new HoverInfo(identifier, element.Info(manager, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                info = new HoverInfo(identifier, element.CodeInfo(manager, ManagerOperator.GetSpace(manager, position)), true);
                 return true;
             }
             info = default;

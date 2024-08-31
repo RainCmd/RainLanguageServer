@@ -20,7 +20,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (target.range.Contain(position)) return target.OnHover(manager, position, out info);
             if (member.Contain(position))
             {
-                info = new HoverInfo(member, tuple[0].Info(manager, true, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                info = new HoverInfo(member, tuple[0].CodeInfo(manager, ManagerOperator.GetSpace(manager, position)), true);
                 return true;
             }
             info = default;

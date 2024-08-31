@@ -50,7 +50,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             if (manager.TryGetDeclaration(tuple[0], out var declaration))
             {
-                info = new HoverInfo(range, declaration.Info(manager, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
+                info = new HoverInfo(range, declaration.CodeInfo(manager, ManagerOperator.GetSpace(manager, position)), true);
                 return true;
             }
             info = default;
