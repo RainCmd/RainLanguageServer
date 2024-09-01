@@ -63,6 +63,7 @@ namespace RainLanguageServer.RainLanguage
             kernelDocuments = [new TextDocument(ToRainScheme(KERNEL), reader.ReadToEnd())];
             Reparse(true);
             kernelManager = new KernelManager(kernel);
+            CheckImplements.Check(this, library);
             this.documentLoader = documentLoader;
             this.opendDocumentLoader = opendDocumentLoader;
         }
@@ -85,6 +86,7 @@ namespace RainLanguageServer.RainLanguage
                 library = new AbstractLibrary(relies.Count, name);
                 relies.Add(name, library);
                 ParseLibrary(library, documents);
+                CheckImplements.Check(this, library);
                 return true;
             }
             library = null;
@@ -100,14 +102,10 @@ namespace RainLanguageServer.RainLanguage
                 files.Add(file);
                 allFileSpaces.Add(document.path, file);
             }
-            foreach (var file in files)
-                FileTidy.Tidy(this, library, file);
-            foreach (var file in files)
-                FileLink.Link(this, library, file);
-            foreach (var file in files)
-                file.collector.Clear();
+            foreach (var file in files) FileTidy.Tidy(this, library, file);
+            foreach (var file in files) FileLink.Link(this, library, file);
+            //foreach (var file in files) file.collector.Clear();
         }
-        public AbstractLibrary GetLibrary(int library) => librarys[library];
         public IEnumerable<AbstractClass> GetInheritIterator(AbstractClass? abstractClass)
         {
             set.Clear();
@@ -339,12 +337,10 @@ namespace RainLanguageServer.RainLanguage
                     fileSpaces.Add(document.path, file);
                     allFileSpaces.Add(document.path, file);
                 }
-                foreach (var item in fileSpaces)
-                    FileTidy.Tidy(this, library, item.Value);
-                foreach (var item in fileSpaces)
-                    FileLink.Link(this, library, item.Value);
+                foreach (var item in fileSpaces) FileTidy.Tidy(this, library, item.Value);
+                foreach (var item in fileSpaces) FileLink.Link(this, library, item.Value);
                 CheckDeclarationValidity.CheckValidity(this, library);
-                CheckImplements.Check(this);
+                CheckImplements.Check(this, library);
                 var constants = new List<AbstractVariable>();
                 foreach (var item in library.variables)
                     if (item.isReadonly && item.type.code != TypeCode.Invalid && item.fileVariable.expression != null)
@@ -384,7 +380,9 @@ namespace RainLanguageServer.RainLanguage
                             localContext.PopBlock();
                         }
                 }
-                if (opendDocumentLoader == null || !onlyOpened)
+                //todo 前面会把所有未打开的文档信息都清理掉，所以这里只解析打开的文档会导致数据丢失，目前已知有概率点开新文件时文件数据仍未解析，目前未知是否是这里导致的问题
+                //     暂时先全量解析，目前来看全量解析耗时还在可以接受的范围内
+                if (opendDocumentLoader == null || !onlyOpened || true)
                     foreach (var file in fileSpaces.Values)
                         Parse(file);
                 else

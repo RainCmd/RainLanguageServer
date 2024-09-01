@@ -1451,7 +1451,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             {
                 var msg = new Message(name.Range, ErrorLevel.Error, "有多个符合名称的声明");
                 foreach (var declaration in declarations)
-                    msg.related.Add(new RelatedInfo(declaration.name, declaration.FullName));
+                    msg.related.Add(new RelatedInfo(declaration.name, declaration.GetFullName(manager)));
                 collector.Add(msg);
             }
         }

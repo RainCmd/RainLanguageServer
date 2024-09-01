@@ -21,19 +21,6 @@ namespace RainLanguageServer.RainLanguage
             this.declaration = declaration;
             file.abstractDeclaration = this;
         }
-        public string FullName
-        {
-            get
-            {
-                var sb = new StringBuilder(name.ToString());
-                for (var index = space; index != null; index = index.parent)
-                {
-                    sb.Insert(0, '.');
-                    sb.Insert(0, index.name);
-                }
-                return sb.ToString();
-            }
-        }
         public abstract bool OnHover(Manager manager, TextPosition position, out HoverInfo info);
         public virtual bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
@@ -140,6 +127,7 @@ namespace RainLanguageServer.RainLanguage
         public readonly List<Parameter> parameters;
         public readonly Tuple signature;
         public readonly Tuple returns;
+        private bool IsSelf => declaration.library == Manager.LIBRARY_SELF;
         public AbstractCallable(FileDeclaration file, AbstractSpace space, TextRange name, Declaration declaration, List<Parameter> parameters, Tuple returns) : base(file, space, name, declaration)
         {
             this.parameters = parameters;
@@ -164,7 +152,7 @@ namespace RainLanguageServer.RainLanguage
                 {
                     var parameter = parameters[i];
                     if (parameter.type.OnHover(manager, position, signature[i], space, out info)) return true;
-                    else if (parameter.name != null && parameter.name.Value.Contain(position))
+                    else if (IsSelf && parameter.name != null && parameter.name.Value.Contain(position))
                     {
                         var sb = new StringBuilder();
                         sb.Append("(参数)");
@@ -175,7 +163,7 @@ namespace RainLanguageServer.RainLanguage
                         return true;
                     }
                 }
-            if (block != null)
+            if (IsSelf && block != null)
                 foreach (var statement in block.statements)
                     if (statement.range.Contain(position))
                         return statement.OnHover(manager, position, out info);
@@ -193,14 +181,14 @@ namespace RainLanguageServer.RainLanguage
                 {
                     var parameter = parameters[i];
                     if (parameter.type.OnHighlight(manager, position, signature[i], infos)) return true;
-                    else if (parameter.name != null && parameter.name.Value.Contain(position))
+                    else if (IsSelf && parameter.name != null && parameter.name.Value.Contain(position))
                     {
                         if (block != null) block.parameters[i].OnHighlight(infos);
                         else infos.Add(new HighlightInfo(parameter.name.Value, DocumentHighlightKind.Text));
                         return true;
                     }
                 }
-            if (block != null)
+            if (IsSelf && block != null)
                 foreach (var statement in block.statements)
                     if (statement.range.Contain(position))
                         return statement.OnHighlight(manager, position, infos);
@@ -217,13 +205,13 @@ namespace RainLanguageServer.RainLanguage
                 {
                     var parameter = parameters[i];
                     if (parameter.type.TryGetDefinition(manager, position, signature[i], out definition)) return true;
-                    else if (parameter.name != null && parameter.name.Value.Contain(position))
+                    else if (IsSelf && parameter.name != null && parameter.name.Value.Contain(position))
                     {
                         definition = parameter.name.Value;
                         return true;
                     }
                 }
-            if (block != null)
+            if (IsSelf && block != null)
                 foreach (var statement in block.statements)
                     if (statement.range.Contain(position))
                         return statement.TryGetDefinition(manager, position, out definition);
@@ -260,7 +248,7 @@ namespace RainLanguageServer.RainLanguage
             {
                 collector.AddType(parameters[i].type, manager, signature[i]);
                 var name = parameters[i].name;
-                if (name != null)
+                if (IsSelf && name != null)
                 {
                     if (block != null && block.parameters[i].write.Count == 0)
                         collector.Add(DetailTokenType.DeprecatedLocal, name.Value);
@@ -268,7 +256,7 @@ namespace RainLanguageServer.RainLanguage
                         collector.Add(DetailTokenType.Parameter, name.Value);
                 }
             }
-            if (block != null)
+            if (IsSelf && block != null)
                 foreach (var statement in block.statements)
                     statement.CollectSemanticToken(manager, collector);
         }

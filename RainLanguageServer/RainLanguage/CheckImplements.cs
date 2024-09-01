@@ -8,14 +8,14 @@
                 if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractInterface abstractInterface && set.Add(abstractInterface))
                     CollectInherits(manager, abstractInterface.inherits, set);
         }
-        private static void CheckFunction(Manager manager, HashSet<AbstractInterface> set, AbstractInterface.Function implement)
+        private static void CheckFunction(HashSet<AbstractInterface> set, AbstractInterface.Function implement)
         {
             var name = implement.name.ToString();
             foreach (var abstractInterface in set)
                 foreach (var function in abstractInterface.functions)
                     if (function.name == name && function.signature == implement.signature)
                     {
-                        if(function.returns != implement.returns)
+                        if (function.returns != implement.returns)
                         {
                             var msg = new Message(implement.name, ErrorLevel.Error, "与继承的接口函数同名同参，但返回值不同");
                             msg.AddRelated(function.name, "冲突的函数");
@@ -24,28 +24,26 @@
                         implement.overrides.Add(function);
                     }
         }
-        private static void CheckFunction(Manager manager, HashSet<AbstractClass> set, Type index, AbstractClass.Function implement, string name)
+        private static void CheckFunction(Manager manager, Type index, AbstractClass.Function implement, string name)
         {
+
             if (manager.TryGetDeclaration(index, out var declaration) && declaration is AbstractClass inhert)
-            {
-                if (!set.Add(inhert)) return;
-                foreach (var function in inhert.functions)
-                    if (function.name == name && function.signature == implement.signature)
-                    {
-                        function.implements.Add(implement);
-                        implement.overrides.Add(function);
-                        if (function.returns != implement.returns)
+                foreach (var abstractClass in manager.GetInheritIterator(inhert))
+                    foreach (var function in inhert.functions)
+                        if (function.name == name && function.signature == implement.signature)
                         {
-                            var msg = new Message(implement.name, ErrorLevel.Error, "与重写函数同名同参，但返回值不同");
-                            msg.AddRelated(function.name, "冲突的函数");
-                            implement.file.space.collector.Add(msg);
-                            return;
+                            function.implements.Add(implement);
+                            implement.overrides.Add(function);
+                            if (function.returns != implement.returns)
+                            {
+                                var msg = new Message(implement.name, ErrorLevel.Error, "与重写函数同名同参，但返回值不同");
+                                msg.AddRelated(function.name, "冲突的函数");
+                                implement.file.space.collector.Add(msg);
+                                return;
+                            }
                         }
-                    }
-                CheckFunction(manager, set, inhert.parent, implement, name);
-            }
         }
-        private static bool ContainsFunction(Manager manager, AbstractInterface.Function function, AbstractClass define)
+        private static bool ContainsFunction(AbstractInterface.Function function, AbstractClass define)
         {
             var name = function.name.ToString();
             foreach (var implement in define.functions)
@@ -59,30 +57,27 @@
                 }
             return false;
         }
-        public static void Check(Manager manager)
+        public static void Check(Manager manager, AbstractLibrary library)
         {
             var interfaceSet = new HashSet<AbstractInterface>();
-            foreach (var abstractInterface in manager.library.interfaces)
+            foreach (var abstractInterface in library.interfaces)
             {
-                interfaceSet.Add(abstractInterface);
                 CollectInherits(manager, abstractInterface.inherits, interfaceSet);
                 interfaceSet.Remove(abstractInterface);
                 foreach (var function in abstractInterface.functions)
-                    CheckFunction(manager, interfaceSet, function);
+                    CheckFunction(interfaceSet, function);
                 interfaceSet.Clear();
             }
-            var classSet = new HashSet<AbstractClass>();
             var unimplements = new List<AbstractInterface.Function>();
-            foreach (var abstractClass in manager.library.classes)
+            foreach (var abstractClass in library.classes)
             {
                 foreach (var function in abstractClass.functions)
-                    CheckFunction(manager, classSet, abstractClass.parent, function, function.name.ToString());
-                classSet.Clear();
+                    CheckFunction(manager, abstractClass.parent, function, function.name.ToString());
                 CollectInherits(manager, abstractClass.inherits, interfaceSet);
 
                 foreach (var inhertInterface in interfaceSet)
                     foreach (var function in inhertInterface.functions)
-                        if (!ContainsFunction(manager, function, abstractClass))
+                        if (!ContainsFunction(function, abstractClass))
                             unimplements.Add(function);
 
                 if (unimplements.Count > 0)
@@ -91,6 +86,7 @@
                     foreach (var function in unimplements)
                         msg.AddRelated(function.name, "未实现的函数");
                     abstractClass.file.space.collector.Add(msg);
+                    unimplements.Clear();
                 }
                 interfaceSet.Clear();
             }

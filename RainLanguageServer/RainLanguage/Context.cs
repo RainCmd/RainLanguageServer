@@ -222,15 +222,21 @@ namespace RainLanguageServer.RainLanguage
                             results.Add(function);
                 }
                 else if (declaration is AbstractClass abstractClass)
+                {
+                    var filter = new HashSet<AbstractCallable>();
                     foreach (var index in manager.GetInheritIterator(abstractClass))
                     {
                         foreach (var variable in index.variables)
                             if (variable.name == name && IsVisiable(manager, variable.declaration))
                                 results.Add(variable);
                         foreach (var function in index.functions)
-                            if (function.name == name && IsVisiable(manager, function.declaration))
+                            if (filter.Add(function) && function.name == name && IsVisiable(manager, function.declaration))
+                            {
                                 results.Add(function);
+                                filter.AddRange(function.overrides);
+                            }
                     }
+                }
                 if (results.Count > 0) return true;
             }
             for (var index = space; index != null; index = index.parent)

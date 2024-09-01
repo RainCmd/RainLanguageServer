@@ -65,6 +65,18 @@ namespace RainLanguageServer.RainLanguage
             }
             return GetQualifier(space, root, builder);
         }
+        public static string GetFullName(this AbstractDeclaration declaration, Manager manager)
+        {
+            var sb = new StringBuilder();
+            if (GetQualifier(declaration.declaration.library, declaration.space, null, sb)) sb.Append('.');
+            if (manager.TryGetDefineDeclaration(declaration.declaration, out var define))
+            {
+                sb.Append(define.name.ToString());
+                sb.Append('.');
+            }
+            sb.Append(declaration.name.ToString());
+            return sb.ToString();
+        }
         private static TextRange AnnotationTrim(TextRange line)
         {
             var index = 0;
