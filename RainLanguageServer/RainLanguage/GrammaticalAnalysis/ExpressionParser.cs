@@ -1942,6 +1942,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 }
                 return true;
             }
+            else if (expression is BracketExpression bracket) return TryExplicitTypes(bracket.expression, target, result);
             else if (expression.tuple.Count == 1) return TryExplicitTypes(expression, target[0], result);
             result.AddRange(expression.tuple);
             return true;
@@ -2302,9 +2303,9 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         private bool TryParseBracket(TextRange range, [MaybeNullWhen(false)] out Expression expression)
         {
             expression = default;
-            if (range.Count == 0) return false;
-            var lexical = ExpressionSplit.Split(range, SplitFlag.Bracket0, out var left, out var right, collector);
-            if (lexical.type == LexicalType.BracketRight0 && left.start == range.start && left.end == range.end)
+            if (!Lexical.TryAnalysis(range, 0, out var lexical, null) || lexical.type != LexicalType.BracketLeft0) return false;
+            lexical = ExpressionSplit.Split(range, SplitFlag.Bracket0, out var left, out var right, collector);
+            if (lexical.type == LexicalType.BracketRight0 && right.end == range.end)
             {
                 expression = new BracketExpression(left, right, Parse(left.end & right.start));
                 return true;

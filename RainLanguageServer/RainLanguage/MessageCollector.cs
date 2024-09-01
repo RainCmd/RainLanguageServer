@@ -24,6 +24,7 @@ namespace RainLanguageServer.RainLanguage
         public readonly List<RelatedInfo> related = [];
         public Message(IList<TextRange> ranges, ErrorLevel level, string message) : this(new TextRange(ranges[0].start, ranges[^1].end), level, message) { }
         public void AddRelated(TextRange range, string message) => related.Add(new RelatedInfo(range, message));
+        public override string ToString() => $"[{level}]{range}: {message}";
     }
     internal class MessageCollector : IEnumerable<Message>
     {
@@ -34,9 +35,6 @@ namespace RainLanguageServer.RainLanguage
 
         public IEnumerator<Message> GetEnumerator() => messages.GetEnumerator();
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            yield return GetEnumerator();
-        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

@@ -72,10 +72,11 @@ namespace RainLanguageServer.RainLanguage
             }
         }
         public bool Equals(Declaration other) => library == other.library && category == other.category && index == other.index && define == other.define;
-        public override bool Equals([NotNullWhen(true)] object? obj) => obj is Declaration other && Equals(other);
-        public override int GetHashCode() => HashCode.Combine(library, category, index, define);
         public static bool operator ==(Declaration a, Declaration b) => a.Equals(b);
         public static bool operator !=(Declaration a, Declaration b) => !a.Equals(b);
+        public override bool Equals([NotNullWhen(true)] object? obj) => obj is Declaration other && Equals(other);
+        public override int GetHashCode() => HashCode.Combine(library, category, index, define);
+        public override string ToString() => $"Declaration({library}, {visibility}, {category}, {index}, {define})";
     }
     internal enum TypeCode
     {
@@ -100,6 +101,11 @@ namespace RainLanguageServer.RainLanguage
         public static bool operator !=(Type left, Type right) => !left.Equals(right);
         public override bool Equals(object? obj) => obj is Type type && Equals(type);
         public override int GetHashCode() => HashCode.Combine(library, code, index, dimension);
+        public override string ToString()
+        {
+            var dimension = this.dimension > 0 ? $"[{this.dimension}]" : "";
+            return $"Type({library}, {code}, {index}){dimension}";
+        }
     }
     internal readonly struct Tuple(params Type[] types) : IEquatable<Tuple>, IEnumerable<Type>
     {
@@ -117,10 +123,10 @@ namespace RainLanguageServer.RainLanguage
         }
         public static bool operator ==(Tuple left, Tuple right) => left.Equals(right);
         public static bool operator !=(Tuple left, Tuple right) => !left.Equals(right);
-        public override bool Equals(object? obj) => obj is Tuple tuple && Equals(tuple);
         public static implicit operator Tuple(Type[] types) => new(types);
         public static implicit operator Tuple(Type type) => new(type);
         public static implicit operator TypeSpan(Tuple tuple) => new(tuple.types);
+        public override bool Equals(object? obj) => obj is Tuple tuple && Equals(tuple);
         public override int GetHashCode()
         {
             var result = new HashCode();
@@ -129,6 +135,7 @@ namespace RainLanguageServer.RainLanguage
                     result.Add(type.GetHashCode());
             return result.ToHashCode();
         }
+        public override string ToString() => $"Tuple[{Count}]";
 
         public IEnumerator<Type> GetEnumerator()
         {
@@ -192,6 +199,7 @@ namespace RainLanguageServer.RainLanguage
                 result.Add(type.GetHashCode());
             return result.ToHashCode();
         }
+        public override string ToString() => $"TypeSpan[{Count}]";
         public IEnumerator<Type> GetEnumerator()
         {
             for (var i = 0; i < count; ++i)
