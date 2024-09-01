@@ -34,19 +34,13 @@ namespace RainLanguageServer
             IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
         private Manager? manager;
-        private string? kernelDefinePath;
-        private string? projectName;
-        private string? projectPath;
-        private string[]? imports;
         protected override Result<InitializeResult, ResponseError<InitializeErrorData>> Initialize(InitializeParams param, CancellationToken token)
         {
-            kernelDefinePath = param.initializationOptions?.kernelDefinePath?.Value as string;
-            projectName = param.initializationOptions?.projectName?.Value as string;
-            projectPath = new UnifiedPath(param.rootUri);
-            var imports = param.initializationOptions?.imports;
-            if (imports is JToken jtoken) this.imports = jtoken.ToObject<string[]>();
+            var kernelDefinePath = param.initializationOptions?.kernelDefinePath?.Value as string;
             if (kernelDefinePath == null)
                 return Result<InitializeResult, ResponseError<InitializeErrorData>>.Error(Message.ServerError(ErrorCodes.ServerNotInitialized, new InitializeErrorData(false)));
+
+            var imports = param.initializationOptions?.imports is JToken jtoken ? jtoken.ToObject<string[]>() : null;
 
             var result = new InitializeResult() { capabilities = GetServerCapabilities() };
 
@@ -54,17 +48,18 @@ namespace RainLanguageServer
             if (result.capabilities.completionProvider != null)
                 result.capabilities.completionProvider.triggerCharacters = [".", ">"];
 
+            var projectName = param.initializationOptions?.projectName?.Value as string;
+            manager = new Manager(projectName ?? "TestLibrary", kernelDefinePath, imports, LoadRelyLibrary, () => new DocumentLoader(new UnifiedPath(param.rootUri), this), () => documents.Values);
+            manager.Reparse(false);
+
             return Result<InitializeResult, ResponseError<InitializeErrorData>>.Success(result);
         }
         protected override void Initialized()
         {
-            if (kernelDefinePath != null)
-            {
-                manager = new Manager(projectName ?? "TestLibrary", kernelDefinePath, imports, LoadRelyLibrary, () => new DocumentLoader(projectPath, this), () => documents.Values);
-                manager.Reparse(false);
-                foreach (var space in manager.fileSpaces.Values)
-                    RefreshDiagnostics(space);
-            }
+            if (manager != null)
+                lock (manager)
+                    foreach (var space in manager.fileSpaces.Values)
+                        RefreshDiagnostics(space);
         }
         private TextDocument[] LoadRelyLibrary(string library)
         {

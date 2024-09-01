@@ -10,7 +10,7 @@
         {
             this.declaration = declaration;
             this.identifier = identifier;
-            attribute = ExpressionAttribute.Assignable;
+            attribute = ExpressionAttribute.Value | ExpressionAttribute.Assignable;
         }
         public override void Read(ExpressionParameter parameter) => parameter.collector.Add(declaration, ErrorLevel.Error, "无法推断类型");
 

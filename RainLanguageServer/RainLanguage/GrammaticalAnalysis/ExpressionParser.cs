@@ -1,5 +1,4 @@
-﻿using LanguageServer.Parameters;
-using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
+﻿using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
 using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
@@ -1616,6 +1615,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 case TokenType.LogicAnd:
                 case TokenType.LogicOr:
                     {
+                        if (expressionStack.Count < 2) return Operator(expressionStack, token.lexical.anchor, 2);
                         var right = expressionStack.Pop();
                         var left = expressionStack.Pop();
                         left = AssignmentConvert(left, manager.kernelManager.BOOL);
@@ -1646,6 +1646,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 case TokenType.SymbolicOperationPriority: break;
                 case TokenType.Casting:
                     {
+                        if (expressionStack.Count < 2) return Operator(expressionStack, token.lexical.anchor, 2);
                         var right = expressionStack.Pop();
                         var left = expressionStack.Pop();
                         if (left is TypeExpression type)

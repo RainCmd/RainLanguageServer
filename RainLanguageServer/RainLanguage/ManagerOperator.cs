@@ -58,104 +58,108 @@ namespace RainLanguageServer.RainLanguage
 
         public static bool OnHover(Manager manager, DocumentUri uri, Position position, out HoverInfo info)
         {
-            if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
-            {
-                HoverInfo result = default;
-                if (FileSpaceOperator(space, textPosition, fileSpace =>
-                    {
-                        if (fileSpace.name != null && fileSpace.name.Value.Contain(textPosition))
-                        {
-                            var sb = new StringBuilder();
-                            sb.Append(KeyWords.NAMESPACE);
-                            sb.Append(' ');
-                            sb.Append(fileSpace.name.Value);
-                            result = new HoverInfo(fileSpace.name.Value, sb.ToString().MakedownCode(), true);
-                            return true;
-                        }
-                        return false;
-                    },
-                    fileDeclaration =>
-                    {
-                        if (fileDeclaration.abstractDeclaration != null)
-                            return fileDeclaration.abstractDeclaration.OnHover(manager, textPosition, out result);
-                        return false;
-                    }))
+            lock (manager)
+                if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
                 {
-                    info = result;
-                    return true;
+                    HoverInfo result = default;
+                    if (FileSpaceOperator(space, textPosition, fileSpace =>
+                        {
+                            if (fileSpace.name != null && fileSpace.name.Value.Contain(textPosition))
+                            {
+                                var sb = new StringBuilder();
+                                sb.Append(KeyWords.NAMESPACE);
+                                sb.Append(' ');
+                                sb.Append(fileSpace.name.Value);
+                                result = new HoverInfo(fileSpace.name.Value, sb.ToString().MakedownCode(), true);
+                                return true;
+                            }
+                            return false;
+                        },
+                        fileDeclaration =>
+                        {
+                            if (fileDeclaration.abstractDeclaration != null)
+                                return fileDeclaration.abstractDeclaration.OnHover(manager, textPosition, out result);
+                            return false;
+                        }))
+                    {
+                        info = result;
+                        return true;
+                    }
                 }
-            }
             info = default;
             return false;
         }
         public static bool OnHighlight(Manager manager, DocumentUri uri, Position position, out List<HighlightInfo> result)
         {
             var infos = result = [];
-            if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
-            {
-                if (FileSpaceOperator(space, textPosition, fileSpace =>
-                    {
-                        if (fileSpace.name != null && fileSpace.name.Value.Contain(textPosition))
-                        {
-                            foreach (var reference in fileSpace.space.references)
-                                infos.Add(new HighlightInfo(reference, DocumentHighlightKind.Text));
-                            return true;
-                        }
-                        return false;
-                    },
-                    fileDeclaration =>
-                    {
-                        if (fileDeclaration.abstractDeclaration != null)
-                            return fileDeclaration.abstractDeclaration.OnHighlight(manager, textPosition, infos);
-                        return false;
-                    }))
+            lock (manager)
+                if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
                 {
-                    infos.RemoveAll(value => value.range.start.document != space.document);
-                    return true;
+                    if (FileSpaceOperator(space, textPosition, fileSpace =>
+                        {
+                            if (fileSpace.name != null && fileSpace.name.Value.Contain(textPosition))
+                            {
+                                foreach (var reference in fileSpace.space.references)
+                                    infos.Add(new HighlightInfo(reference, DocumentHighlightKind.Text));
+                                return true;
+                            }
+                            return false;
+                        },
+                        fileDeclaration =>
+                        {
+                            if (fileDeclaration.abstractDeclaration != null)
+                                return fileDeclaration.abstractDeclaration.OnHighlight(manager, textPosition, infos);
+                            return false;
+                        }))
+                    {
+                        infos.RemoveAll(value => value.range.start.document != space.document);
+                        return true;
+                    }
                 }
-            }
             return false;
         }
         public static bool TryGetDefinition(Manager manager, DocumentUri uri, Position position, out TextRange definition)
         {
-            if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
-            {
-                TextRange result = default;
-                if (FileSpaceOperator(space, textPosition, null, fileDeclaratioin =>
-                    {
-                        if (fileDeclaratioin.abstractDeclaration != null)
-                            return fileDeclaratioin.abstractDeclaration.TryGetDefinition(manager, textPosition, out result);
-                        return false;
-                    }))
+            lock (manager)
+                if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
                 {
-                    definition = result;
-                    return true;
+                    TextRange result = default;
+                    if (FileSpaceOperator(space, textPosition, null, fileDeclaratioin =>
+                        {
+                            if (fileDeclaratioin.abstractDeclaration != null)
+                                return fileDeclaratioin.abstractDeclaration.TryGetDefinition(manager, textPosition, out result);
+                            return false;
+                        }))
+                    {
+                        definition = result;
+                        return true;
+                    }
                 }
-            }
             definition = default;
             return false;
         }
         public static bool FindReferences(Manager manager, DocumentUri uri, Position position, out List<TextRange> result)
         {
             var references = result = [];
-            if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
-            {
-                return FileSpaceOperator(space, textPosition, fileSpace =>
-                    {
-                        if (fileSpace.name != null && fileSpace.name.Value.Contain(textPosition))
+            lock (manager)
+                if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
+                {
+                    return FileSpaceOperator(space, textPosition, fileSpace =>
                         {
-                            references.AddRange(fileSpace.space.references);
-                            return true;
-                        }
-                        return false;
-                    },
-                    fileDeclaration =>
-                    {
-                        if (fileDeclaration.abstractDeclaration != null)
-                            return fileDeclaration.abstractDeclaration.FindReferences(manager, textPosition, references);
-                        return false;
-                    });
-            }
+                            if (fileSpace.name != null && fileSpace.name.Value.Contain(textPosition))
+                            {
+                                references.AddRange(fileSpace.space.references);
+                                return true;
+                            }
+                            return false;
+                        },
+                        fileDeclaration =>
+                        {
+                            if (fileDeclaration.abstractDeclaration != null)
+                                return fileDeclaration.abstractDeclaration.FindReferences(manager, textPosition, references);
+                            return false;
+                        });
+                }
             return false;
         }
 
@@ -184,8 +188,9 @@ namespace RainLanguageServer.RainLanguage
         public static SemanticTokenCollector CollectSemanticToken(Manager manager, DocumentUri uri)
         {
             var collector = new SemanticTokenCollector();
-            if (manager.allFileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
-                CollectSemanticToken(manager, collector, space);
+            lock (manager)
+                if (manager.allFileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
+                    CollectSemanticToken(manager, collector, space);
             return collector;
         }
 
@@ -260,8 +265,9 @@ namespace RainLanguageServer.RainLanguage
         public static List<CodeLenInfo> CollectCodeLens(Manager manager, DocumentUri uri)
         {
             var results = new List<CodeLenInfo>();
-            if (manager.allFileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
-                CollectCodeLens(manager, space, results);
+            lock (manager)
+                if (manager.allFileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
+                    CollectCodeLens(manager, space, results);
             return results;
         }
 
