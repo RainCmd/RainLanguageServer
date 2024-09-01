@@ -10,7 +10,7 @@
         private static bool IsFunctions(List<Declaration> declarations)
         {
             foreach (var declaration in declarations)
-                if (declaration.category != DeclarationCategory.Function || declaration.category != DeclarationCategory.Native)
+                if (declaration.category != DeclarationCategory.Function && declaration.category != DeclarationCategory.Native)
                     return false;
             return true;
         }
@@ -48,7 +48,7 @@
                                         filter.Add(declarationY.declaration);
                                     }
                                 }
-                                if (declarations.Count > 0)
+                                if (duplications.Count > 0)
                                 {
                                     duplications.Add(declarationX);
                                     foreach (var declaration in duplications)
