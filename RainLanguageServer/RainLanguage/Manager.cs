@@ -119,6 +119,8 @@ namespace RainLanguageServer.RainLanguage
                     abstractClass = declaration as AbstractClass;
                 else break;
             }
+            if (TryGetDeclaration(kernelManager.HANDLE, out var handleDeclaration) && set.Add(handleDeclaration) && handleDeclaration is AbstractClass handleClass)
+                yield return handleClass;
         }
         public IEnumerable<AbstractInterface> GetInheritIterator(AbstractInterface? abstractInterface)
         {

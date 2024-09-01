@@ -1,5 +1,6 @@
 ﻿using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq.Expressions;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
@@ -221,7 +222,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     {
                                         if (expression.tuple[0] == manager.kernelManager.STRING)
                                             expression = new StringEvaluationExpression(expression.range & bracket.range, expression, bracket, manager.kernelManager);
-                                        else expression = new ArrayEvaluationExpression(expression.range & bracket.range, expression, bracket, manager.kernelManager);
+                                        else expression = new ArrayEvaluationExpression(expression.range & bracket.range, expression, bracket, ExpressionAttribute.Value | ExpressionAttribute.Assignable, manager.kernelManager);
                                         expressionStack.Push(expression);
                                         attribute = expression.attribute;
                                     }
@@ -718,6 +719,21 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     attribute = expression.attribute;
                                     goto label_next_lexical;
                                 }
+                                else if (expression.tuple[0] == manager.kernelManager.REAL2)
+                                {
+                                    attribute = ParseVectorMember(expressionStack, expression, lexical.anchor, identifier.anchor, 2);
+                                    goto label_next_lexical;
+                                }
+                                else if (expression.tuple[0] == manager.kernelManager.REAL3)
+                                {
+                                    attribute = ParseVectorMember(expressionStack, expression, lexical.anchor, identifier.anchor, 3);
+                                    goto label_next_lexical;
+                                }
+                                else if (expression.tuple[0] == manager.kernelManager.REAL4)
+                                {
+                                    attribute = ParseVectorMember(expressionStack, expression, lexical.anchor, identifier.anchor, 4);
+                                    goto label_next_lexical;
+                                }
                                 else
                                 {
                                     collector.Add(identifier.anchor, ErrorLevel.Error, "没有找到该成员");
@@ -801,7 +817,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                             collector.Add(expression.range, ErrorLevel.Error, "字符串不是可为空的类型");
                                             expression = new StringEvaluationExpression(expression.range & bracket.range, expression, bracket, manager.kernelManager);
                                         }
-                                        else expression = new ArrayEvaluationExpression(expression.range & bracket.range, expression, bracket, manager.kernelManager);
+                                        else expression = new ArrayEvaluationExpression(expression.range & bracket.range, expression, bracket, ExpressionAttribute.Value, manager.kernelManager);
                                         expressionStack.Push(expression);
                                         attribute = expression.attribute;
                                     }
@@ -2194,6 +2210,66 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 collector.Add(msg);
             }
             return callable != null;
+        }
+        private ExpressionAttribute ParseVectorMember(Stack<Expression> expressionStack, Expression target, TextRange symbol, TextRange member, int dimension)
+        {
+            if (CheckVectorMemberValid(member, dimension))
+            {
+                Type type = default;
+                if (member.Count == 1) type = manager.kernelManager.REAL;
+                else if (member.Count == 2) type = manager.kernelManager.REAL2;
+                else if (member.Count == 3) type = manager.kernelManager.REAL3;
+                else if (member.Count == 4) type = manager.kernelManager.REAL4;
+                var expression = new VectorMemberExpression(target.range & member, type, target, symbol, member);
+                expressionStack.Push(expression);
+                return expression.attribute;
+            }
+            else
+            {
+                var expression = new InvalidOperationExpression(symbol & member, symbol, new InvalidExpression(member));
+                if (expressionStack.TryPop(out var prevExpression))
+                    expressionStack.Push(new InvalidExpression(prevExpression, expression));
+                else
+                    expressionStack.Push(expression);
+                return ExpressionAttribute.Invalid;
+            }
+        }
+        private bool CheckVectorMemberValid(TextRange member, int dimension)
+        {
+            if (member.Count > 4)
+            {
+                collector.Add(member, ErrorLevel.Error, "最多支持4维向量");
+                return false;
+            }
+            for (int i = 0; i < member.Count; i++)
+                switch (member[i])
+                {
+                    case 'x':
+                    case 'y':
+                        break;
+                    case 'z':
+                    case 'r':
+                    case 'g':
+                    case 'b':
+                        if (dimension < 3)
+                        {
+                            collector.Add(member[i..(i + 1)], ErrorLevel.Error, "至少是3维向量才支持该成员");
+                            return false;
+                        }
+                        break;
+                    case 'w':
+                    case 'a':
+                        if (dimension < 4)
+                        {
+                            collector.Add(member[i..(i + 1)], ErrorLevel.Error, "至少是4维向量才支持该成员");
+                            return false;
+                        }
+                        break;
+                    default:
+                        collector.Add(member, ErrorLevel.Error, "没有找到该成员");
+                        return false;
+                }
+            return true;
         }
         private QuestionExpression ParseQuestion(TextRange condition, TextRange symbol, TextRange value)
         {

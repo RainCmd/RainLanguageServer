@@ -111,11 +111,11 @@
         public readonly Expression array;
         public readonly BracketExpression index;
         public override bool Valid => true;
-        public ArrayEvaluationExpression(TextRange range, Expression array, BracketExpression index, Manager.KernelManager manager) : base(range, new Type(array.tuple[0], array.tuple[0].dimension - 1))
+        public ArrayEvaluationExpression(TextRange range, Expression array, BracketExpression index, ExpressionAttribute attribute, Manager.KernelManager manager) : base(range, new Type(array.tuple[0], array.tuple[0].dimension - 1))
         {
             this.array = array;
             this.index = index;
-            attribute = ExpressionAttribute.Value | tuple[0].GetAttribute(manager);
+            this.attribute = attribute | tuple[0].GetAttribute(manager);
         }
         public override void Read(ExpressionParameter parameter)
         {

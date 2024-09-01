@@ -443,7 +443,7 @@ namespace RainLanguageServer.RainLanguage
                                     var parameterRange = ParseParameters(memberLine, memberName.end, out var parameters, space.collector);
                                     if (tuple.Count == 0 && memberName.ToString() == file.name)
                                     {
-                                        var member = new FileClass.Constructor(space, visibility, memberName, [], tuple, parameterRange.end & memberLine.end);
+                                        var member = new FileClass.Constructor(space, visibility, memberName, parameters, tuple, parameterRange.end & memberLine.end);
                                         member.attributes.AddRange(attributes);
                                         attributes.Clear();
                                         member.annotation.AddRange(annotations);

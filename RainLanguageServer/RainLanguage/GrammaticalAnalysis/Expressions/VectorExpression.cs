@@ -4,11 +4,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
     internal class VectorMemberExpression : Expression
     {
         public readonly Expression target;
+        public readonly TextRange symbol;
         public readonly TextRange member;
         public override bool Valid => true;
-        public VectorMemberExpression(TextRange range, Type type, Expression target, TextRange member) : base(range, type)
+        public VectorMemberExpression(TextRange range, Type type, Expression target, TextRange symbol, TextRange member) : base(range, type)
         {
             this.target = target;
+            this.symbol = symbol;
             this.member = member;
             attribute = ExpressionAttribute.Value | (target.attribute & ExpressionAttribute.Assignable);
         }
@@ -49,6 +51,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
             target.CollectSemanticToken(manager, collector);
+            collector.Add(DetailTokenType.Operator, symbol);
             collector.Add(DetailTokenType.MemberField, member);
         }
     }
