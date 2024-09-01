@@ -352,7 +352,7 @@ namespace RainLanguageServer.RainLanguage
                         var context = new Context(item.file.space.document, item.space, item.file.space.relies, null);
                         var localContext = new LocalContext(item.file.space.collector, null);
                         var parser = new ExpressionParser(this, context, localContext, item.file.space.collector, false);
-                        item.expression = parser.Parse(item.fileVariable.expression.Value);
+                        item.expression = parser.AssignmentConvert(parser.Parse(item.fileVariable.expression.Value), item.type);
                         var parameter = new ExpressionParameter(this, item.file.space.collector);
                         item.expression.Read(parameter);
                         constants.Add(item);
@@ -377,7 +377,7 @@ namespace RainLanguageServer.RainLanguage
                         else
                         {
                             localContext.PushBlock();
-                            element.expression = parser.Parse(element.fileElement.expression.Value);
+                            element.expression = parser.AssignmentConvert(parser.Parse(element.fileElement.expression.Value), kernelManager.INT);
                             element.expression.Read(parameter);
                             if (element.expression.Calculability()) element.calculated = true;
                             else item.file.space.collector.Add(item.name, ErrorLevel.Error, "无法计算常量值，可能存在循环定义");
@@ -404,7 +404,7 @@ namespace RainLanguageServer.RainLanguage
                 {
                     var localContext = new LocalContext(space.collector);
                     var parser = new ExpressionParser(this, context, localContext, space.collector, false);
-                    variable.expression = parser.Parse(file.expression.Value);
+                    variable.expression = parser.AssignmentConvert(parser.Parse(file.expression.Value), variable.type);
                     variable.expression.Read(parameter);
                     CheckType(variable.expression, variable.type, space.collector);
                 }
@@ -424,12 +424,13 @@ namespace RainLanguageServer.RainLanguage
                             var classContext = new Context(context, abstractClass);
                             var localContext = new LocalContext(space.collector, abstractClass);
                             var parser = new ExpressionParser(this, classContext, localContext, space.collector, false);
-                            member.expression = parser.Parse(member.fileVariable.expression.Value);
+                            member.expression = parser.AssignmentConvert(parser.Parse(member.fileVariable.expression.Value), member.type);
                             member.expression.Read(parameter);
                             CheckType(member.expression, member.type, space.collector);
                         }
                     foreach (var member in abstractClass.constructors)
                     {
+                        LogicBlockParser.Parse(this, member.logicBlock, abstractClass, member, member.fileConstructor.body);
                         if (Lexical.TryAnalysis(member.fileConstructor.expression, 0, out var lexical, space.collector))
                         {
                             var parameterRange = lexical.anchor.end & member.fileConstructor.expression.end;
@@ -437,7 +438,7 @@ namespace RainLanguageServer.RainLanguage
                             {
                                 var callables = new List<AbstractCallable>();
                                 foreach (var callable in abstractClass.constructors) callables.Add(callable);
-                                member.expression = LogicBlockParser.Parse(this, abstractClass, callables, lexical.anchor, parameterRange, space.collector);
+                                member.expression = LogicBlockParser.Parse(this, abstractClass, callables, lexical.anchor, member.logicBlock.parameters, parameterRange, space.collector);
                                 member.expression.Read(parameter);
                             }
                             else if (lexical.anchor == KeyWords.BASE)
@@ -449,14 +450,13 @@ namespace RainLanguageServer.RainLanguage
                                     foreach (var callable in parent.constructors)
                                         if (selfContext.IsVisiable(this, callable.declaration))
                                             callables.Add(callable);
-                                    member.expression = LogicBlockParser.Parse(this, abstractClass, callables, lexical.anchor, parameterRange, space.collector);
+                                    member.expression = LogicBlockParser.Parse(this, abstractClass, callables, lexical.anchor, member.logicBlock.parameters, parameterRange, space.collector);
                                     member.expression.Read(parameter);
                                 }
                                 else space.collector.Add(lexical.anchor, ErrorLevel.Error, "父类未找到");
                             }
                             else space.collector.Add(lexical.anchor, ErrorLevel.Error, "无效的表达式");
                         }
-                        LogicBlockParser.Parse(this, member.logicBlock, abstractClass, member, member.fileConstructor.body);
                     }
                     foreach (var member in abstractClass.functions)
                         LogicBlockParser.Parse(this, member.logicBlock, abstractClass, member, member.fileFunction.body);

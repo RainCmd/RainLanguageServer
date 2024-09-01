@@ -527,7 +527,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             {
                 if (loopStatement.loopBlock != null)
                 {
-                    if(loopStatement.condition == null)
+                    if (loopStatement.condition == null)
                     {
                         var hasContinue = false;
                         for (int i = 0; i < loopStatement.loopBlock.statements.Count; i++)
@@ -596,10 +596,11 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             var parser = new LogicBlockParser(manager, name, context, localContext, Tuple.Empty, body, declaration.file.space.collector, true, logicBlock);
             parser.Parse();
         }
-        public static Expression Parse(Manager manager, AbstractClass declaration, List<AbstractCallable> callables, TextRange invokerRange, TextRange parameterRange, MessageCollector collector)
+        public static Expression Parse(Manager manager, AbstractClass declaration, List<AbstractCallable> callables, TextRange invokerRange, List<Local> locals, TextRange parameterRange, MessageCollector collector)
         {
             var context = new Context(declaration.file.space.document, declaration.space, declaration.file.space.relies, declaration);
             var localContext = new LocalContext(collector, declaration);
+            localContext.AddLocals(locals);
             var parser = new ExpressionParser(manager, context, localContext, collector, false);
             var expression = parser.Parse(parameterRange);
             if (expression.Valid)
@@ -609,7 +610,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                     if (parser.TryGetFunction(invokerRange, callables, expression, out var callable))
                     {
                         bracket = bracket.Replace(parser.AssignmentConvert(bracket, callable.signature));
-                        return new InvokerMemberExpression(invokerRange & bracket.range, [], null, invokerRange, null, callable, bracket, manager.kernelManager);
+                        return new InvokerMemberExpression(invokerRange & bracket.range, Tuple.Empty, null, invokerRange, null, callable, bracket, manager.kernelManager);
                     }
                     else collector.Add(invokerRange, ErrorLevel.Error, "未找到匹配的构造函数");
                 }

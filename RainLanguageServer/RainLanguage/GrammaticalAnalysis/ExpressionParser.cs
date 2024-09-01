@@ -662,7 +662,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     index = identifier.anchor.end;
                                     if (!manager.TryGetDeclaration(type.type, out var declaration)) throw new Exception("类型错误");
                                     if (declaration is not AbstractEnum abstractEnum) throw new Exception($"{declaration.GetType()}无法转换为{typeof(AbstractEnum)}");
-                                    var elementName = identifier.ToString();
+                                    var elementName = identifier.anchor.ToString();
                                     foreach (var element in abstractEnum.elements)
                                         if (element.name == elementName)
                                         {
@@ -1182,6 +1182,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                             PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", new InvalidKeyworldExpression(lexical.anchor));
                             attribute = ExpressionAttribute.Invalid;
                         }
+                        else if (lexical.anchor == KeyWords.AND) goto case LexicalType.LogicAnd;
+                        else if (lexical.anchor == KeyWords.OR) goto case LexicalType.LogicOr;
                         else if (lexical.anchor == KeyWords.START || lexical.anchor == KeyWords.NEW)
                         {
                             if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
@@ -2006,7 +2008,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             }
             return true;
         }
-        private Expression AssignmentConvert(Expression source, Type type)
+        public Expression AssignmentConvert(Expression source, Type type)
         {
             if (!source.Valid) return source;
             if (source.tuple.Count == 1)
@@ -2046,6 +2048,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 foreach (var item in tuple.expressions)
                 {
                     expressions.Add(InferRightValueType(item, span[index..(index + item.tuple.Count)]));
+                    index += item.tuple.Count;
                 }
                 return TupleExpression.Create(expressions, collector);
             }

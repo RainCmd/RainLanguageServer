@@ -1,9 +1,8 @@
 ﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
-    internal readonly struct Local(bool parameter, int index, TextRange range, Type type)
+    internal readonly struct Local(bool parameter, TextRange range, Type type)
     {
         public readonly bool parameter = parameter;
-        public readonly int index = index;
         public readonly TextRange range = range;
         public readonly Type type = type;
         public readonly HashSet<TextRange> read = [];
@@ -12,7 +11,6 @@
     internal class LocalContext
     {
         public readonly Local? thisValue;
-        private readonly List<Local> locals = [];
         private readonly List<Dictionary<string, Local>> localStack = [[]];
         private readonly MessageCollector collector;
         public LocalContext(MessageCollector collector, AbstractDeclaration? declaration = null)
@@ -23,10 +21,15 @@
         }
         public void PushBlock() => localStack.Add([]);
         public void PopBlock() => localStack.RemoveAt(^1);
+        public void AddLocals(List<Local> locals)
+        {
+            foreach (var local in locals)
+                localStack[^1][local.range.ToString()] = local;
+        }
+
         public Local Add(bool parameter, string name, TextRange range, Type type)
         {
-            var local = new Local(parameter, locals.Count, range, type);
-            locals.Add(local);
+            var local = new Local(parameter, range, type);
             if (name != KeyWords.DISCARD_VARIABLE)
             {
                 if (TryGetLocal(name, out var overrideLocal))
