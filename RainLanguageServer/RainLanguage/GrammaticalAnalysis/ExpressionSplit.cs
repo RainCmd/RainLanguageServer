@@ -172,6 +172,7 @@
                             right = (lexical.anchor.end & range.end).Trim;
                             return lexical;
                         }
+                        stack.Push(lexical);
                         break;
                     case LexicalType.QuestionDot:
                     case LexicalType.QuestionRealInvoke: break;
@@ -190,7 +191,11 @@
                     case LexicalType.Colon:
                         if (stack.Count > 0)
                         {
-                            if (stack.Pop().type == LexicalType.Question) break;
+                            if (stack.Peek().type == LexicalType.Question)
+                            {
+                                stack.Pop();
+                                break;
+                            }
                         }
                         else if (flag.ContainAny(SplitFlag.Colon))
                         {
