@@ -47,7 +47,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                 {
                                     if (bracket.Valid)
                                     {
-                                        if (TryGetFunction(method.range, method.callables, bracket.tuple, out var callable))
+                                        if (TryGetFunction(method.name.name, method.callables, bracket, out var callable))
                                         {
                                             bracket = bracket.Replace(AssignmentConvert(bracket.expression, callable.signature));
                                             expression = new InvokerFunctionExpression(method.range & bracket.range, callable.returns, method.qualifier, method.name, callable, bracket, manager.kernelManager);
@@ -55,37 +55,25 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                             attribute = expression.attribute;
                                             goto label_next_lexical;
                                         }
-                                        else collector.Add(method.range, ErrorLevel.Error, "未找到匹配的函数");
+                                        else collector.Add(method.name.name, ErrorLevel.Error, "未找到匹配的函数");
                                     }
                                 }
                                 else if (expression is MethodMemberExpression methodMember)
                                 {
                                     if (bracket.Valid)
                                     {
-                                        if (TryGetFunction(methodMember.range, methodMember.callables, bracket.tuple, out var callable))
+                                        if (TryGetFunction(methodMember.member, methodMember.callables, bracket, out var callable))
                                         {
                                             bracket = bracket.Replace(AssignmentConvert(bracket.expression, callable.signature));
-                                            expression = new InvokerMemberExpression(methodMember.range & bracket.range, callable.returns, methodMember.symbol, methodMember.member, methodMember.target, callable, bracket, manager.kernelManager);
+                                            if (methodMember is MethodVirtualExpression)
+                                                expression = new InvokerVirtualExpression(methodMember.range & bracket.range, callable.returns, methodMember.symbol, methodMember.member, methodMember.target, callable, bracket, manager.kernelManager);
+                                            else
+                                                expression = new InvokerMemberExpression(methodMember.range & bracket.range, callable.returns, methodMember.symbol, methodMember.member, methodMember.target, callable, bracket, manager.kernelManager);
                                             expressionStack.Push(expression);
                                             attribute = expression.attribute;
                                             goto label_next_lexical;
                                         }
-                                        else collector.Add(methodMember.range, ErrorLevel.Error, "未找到匹配的函数");
-                                    }
-                                }
-                                else if (expression is MethodVirtualExpression methodVirtual)
-                                {
-                                    if (bracket.Valid)
-                                    {
-                                        if (TryGetFunction(methodVirtual.range, methodVirtual.callables, bracket.tuple, out var callable))
-                                        {
-                                            bracket = bracket.Replace(AssignmentConvert(bracket.expression, callable.signature));
-                                            expression = new InvokerVirtualExpression(methodVirtual.range & bracket.range, callable.returns, methodVirtual.symbol, methodVirtual.member, methodVirtual.target, callable, bracket, manager.kernelManager);
-                                            expressionStack.Push(expression);
-                                            attribute = expression.attribute;
-                                            goto label_next_lexical;
-                                        }
-                                        else collector.Add(methodVirtual.range, ErrorLevel.Error, "未找到匹配的函数");
+                                        else collector.Add(methodMember.member, ErrorLevel.Error, "未找到匹配的函数");
                                     }
                                 }
                                 else throw new Exception("未知的函数表达式：" + expression.GetType());
@@ -160,7 +148,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                         foreach (var constructor in abstractClass.constructors)
                                             if (context.IsVisiable(manager, constructor.declaration))
                                                 constructors.Add(constructor);
-                                        if (TryGetFunction(expression.range, constructors, bracket.tuple, out var callable))
+                                        if (TryGetFunction(expression.range, constructors, bracket, out var callable))
                                         {
                                             if (destructor) collector.Add(expression.range, ErrorLevel.Error, "析构函数中不能创建托管对象");
                                             expression = new ConstructorExpression(expression.range & bracket.range, type, callable, null, bracket, manager.kernelManager);
@@ -1898,7 +1886,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             else if (parameters.Valid) collector.Add(symbol, ErrorLevel.Error, "操作未找到");
             return new InvalidOperationExpression(range, symbol, parameters);
         }
-        private bool TryGetFunction(TextRange range, List<AbstractDeclaration> declarations, Expression parameters, [MaybeNullWhen(false)] out AbstractCallable result)
+        public bool TryGetFunction(TextRange range, List<AbstractCallable> callbales, Expression parameters, [MaybeNullWhen(false)] out AbstractCallable result)
         {
             if (!parameters.Valid)
             {
@@ -1908,8 +1896,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             var results = new List<AbstractCallable>();
             var min = 0;
             var types = new List<Type>();
-            foreach (var declaration in declarations)
-                if (declaration is AbstractCallable callable && callable.signature.Count == parameters.tuple.Count)
+            foreach (var callable in callbales)
+                if (callable.signature.Count == parameters.tuple.Count)
                 {
                     if (TryExplicitTypes(parameters, callable.signature, types))
                     {
@@ -1980,19 +1968,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 {
                     if (target.dimension > 0) return false;
                     if (!manager.TryGetDeclaration(target, out var declaration) || declaration is not AbstractDelegate abstractDelegate) return false;
-                    if (!TryGetFunction(method.range, method.callables, abstractDelegate.signature, out _)) return false;
+                    if (method.callables.Find(item => item.signature == abstractDelegate.signature) == null) return false;
                 }
                 else if (expression is MethodMemberExpression methodMember)
                 {
                     if (target.dimension > 0) return false;
                     if (!manager.TryGetDeclaration(target, out var declaration) || declaration is not AbstractDelegate abstractDelegate) return false;
-                    if (!TryGetFunction(methodMember.range, methodMember.callables, abstractDelegate.signature, out _)) return false;
-                }
-                else if (expression is MethodVirtualExpression methodVirtual)
-                {
-                    if (target.dimension > 0) return false;
-                    if (!manager.TryGetDeclaration(target, out var declaration) || declaration is not AbstractDelegate abstractDelegate) return false;
-                    if (!TryGetFunction(methodVirtual.range, methodVirtual.callables, abstractDelegate.signature, out _)) return false;
+                    if (methodMember.callables.Find(item => item.signature == abstractDelegate.signature) == null) return false;
                 }
                 else if (expression is BlurryTaskExpression blurryTask)
                 {
@@ -2103,30 +2085,32 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             {
                 if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractDelegate abstractDelegate)
                 {
-                    if (TryGetFunction(expression.range, method.callables, abstractDelegate.signature, out var callable))
+                    var callable = method.callables.Find(item => item.signature == abstractDelegate.signature);
+                    if (callable != null)
                     {
                         if (callable.returns != abstractDelegate.returns)
-                            collector.Add(expression.range, ErrorLevel.Error, "返回值类型不一致");
+                            collector.Add(method.name.name, ErrorLevel.Error, "返回值类型不一致");
                         return new FunctionDelegateCreateExpression(method.range, method.qualifier, method.name, type, callable, manager.kernelManager);
                     }
                 }
-                collector.Add(expression.range, ErrorLevel.Error, "无法转换为目标类型");
+                collector.Add(method.name.name, ErrorLevel.Error, "无法转换为目标类型");
             }
             else if (expression is MethodMemberExpression methodMember)
             {
                 if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractDelegate abstractDelegate)
                 {
-                    if (TryGetFunction(expression.range, methodMember.callables, abstractDelegate.signature, out var callable))
+                    var callable = methodMember.callables.Find(item => item.signature == abstractDelegate.signature);
+                    if (callable != null)
                     {
                         if (callable.returns != abstractDelegate.returns)
-                            collector.Add(expression.range, ErrorLevel.Error, "返回值类型不一致");
+                            collector.Add(methodMember.member, ErrorLevel.Error, "返回值类型不一致");
                         if (methodMember is MethodVirtualExpression)
                             return new VirtualFunctionDelegateCreateExpression(expression.range, type, callable, manager.kernelManager, methodMember.target, methodMember.symbol, methodMember.member);
                         else
                             return new MemberFunctionDelegateCreateExpression(expression.range, type, callable, manager.kernelManager, methodMember.target, methodMember.symbol, methodMember.member);
                     }
                 }
-                collector.Add(expression.range, ErrorLevel.Error, "无法转换为目标类型");
+                collector.Add(methodMember.member, ErrorLevel.Error, "无法转换为目标类型");
             }
             else if (expression is BlurryTaskExpression blurryTask)
             {
@@ -2180,36 +2164,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             }
             else if (expression is BracketExpression bracketExpression) return bracketExpression.Replace(InferRightValueType(bracketExpression.expression, type));
             return expression;
-        }
-        public bool TryGetFunction(TextRange range, List<AbstractCallable> callables, TypeSpan span, [MaybeNullWhen(false)] out AbstractCallable callable)
-        {
-            var results = new List<AbstractCallable>();
-            var min = 0;
-            foreach (var item in callables)
-            {
-                var measure = Convert(span, item.signature);
-                if (measure >= 0)
-                    if (results.Count == 0 || measure < min)
-                    {
-                        results.Clear();
-                        min = measure;
-                        results.Add(item);
-                    }
-                    else if (measure == min) results.Add(item);
-            }
-            callable = null;
-            if (results.Count == 1) callable = results[0];
-            else if (results.Count > 1)
-            {
-                var msg = new Message(range, ErrorLevel.Error, "语义不明确");
-                foreach (var item in results)
-                {
-                    callable = item;
-                    msg.related.Add(new RelatedInfo(item.name, "符合条件的函数"));
-                }
-                collector.Add(msg);
-            }
-            return callable != null;
         }
         private ExpressionAttribute ParseVectorMember(Stack<Expression> expressionStack, Expression target, TextRange symbol, TextRange member, int dimension)
         {

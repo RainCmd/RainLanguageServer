@@ -262,26 +262,6 @@ namespace RainLanguageServer.RainLanguage
                 return [];
             }
         }
-        public List<AbstractDeclaration> FindDeclaration(Manager manager, List<TextRange> names, MessageCollector collector)
-        {
-            if (names.Count > 1)
-            {
-                if (TryFindSpace(manager, names[0], out var space, collector))
-                {
-                    for (var i = 1; i < names.Count - 1; i++)
-                        if (!space.children.TryGetValue(names[i].ToString(), out space))
-                        {
-                            collector.Add(names[i], ErrorLevel.Error, "命名空间未找到");
-                            return [];
-                        }
-                    if (space.declarations.TryGetValue(names[^1].ToString(), out var declarations)) return manager.ToDeclarations(declarations);
-                    else collector.Add(names[^1], ErrorLevel.Error, $"没有找到名称为 {names[^1]} 的声明");
-                }
-                else collector.Add(names[0], ErrorLevel.Error, "命名空间未找到");
-                return [];
-            }
-            else return FindDeclaration(manager, names[0], collector);
-        }
         public List<AbstractDeclaration> FindDeclaration(Manager manager, QualifiedName name, MessageCollector collector)
         {
             if (name.qualify.Count > 0)
@@ -302,7 +282,7 @@ namespace RainLanguageServer.RainLanguage
             }
             else return FindDeclaration(manager, name.name, collector);
         }
-        public List<AbstractDeclaration> FindOperation(Manager manager, string name)
+        public List<AbstractCallable> FindOperation(Manager manager, string name)
         {
             var set = new HashSet<Declaration>();
             if (manager.kernel.declarations.TryGetValue(name, out var declarations))
@@ -313,10 +293,10 @@ namespace RainLanguageServer.RainLanguage
             foreach (var rely in relies)
                 if (rely.declarations.TryGetValue(name, out declarations))
                     set.AddRange(declarations);
-            var result = new List<AbstractDeclaration>();
+            var result = new List<AbstractCallable>();
             foreach (var declaration in set)
-                if (manager.TryGetDeclaration(declaration, out var abstractDeclaration))
-                    result.Add(abstractDeclaration);
+                if (manager.TryGetDeclaration(declaration, out var abstractDeclaration) && abstractDeclaration is AbstractCallable callable)
+                    result.Add(callable);
             return result;
         }
     }

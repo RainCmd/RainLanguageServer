@@ -606,7 +606,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             {
                 if (expression is BracketExpression bracket)
                 {
-                    if (parser.TryGetFunction(invokerRange, callables, expression.tuple, out var callable))
+                    if (parser.TryGetFunction(invokerRange, callables, expression, out var callable))
                     {
                         bracket = bracket.Replace(parser.AssignmentConvert(bracket, callable.signature));
                         return new InvokerMemberExpression(invokerRange & bracket.range, [], null, invokerRange, null, callable, bracket, manager.kernelManager);

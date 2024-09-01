@@ -38,7 +38,7 @@
                             while (stack.Count > 0)
                             {
                                 var bracket = stack.Pop();
-                                if (bracket.type == LexicalType.BracketLeft0 || lexical.type == LexicalType.QuestionInvoke)
+                                if (bracket.type == LexicalType.BracketLeft0 || bracket.type == LexicalType.QuestionInvoke)
                                 {
                                     if (stack.Count == 0 && flag.ContainAny(SplitFlag.Bracket0))
                                     {
@@ -60,7 +60,7 @@
                             while (stack.Count > 0)
                             {
                                 var bracket = stack.Pop();
-                                if (bracket.type == LexicalType.BracketLeft1 || lexical.type == LexicalType.QuestionIndex)
+                                if (bracket.type == LexicalType.BracketLeft1 || bracket.type == LexicalType.QuestionIndex)
                                 {
                                     if (stack.Count == 0 && flag.ContainAny(SplitFlag.Bracket1))
                                     {
