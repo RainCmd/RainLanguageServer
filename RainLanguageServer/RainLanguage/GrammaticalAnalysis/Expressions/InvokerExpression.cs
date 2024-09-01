@@ -125,6 +125,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
             collector.AddNamespace(name);
             collector.Add(DetailTokenType.GlobalFunction, name.name);
+            parameters.CollectSemanticToken(manager, collector);
         }
     }
     internal class InvokerMemberExpression(TextRange range, Tuple tuple, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
@@ -197,6 +198,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             target?.CollectSemanticToken(manager, collector);
             if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
             collector.Add(DetailTokenType.MemberFunction, method);
+            parameters.CollectSemanticToken(manager, collector);
         }
     }
     internal class InvokerVirtualExpression(TextRange range, Tuple tuple, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerMemberExpression(range, tuple, symbol, method, target, callable, parameters, manager)
