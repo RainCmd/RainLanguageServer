@@ -1,4 +1,5 @@
-﻿using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
+﻿using LanguageServer.Parameters;
+using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
 using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
@@ -944,7 +945,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         break;
                     case LexicalType.ConstString:
                         {
-                            var expression = new ConstStringExpression(lexical.anchor, lexical.anchor.ToString(), manager.kernelManager);
+                            var expression = new ConstStringExpression(lexical.anchor, manager.kernelManager);
                             if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
                             {
                                 expressionStack.Push(expression);
@@ -961,25 +962,33 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         {
                             var expressions = new List<Expression>();
                             var anchor = lexical.anchor;
-                            if (anchor[^1] == '\"') anchor = anchor[2..^2];
+                            if (anchor[^1] == '\"') anchor = anchor[2..^1];
                             else anchor = anchor[2..];
+                            var start = lexical.anchor.start;
                             for (var i = 0; i < anchor.Count; i++)
                             {
                                 var c = anchor[i];
                                 if (c == '{')
                                 {
-                                    if (anchor[i + 1] == '{')
+                                    if (anchor[i + 1] == '{') i++;
+                                    else
                                     {
-                                        i++;
-                                        continue;
+                                        var position = anchor.start + i;
+                                        if (position > start)
+                                            expressions.Add(new ConstStringExpression(start & position, manager.kernelManager));
+
+                                        var bracket = ParseBracket(anchor, position & (position + 1), SplitFlag.Bracket2);
+                                        if (!bracket.expression.attribute.ContainAny(ExpressionAttribute.Value))
+                                            collector.Add(bracket.expression.range, ErrorLevel.Error, "内插字符串内的表达式必须是返回单个值");
+                                        expressions.Add(bracket);
+
+                                        i = bracket.range.end - anchor.start;
+                                        start = bracket.range.end;
                                     }
-                                    var bracket = ParseBracket(anchor, anchor[i..(i + 1)], SplitFlag.Bracket2);
-                                    if (!bracket.expression.attribute.ContainAny(ExpressionAttribute.Value))
-                                        collector.Add(bracket.expression.range, ErrorLevel.Error, "内插字符串内的表达式必须是返回单个值");
-                                    expressions.Add(bracket);
-                                    i = bracket.range.end - anchor.start;
                                 }
                             }
+                            if (start < lexical.anchor.end)
+                                expressions.Add(new ConstStringExpression(start & lexical.anchor.end, manager.kernelManager));
                             var expression = new ComplexStringExpression(lexical.anchor, expressions, manager.kernelManager);
                             if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
                             {
@@ -2251,7 +2260,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         }
         private BracketExpression ParseBracket(TextRange range, TextRange bracketLeft, SplitFlag flag)
         {
-            if (ExpressionSplit.Split(range, flag, out var left, out var right, collector).type != LexicalType.Unknow)
+            if (ExpressionSplit.Split(bracketLeft.start & range.end, flag, out var left, out var right, collector).type != LexicalType.Unknow)
                 return new BracketExpression(left, right, Parse(left.end & right.start));
             collector.Add(bracketLeft, ErrorLevel.Error, "缺少配对的符号");
             return new BracketExpression(bracketLeft, range.end & range.end, Parse(bracketLeft.end & range.end));

@@ -12,7 +12,7 @@ using Message = LanguageServer.Message;
 namespace RainLanguageServer
 {
     [RequiresDynamicCode("Calls LanguageServer.Reflector.GetRequestType(MethodInfo)")]
-    internal partial class Server(Stream input, Stream output) : ServiceConnection(input, output)
+    internal partial class Server(Stream input, Stream output, int timeout = 0) : ServiceConnection(input, output, timeout)
     {
         private class DocumentLoader(string? root, Server server) : IEnumerable<TextDocument>
         {

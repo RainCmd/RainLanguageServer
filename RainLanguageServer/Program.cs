@@ -19,7 +19,9 @@ namespace RainLanguageServer
             var stream = new NetworkStream(socket.Accept());
             var log = File.CreateText(Path.Combine(plugin, "bin\\server.log"));
             var recorder = new RecorderStream(stream, log);
-            var server = new Server(recorder, recorder);
+            var server = new Server(recorder, recorder, 10);
+            server.OnTimeout += method => Console.WriteLine($"{method} 请求处理时间已超时");
+            server.OnTimeoutRequestFinish += (method, time) => Console.WriteLine($"{method} 已完成，耗时 {time}ms");
             server.Listen().Wait();
             recorder?.Close();
 #else

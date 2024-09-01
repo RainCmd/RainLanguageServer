@@ -9,16 +9,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             attribute = ExpressionAttribute.Constant;
         }
-        public virtual bool TryEvaluate(out bool value)
-        {
-            value = default;
-            return false;
-        }
-        public virtual bool TryEvaluate(out byte value)
-        {
-            value = default;
-            return false;
-        }
         public virtual bool TryEvaluate(out char value)
         {
             value = default;
@@ -30,16 +20,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             return false;
         }
         public virtual bool TryEvaluate(out double value)
-        {
-            value = default;
-            return false;
-        }
-        public virtual bool TryEvaluate([MaybeNullWhen(false)] out string value)
-        {
-            value = default;
-            return false;
-        }
-        public virtual bool TryEvaluate(out Type value)
         {
             value = default;
             return false;
@@ -76,22 +56,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
     internal class ConstBooleanExpression(TextRange range, bool value, Manager.KernelManager manager) : ConstExpression(range, manager.BOOL)
     {
         public readonly bool value = value;
-        public override bool TryEvaluate(out bool value)
-        {
-            value = this.value;
-            return true;
-        }
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.KeywordConst, range);
     }
     internal class ConstBooleanKeyworldExpression(TextRange range, bool value, Manager.KernelManager manager) : ConstBooleanExpression(range, value, manager) { }
     internal class ConstByteExpression(TextRange range, byte value, Manager.KernelManager manager) : ConstExpression(range, manager.BYTE)
     {
         public readonly byte value = value;
-        public override bool TryEvaluate(out byte value)
-        {
-            value = this.value;
-            return true;
-        }
         public override bool TryEvaluate(out char value)
         {
             value = (char)this.value;
@@ -172,34 +142,18 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
     }
     internal class ConstStringExpression : ConstExpression
     {
-        public readonly string value;
-
-        public ConstStringExpression(TextRange range, string value, Manager.KernelManager manager) : base(range, manager.STRING)
+        public ConstStringExpression(TextRange range, Manager.KernelManager manager) : base(range, manager.STRING)
         {
-            this.value = value;
             attribute |= ExpressionAttribute.Array;
         }
 
-        public override bool TryEvaluate(out string value)
-        {
-            value = this.value;
-            return true;
-        }
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            collector.Add(DetailTokenType.String, range);
-        }
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.String, range);
     }
     internal class ConstTypeExpression(TextRange range, TextRange symbolLeft, TextRange symbolRight, FileType file, Type value, Manager.KernelManager manager) : ConstExpression(range, manager.TYPE)
     {
         public readonly TextRange symbolLeft = symbolLeft, symbolRight = symbolRight;
         public readonly FileType file = file;
         public readonly Type value = value;
-        public override bool TryEvaluate(out Type value)
-        {
-            value = this.value;
-            return true;
-        }
         public override void Read(ExpressionParameter parameter)
         {
             if (parameter.manager.TryGetDeclaration(value, out var declaration)) declaration.references.Add(file.name.name);
