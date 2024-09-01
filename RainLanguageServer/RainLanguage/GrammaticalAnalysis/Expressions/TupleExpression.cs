@@ -37,6 +37,10 @@
         {
             foreach (var expression in expressions) expression.Read(parameter);
         }
+        public override void Write(ExpressionParameter parameter)
+        {
+            foreach(var expression in expressions) expression.Write(parameter);
+        }
         public static Expression Create(IList<Expression> expressions, MessageCollector collector)
         {
             if (expressions.Count == 0) throw new Exception("至少需要一个表达式，否则无法计算表达式范围");
