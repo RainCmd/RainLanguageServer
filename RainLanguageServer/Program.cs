@@ -10,11 +10,11 @@ namespace RainLanguageServer
 #if DEBUG
             var plugin = Environment.CurrentDirectory;
             plugin = plugin.Substring(0, plugin.LastIndexOf("RainLanguagePlugin") + "RainLanguagePlugin".Length);
-            var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            socket.Bind(new IPEndPoint(IPAddress.Loopback, 14567));
+            var socket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
+            socket.SetSocketOption(System.Net.Sockets.SocketOptionLevel.Socket, System.Net.Sockets.SocketOptionName.ReuseAddress, true);
+            socket.Bind(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 14567));
             socket.Listen(1);
-            var stream = new NetworkStream(socket.Accept());
+            var stream = new System.Net.Sockets.NetworkStream(socket.Accept());
             var log = File.CreateText(Path.Combine(plugin, "bin\\server.log"));
             var recorder = new RecorderStream(stream, log);
             var server = new Server(recorder, recorder, 10);
