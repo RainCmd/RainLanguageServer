@@ -1,4 +1,6 @@
-﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class TupleExpression : Expression
     {
@@ -28,7 +30,7 @@
         }
         public override bool Calculability()
         {
-            foreach(var expression in expressions)
+            foreach (var expression in expressions)
                 if (!expression.Calculability())
                     return false;
             return true;
@@ -39,7 +41,7 @@
         }
         public override void Write(ExpressionParameter parameter)
         {
-            foreach(var expression in expressions) expression.Write(parameter);
+            foreach (var expression in expressions) expression.Write(parameter);
         }
         public static Expression Create(IList<Expression> expressions, MessageCollector collector)
         {
@@ -94,8 +96,27 @@
 
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            foreach(var expression in expressions)
+            foreach (var expression in expressions)
                 expression.CollectSemanticToken(manager, collector);
+        }
+
+        public override int GetTupleIndex(TextPosition position)
+        {
+            var result = 0;
+            foreach (var expression in expressions)
+                if (position > expression.range.end)
+                    result += expression.tuple.Count;
+            return result;
+        }
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
 
         private static readonly IList<Expression> empty = [];
@@ -152,6 +173,16 @@
         {
             source.CollectSemanticToken(manager, collector);
             indices.CollectSemanticToken(manager, collector);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if(source.range.Contain(position)) return source.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            if(indices.range.Contain(position)) return indices.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
 }

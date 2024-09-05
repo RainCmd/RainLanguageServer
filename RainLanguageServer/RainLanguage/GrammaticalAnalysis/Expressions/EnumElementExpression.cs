@@ -1,4 +1,6 @@
 ﻿
+using System.Diagnostics.CodeAnalysis;
+
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class EnumElementExpression : Expression
@@ -76,6 +78,14 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             type.CollectSemanticToken(manager, collector);
             collector.Add(DetailTokenType.Operator, symbol);
             collector.Add(DetailTokenType.MemberElement, symbol);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
 }

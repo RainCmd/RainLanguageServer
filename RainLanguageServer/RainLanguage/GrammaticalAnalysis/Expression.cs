@@ -1,4 +1,5 @@
 ﻿using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
+using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
@@ -63,5 +64,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         public abstract bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition);
         public abstract bool FindReferences(Manager manager, TextPosition position, List<TextRange> references);
         public abstract void CollectSemanticToken(Manager manager, SemanticTokenCollector collector);
+        public virtual int GetTupleIndex(TextPosition position) => 0;
+        public abstract bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex);
     }
 }

@@ -410,7 +410,7 @@
                                         lexical = new Lexical(segment[..(index - 1)], LexicalType.ConstReal);
                                         return true;
                                     }
-                                    else if (!char.IsDigit(segment[index + 1]))
+                                    else if (!char.IsDigit(segment[index]))
                                     {
                                         lexical = new Lexical(segment[..(index - 1)], LexicalType.ConstNumber);
                                         return true;

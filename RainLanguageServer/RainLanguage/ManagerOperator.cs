@@ -271,18 +271,68 @@ namespace RainLanguageServer.RainLanguage
             return results;
         }
 
+        public static bool TrySignatureHelp(Manager manager, DocumentUri uri, Position position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            lock (manager)
+                if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
+                {
+                    List<SignatureInfo>? results = null;
+                    int function = 0; int parameter = 0;
+                    if (FileSpaceOperator(space, textPosition, null,
+                        fileDeclaration =>
+                        {
+                            if (fileDeclaration.abstractDeclaration != null)
+                                return fileDeclaration.abstractDeclaration.TrySignatureHelp(manager, textPosition, out results, out function, out parameter);
+                            return false;
+                        }))
+                    {
+                        infos = results!;
+                        functionIndex = function;
+                        parameterIndex = parameter;
+                        return true;
+                    }
+                }
+            infos = default;
+            functionIndex = -1;
+            parameterIndex = -1;
+            return false;
+        }
+
         public static AbstractSpace? GetSpace(Manager manager, TextPosition position)
         {
             if (manager.allFileSpaces.TryGetValue(position.document.path, out var result))
-                return GetSpace(result, position);
+                return GetSpace(result, position).space;
             return null;
         }
-        private static AbstractSpace GetSpace(FileSpace space, TextPosition position)
+        private static FileSpace GetSpace(FileSpace space, TextPosition position)
         {
             foreach (var child in space.children)
                 if (child.range.Contain(position))
                     return GetSpace(child, position);
-            return space.space;
+            return space;
+        }
+        public static bool TryGetContext(Manager manager, TextPosition position, out Context context)
+        {
+            if (manager.allFileSpaces.TryGetValue(position.document.path, out var result))
+            {
+                var space = GetSpace(result, position);
+                foreach (var declaration in space.structs)
+                    if (declaration.range.Contain(position))
+                    {
+                        context = new Context(position.document, space.space, space.relies, declaration.abstractDeclaration);
+                        return true;
+                    }
+                foreach (var declaration in space.classes)
+                    if (declaration.range.Contain(position))
+                    {
+                        context = new Context(position.document, space.space, space.relies, declaration.abstractDeclaration);
+                        return true;
+                    }
+                context = new Context(position.document, space.space, space.relies, null);
+                return true;
+            }
+            context = default;
+            return false;
         }
     }
 }

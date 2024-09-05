@@ -1,4 +1,6 @@
 ﻿
+using System.Diagnostics.CodeAnalysis;
+
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class OperationExpression : Expression
@@ -73,6 +75,23 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             collector.Add(DetailTokenType.Operator, symbol);
             parameters.CollectSemanticToken(manager, collector);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (parameters.range.Contain(position))
+            {
+                if (parameters.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex)) return true;
+                infos = [];
+                infos.Add(callable.GetSignatureInfo(manager, null, ManagerOperator.GetSpace(manager, position)));
+                functionIndex = 0;
+                parameterIndex = parameters.GetTupleIndex(position);
+                return true;
+            }
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
 }

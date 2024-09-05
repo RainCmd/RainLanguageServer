@@ -1,4 +1,6 @@
-﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class ArrayCreateExpression : Expression
     {
@@ -52,6 +54,15 @@
             type.CollectSemanticToken(manager, collector);
             length.CollectSemanticToken(manager, collector);
         }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (length.range.Contain(position)) return length.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
     internal class ArrayInitExpression : Expression
     {
@@ -104,6 +115,15 @@
         {
             type?.CollectSemanticToken(manager, collector);
             elements.CollectSemanticToken(manager, collector);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (elements.range.Contain(position)) return elements.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
     internal class ArrayEvaluationExpression : Expression
@@ -163,6 +183,16 @@
             array.CollectSemanticToken(manager, collector);
             index.CollectSemanticToken(manager, collector);
         }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (array.range.Contain(position)) return array.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            if (index.range.Contain(position)) return index.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
     internal class StringEvaluationExpression : Expression
     {
@@ -216,6 +246,16 @@
             source.CollectSemanticToken(manager, collector);
             index.CollectSemanticToken(manager, collector);
         }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (source.range.Contain(position)) return source.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            if (index.range.Contain(position)) return index.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
     internal class ArraySubExpression : Expression
     {
@@ -268,6 +308,16 @@
         {
             source.CollectSemanticToken(manager, collector);
             indies.CollectSemanticToken(manager, collector);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (source.range.Contain(position)) return source.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            if (indies.range.Contain(position)) return indies.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
 }

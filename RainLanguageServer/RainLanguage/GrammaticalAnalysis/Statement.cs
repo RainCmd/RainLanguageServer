@@ -1,4 +1,6 @@
-﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
     internal abstract class Statement
     {
@@ -39,5 +41,22 @@
         }
         public bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => Operator(position, value => value.FindReferences(manager, position, references));
         public abstract void CollectSemanticToken(Manager manager, SemanticTokenCollector collector);
+        public virtual bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            List<SignatureInfo>? resultInfos = default;
+            int resultFunctionIndex = default;
+            int resultParameterIndex = default;
+            if (Operator(position, value => value.TrySignatureHelp(manager, position, out resultInfos, out resultFunctionIndex, out resultParameterIndex)))
+            {
+                infos = resultInfos!;
+                functionIndex = resultFunctionIndex;
+                parameterIndex = resultParameterIndex;
+                return true;
+            }
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
 }

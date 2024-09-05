@@ -1,4 +1,6 @@
-﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class BlurryVariableDeclarationExpression : Expression
     {
@@ -34,6 +36,14 @@
         {
             collector.Add(DetailTokenType.KeywordCtrl, declaration);
             collector.Add(DetailTokenType.Local, identifier);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
     internal class MethodExpression : Expression//global & native
@@ -111,6 +121,14 @@
             if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
             InfoUtility.AddNamespace(collector, name);
             collector.Add(DetailTokenType.GlobalFunction, name.name);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
     internal class MethodMemberExpression : Expression
@@ -195,6 +213,16 @@
             if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
             collector.Add(DetailTokenType.MemberFunction, member);
             target?.CollectSemanticToken(manager, collector);
+        }
+
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (target != null && target.range.Contain(position)) return target.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
     internal class MethodVirtualExpression : MethodMemberExpression
@@ -288,6 +316,16 @@
             collector.Add(DetailTokenType.Operator, symbol);
             invoker.CollectSemanticToken(manager, collector);
         }
+
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (invoker.range.Contain(position)) return invoker.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
     internal class BlurrySetExpression : Expression
     {
@@ -324,6 +362,16 @@
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => expression.range.Contain(position) && expression.FindReferences(manager, position, references);
 
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => expression.CollectSemanticToken(manager, collector);
+
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
     internal class BlurryLambdaExpression : Expression
     {
@@ -365,6 +413,14 @@
                 collector.Add(DetailTokenType.Local, parameter);
             collector.Add(DetailTokenType.Operator, symbol);
             collector.Add(DetailTokenType.Label, body);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
 }

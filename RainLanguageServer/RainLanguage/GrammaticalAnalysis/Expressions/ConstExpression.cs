@@ -1,4 +1,6 @@
-﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal abstract class ConstExpression : Expression
     {
@@ -50,6 +52,14 @@
         }
 
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => false;
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
     internal class ConstBooleanExpression(TextRange range, bool value, Manager.KernelManager manager) : ConstExpression(range, manager.BOOL)
     {

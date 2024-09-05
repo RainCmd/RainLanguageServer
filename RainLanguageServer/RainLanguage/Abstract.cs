@@ -1,5 +1,6 @@
 ﻿using LanguageServer.Parameters.TextDocument;
 using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace RainLanguageServer.RainLanguage
@@ -50,6 +51,13 @@ namespace RainLanguageServer.RainLanguage
             return false;
         }
         public abstract void CollectSemanticToken(Manager manager, SemanticTokenCollector collector);
+        public virtual bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
     internal class AbstractVariable(FileVariable file, AbstractSpace space, TextRange name, Declaration declaration, bool isReadonly, Type type)
         : AbstractDeclaration(file, space, name, declaration)
@@ -114,6 +122,11 @@ namespace RainLanguageServer.RainLanguage
             collector.AddType(fileVariable.type, manager, type);
             collector.Add(DetailTokenType.GlobalVariable, name);
             expression?.CollectSemanticToken(manager, collector);
+        }
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (expression != null) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
     }
     internal abstract class AbstractCallable : AbstractDeclaration
@@ -274,6 +287,13 @@ namespace RainLanguageServer.RainLanguage
             collector.Add(DetailTokenType.GlobalFunction, name);
             CollectSemanticToken(manager, collector, fileFunction.returns, fileFunction.parameters, logicBlock);
         }
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            foreach (var statement in logicBlock.statements)
+                if (statement.range.Contain(position))
+                    return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+        }
     }
     internal class AbstractEnum(FileEnum file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
@@ -324,6 +344,11 @@ namespace RainLanguageServer.RainLanguage
                 collector.Add(DetailTokenType.MemberElement, name);
                 expression?.CollectSemanticToken(manager, collector);
             }
+            public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+            {
+                if (expression != null && expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+                return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            }
         }
         public readonly FileEnum fileEnum = file;
         public readonly List<Element> elements = [];
@@ -369,6 +394,13 @@ namespace RainLanguageServer.RainLanguage
             collector.Add(DetailTokenType.TypeEnum, name);
             foreach (var element in elements)
                 element.CollectSemanticToken(manager, collector);
+        }
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            foreach (var element in elements)
+                if (element.file.range.Contain(position))
+                    return element.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
     }
     internal class AbstractStruct(FileStruct file, AbstractSpace space, TextRange name, Declaration declaration)
@@ -439,6 +471,13 @@ namespace RainLanguageServer.RainLanguage
                 collector.Add(DetailTokenType.MemberFunction, name);
                 CollectSemanticToken(manager, collector, fileFunction.returns, fileFunction.parameters, logicBlock);
             }
+            public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+            {
+                foreach (var statement in logicBlock.statements)
+                    if (statement.range.Contain(position))
+                        return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+                return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            }
         }
         public readonly FileStruct fileStruct = file;
         public readonly List<Variable> variables = [];
@@ -497,6 +536,13 @@ namespace RainLanguageServer.RainLanguage
             collector.Add(DetailTokenType.TypeStruct, name);
             foreach (var variable in variables) variable.CollectSemanticToken(manager, collector);
             foreach (var function in functions) function.CollectSemanticToken(manager, collector);
+        }
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            foreach (var function in functions)
+                if (function.file.range.Contain(position))
+                    return function.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
     }
     internal class AbstractInterface(FileInterface file, AbstractSpace space, TextRange name, Declaration declaration)
@@ -648,6 +694,11 @@ namespace RainLanguageServer.RainLanguage
                 collector.AddType(fileVariable.type, manager, type);
                 expression?.CollectSemanticToken(manager, collector);
             }
+            public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+            {
+                if (expression != null && expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+                return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            }
         }
         internal class Constructor(FileClass.Constructor file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -681,6 +732,14 @@ namespace RainLanguageServer.RainLanguage
                 collector.Add(DetailTokenType.MemberConstructor, name);
                 expression?.CollectSemanticToken(manager, collector);
                 CollectSemanticToken(manager, collector, fileConstructor.returns, fileConstructor.parameters, logicBlock);
+            }
+            public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+            {
+                if (expression != null && expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+                foreach (var statement in logicBlock.statements)
+                    if (statement.range.Contain(position))
+                        return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+                return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             }
         }
         internal class Function(FileClass.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
@@ -723,6 +782,13 @@ namespace RainLanguageServer.RainLanguage
             {
                 collector.Add(DetailTokenType.MemberFunction, name);
                 CollectSemanticToken(manager, collector, fileFunction.returns, fileFunction.parameters, logicBlock);
+            }
+            public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+            {
+                foreach (var statement in logicBlock.statements)
+                    if (statement.range.Contain(position))
+                        return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+                return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             }
         }
         public readonly FileClass fileClass = file;
@@ -847,6 +913,19 @@ namespace RainLanguageServer.RainLanguage
             foreach (var member in constructors) member.CollectSemanticToken(manager, collector);
             foreach (var member in functions) member.CollectSemanticToken(manager, collector);
             foreach (var statement in descontructorLogicBlock.statements) statement.CollectSemanticToken(manager, collector);
+        }
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            foreach (var vaiable in variables)
+                if (vaiable.file.range.Contain(position))
+                    return vaiable.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            foreach (var ctor in constructors)
+                if (ctor.file.range.Contain(position))
+                    return ctor.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            foreach (var function in functions)
+                if (function.file.range.Contain(position))
+                    return function.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
     }
     internal class AbstractDelegate(FileDelegate file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)

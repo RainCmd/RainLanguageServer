@@ -1,4 +1,6 @@
 ﻿
+using System.Diagnostics.CodeAnalysis;
+
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class TypeExpression : Expression
@@ -32,6 +34,14 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             collector.AddType(file, manager, type);
             if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
     internal class TypeKeyworldExpression(TextRange range, TextRange? qualifier, FileType file, Type type) : TypeExpression(range, qualifier, file, type) { }

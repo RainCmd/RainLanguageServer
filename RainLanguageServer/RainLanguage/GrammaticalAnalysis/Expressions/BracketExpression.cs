@@ -1,4 +1,6 @@
 ﻿
+using System.Diagnostics.CodeAnalysis;
+
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class BracketExpression : Expression
@@ -49,6 +51,20 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             collector.Add(DetailTokenType.Operator, left);
             collector.Add(DetailTokenType.Operator, right);
             expression.CollectSemanticToken(manager, collector);
+        }
+
+        public override int GetTupleIndex(TextPosition position)
+        {
+            if (expression.range.Contain(position)) return expression.GetTupleIndex(position);
+            return 0;
+        }
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
 }

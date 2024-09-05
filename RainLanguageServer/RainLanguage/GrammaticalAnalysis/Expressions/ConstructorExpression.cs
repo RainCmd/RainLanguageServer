@@ -1,4 +1,6 @@
-﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class ConstructorExpression : Expression
     {
@@ -109,6 +111,72 @@
         {
             type.CollectSemanticToken(manager, collector);
             parameters.CollectSemanticToken(manager, collector);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (parameters.range.Contain(position))
+            {
+                if (parameters.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex)) return true;
+                if (manager.TryGetDeclaration(type.type, out var declaration))
+                {
+                    if (declaration is AbstractStruct abstractStruct)
+                    {
+                        infos = InfoUtility.GetStructConstructorSignatureInfos(manager, abstractStruct, ManagerOperator.GetSpace(manager, position));
+                        if (parameters.tuple.Count > 0 && infos.Count > 1)
+                        {
+                            functionIndex = 1;
+                            parameterIndex = parameters.GetTupleIndex(position);
+                        }
+                        else
+                        {
+                            functionIndex = 0;
+                            parameterIndex = 0;
+                        }
+                        return true;
+                    }
+                    else if (declaration is AbstractClass abstractClass)
+                    {
+                        var callables = this.callables ?? [];
+                        if (callables.Count == 0)
+                        {
+                            if (ManagerOperator.TryGetContext(manager, position, out var context))
+                            {
+                                foreach (var ctor in abstractClass.constructors)
+                                    if (context.IsVisiable(manager, ctor.declaration))
+                                        callables.Add(ctor);
+                            }
+                            else if (callable != null) callables.Add(callable);
+                            else
+                            {
+                                infos = default;
+                                functionIndex = 0;
+                                parameterIndex = 0;
+                                return false;
+                            }
+                        }
+                        infos = [];
+                        var space = ManagerOperator.GetSpace(manager, position);
+                        var find = false;
+                        functionIndex = 0;
+                        foreach (var callable in callables)
+                        {
+                            infos.Add(callable.GetSignatureInfo(manager, abstractClass, space));
+                            if(!find)
+                            {
+                                if (callable == this.callable) find = true;
+                                else functionIndex++;
+                            }
+                        }
+                        parameterIndex = parameters.GetTupleIndex(position);
+                        return true;
+                    }
+                }
+            }
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
 }

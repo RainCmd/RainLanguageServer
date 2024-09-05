@@ -1,6 +1,9 @@
-﻿using LanguageServer.Parameters.TextDocument;
+﻿using LanguageServer.Parameters;
+using LanguageServer.Parameters.TextDocument;
 using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
+using System;
 using System.Text;
+using System.Xml.Linq;
 
 namespace RainLanguageServer.RainLanguage
 {
@@ -51,7 +54,7 @@ namespace RainLanguageServer.RainLanguage
             if (space != root && space != null)
             {
                 if (GetQualifier(space.parent, root, builder)) builder.Append('.');
-                builder.Append(space.name.ToString());
+                builder.Append(space.name);
                 return true;
             }
             return false;
@@ -336,11 +339,15 @@ namespace RainLanguageServer.RainLanguage
                 }
                 else if (declaration is AbstractClass abstractClass)
                 {
-                    var set = new HashSet<Tuple>();
-                    foreach (var index in manager.GetInheritIterator(abstractClass))
-                        foreach (var function in abstractClass.functions)
-                            if (name == function.name && set.Add(function.signature))
-                                count++;
+                    if (callable is AbstractClass.Constructor) count = abstractClass.constructors.Count;
+                    else
+                    {
+                        var set = new HashSet<Tuple>();
+                        foreach (var index in manager.GetInheritIterator(abstractClass))
+                            foreach (var function in abstractClass.functions)
+                                if (name == function.name && set.Add(function.signature))
+                                    count++;
+                    }
                 }
                 else if (declaration is AbstractInterface abstractInterface)
                 {
@@ -353,6 +360,67 @@ namespace RainLanguageServer.RainLanguage
                 if (count > 1) sb.Append($" +{count} 个重载");
             }
             return sb.ToString();
+        }
+        public static SignatureInfo GetSignatureInfo(this AbstractCallable callable, Manager manager, AbstractDeclaration? declaration = null, AbstractSpace? space = null)
+        {
+            var annotation = GetAnnotation(callable);
+            Info? info = string.IsNullOrEmpty(annotation) ? null : new Info(annotation, false);
+            var parameters = new SignatureInfo.ParameterInfo[callable.signature.Count];
+            var sb = new StringBuilder();
+            for (var i = 0; i < callable.returns.Count; i++)
+            {
+                if (i > 0) sb.Append(", ");
+                sb.Append(callable.returns[i].Info(manager, space));
+            }
+            if (callable.returns.Count > 0) sb.Append(' ');
+            if (declaration != null)
+            {
+                if (GetQualifier(declaration.declaration.library, declaration.space, space, sb)) sb.Append('.');
+                sb.Append(declaration.name.ToString());
+                sb.Append('.');
+            }
+            else if (GetQualifier(callable.declaration.library, callable.space, space, sb)) sb.Append('.');
+            sb.Append(callable.name);
+            sb.Append('(');
+            for (var i = 0; i < callable.parameters.Count; i++)
+            {
+                if (i > 0) sb.Append(", ");
+                var parameter = callable.parameters[i];
+                var parameterInfo = parameter.type.Info(manager, space);
+                if (parameter.name != null) parameterInfo = $" {parameter.name}";
+                sb.Append(parameterInfo);
+                parameters[i] = new SignatureInfo.ParameterInfo(parameterInfo, null);
+            }
+            sb.Append(')');
+
+            var result = new SignatureInfo(sb.ToString(), info, parameters);
+            return result;
+        }
+        public static List<SignatureInfo> GetStructConstructorSignatureInfos(Manager manager, AbstractStruct abstractStruct, AbstractSpace? space)
+        {
+            var infos = new List<SignatureInfo>();
+            var annotation = GetAnnotation(abstractStruct);
+            Info? info = string.IsNullOrEmpty(annotation) ? null : new Info(annotation, false);
+            var sb = new StringBuilder();
+            if (GetQualifier(abstractStruct.declaration.library, abstractStruct.space, space, sb)) sb.Append('.');
+            sb.Append(abstractStruct.name.ToString());
+            infos.Add(new SignatureInfo($"{sb}()", info, []));
+            if (abstractStruct.variables.Count > 0)
+            {
+                var parameters = new SignatureInfo.ParameterInfo[abstractStruct.variables.Count];
+                sb.Append('(');
+                for (var i = 0; i < abstractStruct.variables.Count; i++)
+                {
+                    if (i > 0) sb.Append(", ");
+                    var parameter = abstractStruct.variables[i];
+                    var parameterInfo = $"{parameter.type.Info(manager, space)} {parameter.name}";
+                    sb.Append(parameterInfo);
+                    parameters[i] = new SignatureInfo.ParameterInfo(parameterInfo, null);
+                }
+                sb.Append(')');
+                infos.Add(new SignatureInfo(sb.ToString(), info, parameters));
+            }
+            return infos;
         }
         public static bool OnHover(this FileType fileType, Manager manager, TextPosition position, Type type, AbstractSpace? space, out HoverInfo info)
         {

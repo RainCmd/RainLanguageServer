@@ -1,4 +1,6 @@
 ﻿
+using System.Diagnostics.CodeAnalysis;
+
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class TaskCreateExpression : Expression
@@ -38,6 +40,15 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             collector.Add(DetailTokenType.KeywordCtrl, symbol);
             invoker.CollectSemanticToken(manager, collector);
         }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (invoker.range.Contain(position)) return invoker.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
     internal class TaskEvaluationExpression : Expression
     {
@@ -59,7 +70,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
-            if(source.range.Contain(position)) return source.OnHover(manager, position, out info);
+            if (source.range.Contain(position)) return source.OnHover(manager, position, out info);
             if (indices.range.Contain(position)) return indices.OnHover(manager, position, out info);
             info = default;
             return false;
@@ -91,6 +102,16 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             source.CollectSemanticToken(manager, collector);
             indices.CollectSemanticToken(manager, collector);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (source.range.Contain(position)) return source.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            if (indices.range.Contain(position)) return indices.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
 }

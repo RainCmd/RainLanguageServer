@@ -1,4 +1,6 @@
 ﻿
+using System.Diagnostics.CodeAnalysis;
+
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal abstract class InvokerExpression : Expression
@@ -11,6 +13,26 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             this.parameters = parameters;
             if (tuple.Count == 1) attribute = ExpressionAttribute.Value | tuple[0].GetAttribute(manager);
             else attribute = ExpressionAttribute.Tuple;
+        }
+
+        protected abstract int CollectSignatureInfos(Manager manager, List<SignatureInfo> infos, Context context, AbstractSpace? space);
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (parameters.range.Contain(position))
+            {
+                if (parameters.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex)) return true;
+                if (ManagerOperator.TryGetContext(manager, position, out var context))
+                {
+                    infos = [];
+                    functionIndex = CollectSignatureInfos(manager, infos, context, ManagerOperator.GetSpace(manager, position));
+                    parameterIndex = parameters.GetTupleIndex(position);
+                    return true;
+                }
+            }
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
     internal class InvokerDelegateExpression(TextRange range, Tuple tuple, Expression invoker, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
@@ -57,6 +79,19 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             invoker.CollectSemanticToken(manager, collector);
             parameters.CollectSemanticToken(manager, collector);
+        }
+
+        protected override int CollectSignatureInfos(Manager manager, List<SignatureInfo> infos, Context context, AbstractSpace? space)
+        {
+            if (!manager.TryGetDeclaration(invoker.tuple[0], out var declaration)) throw new Exception("类型错误");
+            if (declaration is not AbstractDelegate abstractDelegate) throw new Exception($"{declaration.GetType()} 不是委托类型");
+            infos.Add(abstractDelegate.GetSignatureInfo(manager, null, space));
+            return 0;
+        }
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (invoker.range.Contain(position)) return invoker.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
     }
     internal class InvokerFunctionExpression(TextRange range, Tuple tuple, TextRange? qualifier, QualifiedName name, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
@@ -126,6 +161,35 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             collector.AddNamespace(name);
             collector.Add(DetailTokenType.GlobalFunction, name.name);
             parameters.CollectSemanticToken(manager, collector);
+        }
+
+        protected override int CollectSignatureInfos(Manager manager, List<SignatureInfo> infos, Context context, AbstractSpace? space)
+        {
+            if (callable.space.declarations.TryGetValue(callable.name.ToString(), out var declarations))
+            {
+                var result = -1;
+                for (var i = 0; i < declarations.Count; i++)
+                {
+                    if (!manager.TryGetDeclaration(declarations[i], out var declaration)) throw new Exception("类型错误");
+                    if (declaration is not AbstractCallable callable) throw new Exception($"{declaration.GetType()} 不是可调用对象");
+                    if (context.IsVisiable(manager, callable.declaration))
+                    {
+                        infos.Add(callable.GetSignatureInfo(manager, null, space));
+                        if (callable == this.callable) result = i;
+                    }
+                }
+                if (result < 0)
+                {
+                    result = infos.Count;
+                    infos.Add(callable.GetSignatureInfo(manager, null, space));
+                }
+                return result;
+            }
+            else
+            {
+                infos.Add(callable.GetSignatureInfo(manager, null, space));
+                return 0;
+            }
         }
     }
     internal class InvokerMemberExpression(TextRange range, Tuple tuple, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
@@ -199,6 +263,93 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
             collector.Add(DetailTokenType.MemberFunction, method);
             parameters.CollectSemanticToken(manager, collector);
+        }
+
+        protected override int CollectSignatureInfos(Manager manager, List<SignatureInfo> infos, Context context, AbstractSpace? space)
+        {
+            if (!manager.TryGetDefineDeclaration(callable.declaration, out var declaration)) throw new Exception("类型错误");
+            if (declaration is AbstractStruct abstractStruct)
+            {
+                var result = 0;
+                var find = false;
+                var name = callable.name.ToString();
+                foreach (var function in abstractStruct.functions)
+                    if (function.name == name && context.IsVisiable(manager, function.declaration))
+                    {
+                        infos.Add(function.GetSignatureInfo(manager, declaration, space));
+                        if (!find)
+                        {
+                            if (function == callable) find = true;
+                            else result++;
+                        }
+                    }
+                if (!find)
+                {
+                    result = infos.Count;
+                    infos.Add(callable.GetSignatureInfo(manager, declaration, space));
+                }
+                return result;
+            }
+            else if (declaration is AbstractInterface abstractInterface)
+            {
+                var result = 0;
+                var find = false;
+                var name = callable.name.ToString();
+                var set = new HashSet<AbstractCallable>();
+                foreach (var inherit in manager.GetInheritIterator(abstractInterface))
+                    foreach (var function in inherit.functions)
+                        if (function.name == name && set.Add(function) && context.IsVisiable(manager, function.declaration))
+                        {
+                            set.AddRange(function.overrides);
+                            infos.Add(function.GetSignatureInfo(manager, inherit, space));
+                            if (!find)
+                            {
+                                if (function == callable) find = true;
+                                else result++;
+                            }
+                        }
+                if (!find)
+                {
+                    result = infos.Count;
+                    infos.Add(callable.GetSignatureInfo(manager, declaration, space));
+                }
+                return result;
+            }
+            else if (declaration is AbstractClass abstractClass)
+            {
+                var result = 0;
+                var find = false;
+                var name = callable.name.ToString();
+                var set = new HashSet<AbstractCallable>();
+                foreach (var inherit in manager.GetInheritIterator(abstractClass))
+                    foreach (var function in inherit.functions)
+                        if (function.name == name && set.Add(function) && context.IsVisiable(manager, function.declaration))
+                        {
+                            set.AddRange(function.overrides);
+                            infos.Add(function.GetSignatureInfo(manager, inherit, space));
+                            if (!find)
+                            {
+                                if (function == callable) find = true;
+                                else result++;
+                            }
+                        }
+                if (!find)
+                {
+                    result = infos.Count;
+                    infos.Add(callable.GetSignatureInfo(manager, declaration, space));
+                }
+                return result;
+            }
+            else
+            {
+                infos.Add(callable.GetSignatureInfo(manager, null, space));
+                return 0;
+            }
+        }
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (target != null && target.range.Contain(position)) return target.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
     }
     internal class InvokerVirtualExpression(TextRange range, Tuple tuple, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerMemberExpression(range, tuple, symbol, method, target, callable, parameters, manager)

@@ -1,4 +1,6 @@
 ﻿
+using System.Diagnostics.CodeAnalysis;
+
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class VariableLocalExpression : Expression
@@ -63,6 +65,14 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (local.read.Count == 0) collector.Add(DetailTokenType.DeprecatedLocal, identifier);
             else if (local.parameter) collector.Add(DetailTokenType.Parameter, identifier);
             else collector.Add(DetailTokenType.Local, identifier);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
     internal class VariableDeclarationLocalExpression(TextRange range, Local local, TextRange identifier, TypeExpression typeExpression, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, identifier, attribute, manager)
@@ -195,6 +205,14 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             else
                 collector.Add(DetailTokenType.GlobalVariable, name.name);
         }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
     internal class VariableMemberExpression : Expression
     {
@@ -277,6 +295,15 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             target?.CollectSemanticToken(manager, collector);
             if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
             collector.Add(DetailTokenType.MemberField, identifier);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (target != null && target.range.Contain(position)) return target.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
 }

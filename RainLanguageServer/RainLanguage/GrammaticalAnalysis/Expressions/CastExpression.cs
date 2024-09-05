@@ -1,4 +1,6 @@
 ﻿
+using System.Diagnostics.CodeAnalysis;
+
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class CastExpression : Expression
@@ -57,6 +59,15 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             collector.Add(DetailTokenType.Operator, symbol);
             expression.CollectSemanticToken(manager, collector);
         }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
     internal class TupleCastExpression : Expression
     {
@@ -98,6 +109,20 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         }
 
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => expression.CollectSemanticToken(manager, collector);
+
+        public override int GetTupleIndex(TextPosition position)
+        {
+            if (expression.range.Contain(position)) return expression.GetTupleIndex(position);
+            return 0;
+        }
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
     internal class IsCastExpression : Expression
     {
@@ -180,6 +205,15 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             source.CollectSemanticToken(manager, collector);
             type.CollectSemanticToken(manager, collector);
         }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if(source.range.Contain(position)) return source.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
     internal class AsCastExpression : Expression
     {
@@ -236,6 +270,15 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             collector.Add(DetailTokenType.KeywordCtrl, symbol);
             source.CollectSemanticToken(manager, collector);
             type.CollectSemanticToken(manager, collector);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if(source.range.Contain(position)) return source.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
 }

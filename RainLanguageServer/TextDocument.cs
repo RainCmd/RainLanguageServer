@@ -198,15 +198,19 @@ namespace RainLanguageServer
         private void ParseLines()
         {
             if (lines.Count > 0) return;
-            var start = 0;
-            var end = text.IndexOf('\n');
-            while (end > 0)
+            lock (this)
             {
-                lines.Add(new TextLine(lines.Count, GetIndent(start, end + 1), new TextPosition(this, start), new TextPosition(this, end + 1)));
-                start = end + 1;
-                end = text.IndexOf('\n', start);
+                if (lines.Count > 0) return;
+                var start = 0;
+                var end = text.IndexOf('\n');
+                while (end > 0)
+                {
+                    lines.Add(new TextLine(lines.Count, GetIndent(start, end + 1), new TextPosition(this, start), new TextPosition(this, end + 1)));
+                    start = end + 1;
+                    end = text.IndexOf('\n', start);
+                }
+                lines.Add(new TextLine(lines.Count, GetIndent(start, text.Length), new TextPosition(this, start), new TextPosition(this, text.Length)));
             }
-            lines.Add(new TextLine(lines.Count, GetIndent(start, text.Length), new TextPosition(this, start), new TextPosition(this, text.Length)));
         }
         public override string ToString() => path;
     }

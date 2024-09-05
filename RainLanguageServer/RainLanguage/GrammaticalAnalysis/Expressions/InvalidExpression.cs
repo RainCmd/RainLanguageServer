@@ -1,4 +1,6 @@
 ﻿
+using System.Diagnostics.CodeAnalysis;
+
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class InvalidExpression : Expression
@@ -70,6 +72,25 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             foreach (var expression in expressions)
                 expression.CollectSemanticToken(manager, collector);
         }
+
+        public override int GetTupleIndex(TextPosition position)
+        {
+            var result = 0;
+            foreach (var expression in expressions)
+                if (expression.range.start < position) break;
+                else result += expression.tuple.Count;
+            return result;
+        }
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
     }
     internal class InvalidKeyworldExpression(TextRange range) : InvalidExpression(range) { }
     internal class InvalidOperationExpression : Expression
@@ -120,6 +141,15 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             collector.Add(DetailTokenType.Operator, symbol);
             parameters?.CollectSemanticToken(manager, collector);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (parameters != null && parameters.range.Contain(position)) return parameters.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
         }
     }
 }
