@@ -152,4 +152,83 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             return false;
         }
     }
+    internal class InvalidInvokerExpression : Expression
+    {
+        public readonly Expression method;
+        public readonly BracketExpression parameters;
+        private readonly List<AbstractCallable> callables;
+        public override bool Valid => false;
+        public InvalidInvokerExpression(TextRange range, Expression method, BracketExpression parameters) : base(range, Tuple.Empty)
+        {
+            this.method = method;
+            this.parameters = parameters;
+            if (method is MethodExpression methodExpression)
+                callables = methodExpression.callables;
+            else if (method is MethodMemberExpression methodMemberExpression)
+                callables = methodMemberExpression.callables;
+            else callables = [];
+            attribute = ExpressionAttribute.Invalid;
+        }
+
+        public override void Read(ExpressionParameter parameter)
+        {
+            method.Read(parameter);
+            parameters.Read(parameter);
+        }
+
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (method.range.Contain(position)) return method.OnHover(manager, position, out info);
+            if (parameters.range.Contain(position)) return parameters.OnHover(manager, position, out info);
+            info = default;
+            return false;
+        }
+
+        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        {
+            if (method.range.Contain(position)) return method.OnHighlight(manager, position, infos);
+            if (parameters.range.Contain(position)) return parameters.OnHighlight(manager, position, infos);
+            return false;
+        }
+
+        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            if (method.range.Contain(position)) return method.TryGetDefinition(manager, position, out definition);
+            if (parameters.range.Contain(position)) return parameters.TryGetDefinition(manager, position, out definition);
+            definition = default;
+            return false;
+        }
+
+        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        {
+            if (method.range.Contain(position)) return method.FindReferences(manager, position, references);
+            if (parameters.range.Contain(position)) return parameters.FindReferences(manager, position, references);
+            return false;
+        }
+
+        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            method.CollectSemanticToken(manager, collector);
+            parameters.CollectSemanticToken(manager, collector);
+        }
+
+        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            if (method.range.Contain(position)) return method.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            if (parameters.range.Contain(position))
+            {
+                if (parameters.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex)) return true;
+                infos = [];
+                functionIndex = 0;
+                parameterIndex = parameters.GetTupleIndex(position);
+                foreach (var callable in callables)
+                    infos.Add(callable.GetSignatureInfo(manager));
+                return true;
+            }
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
+    }
 }

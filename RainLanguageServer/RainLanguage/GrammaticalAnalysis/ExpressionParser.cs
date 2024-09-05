@@ -76,7 +76,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     }
                                 }
                                 else throw new Exception("未知的函数表达式：" + expression.GetType());
-                                expressionStack.Push(new InvalidExpression(expression, bracket));
+                                expressionStack.Push(new InvalidInvokerExpression(expression.range & bracket.range, expression, bracket));
                                 attribute = ExpressionAttribute.Invalid;
                             }
                             else if (attribute.ContainAny(ExpressionAttribute.Callable))

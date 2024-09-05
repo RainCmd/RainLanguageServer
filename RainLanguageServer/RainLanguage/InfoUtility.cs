@@ -384,7 +384,7 @@ namespace RainLanguageServer.RainLanguage
                 if (i > 0) sb.Append(", ");
                 var parameter = callable.parameters[i];
                 var parameterInfo = parameter.type.Info(manager, space);
-                if (parameter.name != null) parameterInfo = $" {parameter.name}";
+                if (parameter.name != null) parameterInfo = $"{parameterInfo} {parameter.name}";
                 sb.Append(parameterInfo);
                 parameters[i] = new SignatureInfo.ParameterInfo(parameterInfo, null);
             }
