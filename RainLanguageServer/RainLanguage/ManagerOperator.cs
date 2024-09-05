@@ -298,6 +298,26 @@ namespace RainLanguageServer.RainLanguage
             return false;
         }
 
+        public static void Completion(Manager manager, DocumentUri uri, Position position, List<CompletionInfo> infos)
+        {
+            lock (manager)
+                if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
+                {
+                    FileSpaceOperator(space, textPosition,
+                        fileSpace =>
+                        {
+                            // todo 命名空间相关补全
+                            // 不是定义范围内的都在这里，包括解析失败的定义等
+                            return default;
+                        },
+                        fileDeclaration =>
+                        {
+                            fileDeclaration.abstractDeclaration?.Completion(manager, textPosition, infos);
+                            return default;
+                        });
+                }
+        }
+
         public static AbstractSpace? GetSpace(Manager manager, TextPosition position)
         {
             if (manager.allFileSpaces.TryGetValue(position.document.path, out var result))

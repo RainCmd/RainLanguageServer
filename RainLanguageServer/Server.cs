@@ -71,8 +71,8 @@ namespace RainLanguageServer
         {
             if (manager != null)
             {
-                //todo 代码补全
                 var infos = new List<CompletionInfo>();
+                ManagerOperator.Completion(manager, param.textDocument.uri, param.position, infos);
                 if (infos.Count > 0)
                 {
                     var items = new CompletionItem[infos.Count];

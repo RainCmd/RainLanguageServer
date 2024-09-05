@@ -58,6 +58,7 @@ namespace RainLanguageServer.RainLanguage
             parameterIndex = 0;
             return false;
         }
+        public virtual void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) { } // todo 代码补全
     }
     internal class AbstractVariable(FileVariable file, AbstractSpace space, TextRange name, Declaration declaration, bool isReadonly, Type type)
         : AbstractDeclaration(file, space, name, declaration)
