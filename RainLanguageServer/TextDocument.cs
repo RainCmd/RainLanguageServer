@@ -135,7 +135,7 @@ namespace RainLanguageServer
             if (lines.Count > 0)
             {
                 var end = lines.Count - 1;
-                if (lines[end].start.charactor < charactor) return end;
+                if (lines[end].start.charactor <= charactor) return end;
                 var start = 0;
                 while (start < end)
                 {

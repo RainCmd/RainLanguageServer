@@ -1,9 +1,6 @@
-﻿using LanguageServer.Parameters;
-using LanguageServer.Parameters.TextDocument;
+﻿using LanguageServer.Parameters.TextDocument;
 using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
-using System;
 using System.Text;
-using System.Xml.Linq;
 
 namespace RainLanguageServer.RainLanguage
 {
