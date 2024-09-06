@@ -34,9 +34,9 @@
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if(action(this)) return true;
-            if (condition.range.Contain(position)) return condition.Operator(position, action);
-            if (left.range.Contain(position)) return left.Operator(position, action);
-            if (right != null && right.range.Contain(position)) return right.Operator(position, action);
+            if (condition.range.Contain(position)) return condition.BreadthFirstOperator(position, action);
+            if (left.range.Contain(position)) return left.BreadthFirstOperator(position, action);
+            if (right != null && right.range.Contain(position)) return right.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)

@@ -26,8 +26,8 @@
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if (action(this)) return true;
-            if (type.range.Contain(position)) return type.Operator(position, action);
-            if (length.range.Contain(position)) return length.Operator(position, action);
+            if (type.range.Contain(position)) return type.BreadthFirstOperator(position, action);
+            if (length.range.Contain(position)) return length.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)
@@ -99,8 +99,8 @@
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if (action(this)) return true;
-            if (type != null && type.range.Contain(position)) return type.Operator(position, action);
-            if (elements.range.Contain(position)) return elements.Operator(position, action);
+            if (type != null && type.range.Contain(position)) return type.BreadthFirstOperator(position, action);
+            if (elements.range.Contain(position)) return elements.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)
@@ -176,8 +176,8 @@
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if(action(this)) return true;
-            if (array.range.Contain(position)) return array.Operator(position, action);
-            if (index.range.Contain(position)) return index.Operator(position, action);
+            if (array.range.Contain(position)) return array.BreadthFirstOperator(position, action);
+            if (index.range.Contain(position)) return index.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)
@@ -248,8 +248,8 @@
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if(action(this)) return true;
-            if (source.range.Contain(position)) return source.Operator(position, action);
-            if (index.range.Contain(position)) return index.Operator(position, action);
+            if (source.range.Contain(position)) return source.BreadthFirstOperator(position, action);
+            if (index.range.Contain(position)) return index.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)
@@ -320,8 +320,8 @@
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if(action(this)) return true;
-            if (source.range.Contain(position)) return source.Operator(position, action);
-            if (indies.range.Contain(position)) return indies.Operator(position, action);
+            if (source.range.Contain(position)) return source.BreadthFirstOperator(position, action);
+            if (indies.range.Contain(position)) return indies.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)

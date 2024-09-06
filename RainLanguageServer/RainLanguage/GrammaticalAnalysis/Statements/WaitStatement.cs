@@ -31,5 +31,10 @@
             return false;
         }
         protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.KeywordCtrl, symbol);
+        protected override void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+        {
+            if (expression == null)
+                infos.Add(new InlayHintInfo(" 1", symbol.end));
+        }
     }
 }

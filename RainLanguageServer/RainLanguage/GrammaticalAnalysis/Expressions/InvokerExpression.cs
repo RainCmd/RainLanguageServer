@@ -52,8 +52,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if (action(this)) return true;
-            if (invoker.range.Contain(position)) return invoker.Operator(position, action);
-            if (parameters.range.Contain(position)) return parameters.Operator(position, action);
+            if (invoker.range.Contain(position)) return invoker.BreadthFirstOperator(position, action);
+            if (parameters.range.Contain(position)) return parameters.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)
@@ -126,7 +126,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if (action(this)) return true;
-            if (parameters.range.Contain(position)) return parameters.Operator(position, action);
+            if (parameters.range.Contain(position)) return parameters.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)
@@ -243,8 +243,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if (action(this)) return true;
-            if (target != null && target.range.Contain(position)) return target.Operator(position, action);
-            if (parameters.range.Contain(position)) return parameters.Operator(position, action);
+            if (target != null && target.range.Contain(position)) return target.BreadthFirstOperator(position, action);
+            if (parameters.range.Contain(position)) return parameters.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)

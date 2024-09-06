@@ -36,7 +36,7 @@
             if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
         }
     }
-    internal class TypeKeyworldExpression(TextRange range, TextRange? qualifier, FileType file, Type type) : TypeExpression(range, qualifier, file, type)
+    internal class TypeKeyworldExpression(TextRange range, TextRange? qualifier, FileType file, Type type) : TypeExpression(range, qualifier, file, type) 
     {
         protected override void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {

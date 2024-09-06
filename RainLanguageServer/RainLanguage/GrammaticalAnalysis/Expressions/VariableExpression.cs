@@ -81,6 +81,22 @@
             base.Write(parameter);
             typeExpression.Read(parameter);
         }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (typeExpression.range.Contain(position)) return typeExpression.Operator(position, action);
+            return base.Operator(position, action);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (base.BreadthFirstOperator(position, action)) return true;
+            if (typeExpression.range.Contain(position)) return typeExpression.BreadthFirstOperator(position, action);
+            return false;
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            typeExpression.Operator(action);
+            base.Operator(action);
+        }
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
             if (typeExpression.range.Contain(position)) return typeExpression.OnHover(manager, position, out info);
@@ -237,8 +253,8 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
-            if (target != null && target.range.Contain(position)) return target.Operator(position, action);
+            if (action(this)) return true;
+            if (target != null && target.range.Contain(position)) return target.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)

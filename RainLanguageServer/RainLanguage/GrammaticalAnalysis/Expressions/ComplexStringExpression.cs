@@ -25,7 +25,7 @@
             if(action(this)) return true;
             foreach (var expression in expressions)
                 if (expression.range.Contain(position))
-                    return expression.Operator(position, action);
+                    return expression.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)

@@ -76,6 +76,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         public void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
             Operator((Expression expression) => expression.CollectInlayHint(manager, infos));
+            Operator((Statement value) => value.InternalCollectInlayHint(manager, infos));
         }
     }
 }

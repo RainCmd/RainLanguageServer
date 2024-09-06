@@ -154,7 +154,7 @@
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if(action(this)) return true;
-            if (target != null && target.range.Contain(position)) return target.Operator(position, action);
+            if (target != null && target.range.Contain(position)) return target.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)
@@ -294,7 +294,7 @@
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if(action(this)) return true;
-            if (invoker.range.Contain(position)) return invoker.Operator(position, action);
+            if (invoker.range.Contain(position)) return invoker.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)
@@ -350,7 +350,7 @@
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if (action(this)) return true;
-            if (expression.range.Contain(position)) return expression.Operator(position, action);
+            if (expression.range.Contain(position)) return expression.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)

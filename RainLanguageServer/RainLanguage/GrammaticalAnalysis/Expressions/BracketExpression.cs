@@ -32,7 +32,7 @@
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if(action(this)) return true;
-            if (expression.range.Contain(position)) return expression.Operator(position, action);
+            if (expression.range.Contain(position)) return expression.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)

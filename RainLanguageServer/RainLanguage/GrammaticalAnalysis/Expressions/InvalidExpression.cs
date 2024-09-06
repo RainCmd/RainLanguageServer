@@ -43,7 +43,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (action(this)) return true;
             foreach (var expression in expressions)
                 if (expression.range.Contain(position))
-                    return expression.Operator(position, action);
+                    return expression.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)
@@ -126,7 +126,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             if (action(this)) return true;
             if (parameters != null && parameters.range.Contain(position))
-                return parameters.Operator(position, action);
+                return parameters.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)
@@ -203,8 +203,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if (action(this)) return true;
-            if (method.range.Contain(position)) return method.Operator(position, action);
-            if (parameters.range.Contain(position)) return parameters.Operator(position, action);
+            if (method.range.Contain(position)) return method.BreadthFirstOperator(position, action);
+            if (parameters.range.Contain(position)) return parameters.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)

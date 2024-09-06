@@ -34,7 +34,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if(action(this)) return true;
-            if (parameters.range.Contain(position)) return parameters.Operator(position, action);
+            if (parameters.range.Contain(position)) return parameters.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)
