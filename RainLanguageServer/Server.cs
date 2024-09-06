@@ -86,10 +86,7 @@ namespace RainLanguageServer
             }
             return Result<CompletionResult, ResponseError>.Error(Message.ServerError(ErrorCodes.RequestCancelled));
         }
-        protected override Result<CompletionItem, ResponseError> ResolveCompletionItem(CompletionItem param, CancellationToken token)
-        {
-            return Result<CompletionItem, ResponseError>.Success(param);
-        }
+        protected override Result<CompletionItem, ResponseError> ResolveCompletionItem(CompletionItem param, CancellationToken token) => Result<CompletionItem, ResponseError>.Success(param);
         protected override Result<SignatureHelp, ResponseError> SignatureHelp(TextDocumentPositionParams param, CancellationToken token)
         {
             if (manager != null)
@@ -227,6 +224,29 @@ namespace RainLanguageServer
             return Result<SemanticToken[], ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
         }
 
+        protected override Result<InlayHintResult[], ResponseError> InlayHint(InlayHintParams param, CancellationToken token)
+        {
+            if (manager != null)
+            {
+                var infos = new List<InlayHintInfo>();
+                ManagerOperator.CollectInlayHint(manager, param.textDocument.uri, infos);
+                if (infos.Count > 0)
+                {
+                    var results = new InlayHintResult[infos.Count];
+                    for (var i = 0; i < infos.Count; i++)
+                    {
+                        var info = infos[i];
+                        var line = info.position.Line;
+                        results[i] = new InlayHintResult(new Position(line.line, info.position.charactor - line.start.charactor), info.label);
+                        if (info.tooltip != null)
+                            results[i].tooltip = info.tooltip.Value.GetDocumentation();
+                    }
+                    return Result<InlayHintResult[], ResponseError>.Success(results);
+                }
+            }
+            return Result<InlayHintResult[], ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
+        }
+        protected override Result<InlayHintResult, ResponseError> InlayHintResolve(InlayHintResult param, CancellationToken token) => Result<InlayHintResult, ResponseError>.Success(param);
         #region 文档相关
         private readonly Dictionary<string, TextDocument> documents = [];
         private bool TryGetDoc(string path, out TextDocument document)

@@ -26,6 +26,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         }
         public override bool Calculability() => true;
         public override void Read(ExpressionParameter parameter) { }
+        public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {

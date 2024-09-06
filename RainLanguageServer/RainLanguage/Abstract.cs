@@ -59,6 +59,7 @@ namespace RainLanguageServer.RainLanguage
             return false;
         }
         public virtual void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) { } // todo 代码补全
+        public virtual void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) { }
     }
     internal class AbstractVariable(FileVariable file, AbstractSpace space, TextRange name, Declaration declaration, bool isReadonly, Type type)
         : AbstractDeclaration(file, space, name, declaration)
@@ -129,6 +130,7 @@ namespace RainLanguageServer.RainLanguage
             if (expression != null) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
+        public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => expression?.CollectInlayHint(manager, infos);
     }
     internal abstract class AbstractCallable : AbstractDeclaration
     {
@@ -295,6 +297,11 @@ namespace RainLanguageServer.RainLanguage
                     return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
+        public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+        {
+            foreach (var statement in logicBlock.statements)
+                statement.CollectInlayHint(manager, infos);
+        }
     }
     internal class AbstractEnum(FileEnum file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
@@ -350,6 +357,7 @@ namespace RainLanguageServer.RainLanguage
                 if (expression != null && expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             }
+            public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => expression?.CollectInlayHint(manager, infos);
         }
         public readonly FileEnum fileEnum = file;
         public readonly List<Element> elements = [];
@@ -403,6 +411,11 @@ namespace RainLanguageServer.RainLanguage
                     return element.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
+        public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+        {
+            foreach (var element in elements)
+                element.CollectInlayHint(manager, infos);
+        }
     }
     internal class AbstractStruct(FileStruct file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
@@ -452,6 +465,7 @@ namespace RainLanguageServer.RainLanguage
                 collector.AddType(fileVariable.type, manager, type);
                 collector.Add(DetailTokenType.MemberField, name);
             }
+            public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => infos.Add(new InlayHintInfo($"{KeyWords.PUBLIC} ", fileVariable.range.start));
         }
         internal class Function(FileStruct.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -478,6 +492,11 @@ namespace RainLanguageServer.RainLanguage
                     if (statement.range.Contain(position))
                         return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            }
+            public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+            {
+                foreach (var statement in logicBlock.statements)
+                    statement.CollectInlayHint(manager, infos);
             }
         }
         public readonly FileStruct fileStruct = file;
@@ -545,6 +564,13 @@ namespace RainLanguageServer.RainLanguage
                     return function.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
+        public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+        {
+            foreach (var variable in variables)
+                variable.CollectInlayHint(manager, infos);
+            foreach (var function in functions)
+                function.CollectInlayHint(manager, infos);
+        }
     }
     internal class AbstractInterface(FileInterface file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
@@ -569,6 +595,7 @@ namespace RainLanguageServer.RainLanguage
                 collector.Add(DetailTokenType.MemberFunction, name);
                 CollectSemanticToken(manager, collector, fileFunction.returns, fileFunction.parameters, null);
             }
+            public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => infos.Add(new InlayHintInfo($"{KeyWords.PUBLIC} ", fileFunction.range.start));
         }
         public readonly FileInterface fileInterface = file;
         public readonly List<Type> inherits = [];
@@ -630,6 +657,17 @@ namespace RainLanguageServer.RainLanguage
                 collector.AddType(fileInterface.inherits[i], manager, inherits[i]);
             foreach (var function in functions)
                 function.CollectSemanticToken(manager, collector);
+        }
+        public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+        {
+            if (fileInterface.inherits.Count > 0)
+            {
+                infos.Add(new InlayHintInfo(" :", name.end));
+                for (var i = 0; i < fileInterface.inherits.Count - 1; i++)
+                    infos.Add(new InlayHintInfo(",", fileInterface.inherits[i].name.name.end));
+            }
+            foreach (var function in functions)
+                function.CollectInlayHint(manager, infos);
         }
     }
     internal class AbstractClass(FileClass file, AbstractSpace space, TextRange name, Declaration declaration)
@@ -700,6 +738,7 @@ namespace RainLanguageServer.RainLanguage
                 if (expression != null && expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             }
+            public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => expression?.CollectInlayHint(manager, infos);
         }
         internal class Constructor(FileClass.Constructor file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -741,6 +780,12 @@ namespace RainLanguageServer.RainLanguage
                     if (statement.range.Contain(position))
                         return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            }
+            public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+            {
+                expression?.CollectInlayHint(manager, infos);
+                foreach (var statement in logicBlock.statements)
+                    statement.CollectInlayHint(manager, infos);
             }
         }
         internal class Function(FileClass.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
@@ -790,6 +835,11 @@ namespace RainLanguageServer.RainLanguage
                     if (statement.range.Contain(position))
                         return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            }
+            public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+            {
+                foreach (var statement in logicBlock.statements)
+                    statement.CollectInlayHint(manager, infos);
             }
         }
         public readonly FileClass fileClass = file;
@@ -927,6 +977,34 @@ namespace RainLanguageServer.RainLanguage
                 if (function.file.range.Contain(position))
                     return function.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+        }
+        public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+        {
+            if (fileClass.inherits.Count > 0)
+            {
+                if (fileClass.inherits.Count > inherits.Count)
+                {
+                    infos.Add(new InlayHintInfo(" <:", name.end));
+                    if (fileClass.inherits.Count > 1)
+                    {
+                        infos.Add(new InlayHintInfo(" :", fileClass.inherits[1].range.end));
+                        for (var i = 1; i < fileClass.inherits.Count - 1; i++)
+                            infos.Add(new InlayHintInfo(",", fileClass.inherits[i].name.name.end));
+                    }
+                }
+                else
+                {
+                    infos.Add(new InlayHintInfo(" :", name.end));
+                    for (var i = 0; i < fileClass.inherits.Count - 1; i++)
+                        infos.Add(new InlayHintInfo(",", fileClass.inherits[i].name.name.end));
+                }
+            }
+            foreach (var member in variables)
+                member.CollectInlayHint(manager, infos);
+            foreach (var memeber in constructors)
+                memeber.CollectInlayHint(manager, infos);
+            foreach (var member in functions)
+                member.CollectInlayHint(manager, infos);
         }
     }
     internal class AbstractDelegate(FileDelegate file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)

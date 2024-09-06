@@ -21,6 +21,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (parameter.manager.TryGetDeclaration(type, out var declaration))
                 declaration.references.Add(file.name.name);
         }
+        public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info) => file.OnHover(manager, position, type, ManagerOperator.GetSpace(manager, position), out info);
 
@@ -44,5 +46,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             return false;
         }
     }
-    internal class TypeKeyworldExpression(TextRange range, TextRange? qualifier, FileType file, Type type) : TypeExpression(range, qualifier, file, type) { }
+    internal class TypeKeyworldExpression(TextRange range, TextRange? qualifier, FileType file, Type type) : TypeExpression(range, qualifier, file, type)
+    {
+        public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+        {
+            if (range == KeyWords.VAR)
+                infos.Add(new InlayHintInfo($":{type.Info(manager, ManagerOperator.GetSpace(manager, range.end))}", range.end));
+        }
+    }
 }

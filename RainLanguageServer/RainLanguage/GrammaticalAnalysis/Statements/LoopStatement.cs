@@ -48,7 +48,15 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
             elseBlock?.CollectSemanticToken(manager, collector);
         }
     }
-    internal class WhileStatement(TextRange symbol, Expression? condition) : LoopStatement(symbol, condition) { }
+    internal class WhileStatement(TextRange symbol, Expression? condition) : LoopStatement(symbol, condition)
+    {
+        public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+        {
+            base.CollectInlayHint(manager, infos);
+            if (condition == null)
+                infos.Add(new InlayHintInfo($" {KeyWords.TRUE}", symbol.end));
+        }
+    }
     internal class ForStatement(TextRange symbol, Expression? condition, TextRange? separator1, TextRange? separator2, Expression? front, Expression? back) : LoopStatement(symbol, condition)
     {
         public readonly TextRange? separator1 = separator1, separator2 = separator2;//两个分隔符 ;

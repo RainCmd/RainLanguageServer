@@ -15,6 +15,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             attribute = ExpressionAttribute.Value | ExpressionAttribute.Assignable;
         }
         public override void Read(ExpressionParameter parameter) => parameter.collector.Add(declaration, ErrorLevel.Error, "无法推断类型");
+        public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
@@ -69,6 +71,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             }
             parameter.collector.Add(msg);
         }
+        public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
@@ -157,6 +161,16 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             }
             parameter.collector.Add(msg);
             target?.Read(parameter);
+        }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (target != null && target.range.Contain(position)) return target.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            target?.Operator(action);
+            action(this);
         }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
@@ -292,6 +306,16 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         }
 
         public override void Read(ExpressionParameter parameter) => invoker.Read(parameter);
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (invoker.range.Contain(position)) return invoker.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            invoker.Operator(action);
+            action(this);
+        }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
@@ -342,6 +366,16 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             parameter.collector.Add(range, ErrorLevel.Error, "无法推断集合类型");
             expression.Read(parameter);
         }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (expression.range.Contain(position)) return expression.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            expression.Operator(action);
+            action(this);
+        }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
@@ -390,6 +424,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             parameter.collector.Add(range, ErrorLevel.Error, "无法推断lambda表达式类型");
         }
+        public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {

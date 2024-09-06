@@ -18,6 +18,16 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         }
         public override void Read(ExpressionParameter parameter) => target.Read(parameter);
         public override void Write(ExpressionParameter parameter) => target.Write(parameter);
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (target.range.Contain(position)) return target.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            target.Operator(action);
+            action(this);
+        }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
@@ -81,6 +91,18 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             type.Read(parameter);
             parameters.Read(parameter);
+        }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (type.range.Contain(position)) return type.Operator(position, action);
+            if (parameters.range.Contain(position)) return parameters.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            type.Operator(action);
+            parameters.Operator(action);
+            action(this);
         }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)

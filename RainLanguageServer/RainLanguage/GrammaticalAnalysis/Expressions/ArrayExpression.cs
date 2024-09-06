@@ -19,6 +19,19 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             length.Read(parameter);
         }
 
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (type.range.Contain(position)) return type.Operator(position, action);
+            if (length.range.Contain(position)) return length.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            type.Operator(action);
+            length.Operator(action);
+            action(this);
+        }
+
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
             if (type.range.Contain(position)) return type.OnHover(manager, position, out info);
@@ -79,6 +92,19 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             type?.Read(parameter);
             elements.Read(parameter);
+        }
+
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (type != null && type.range.Contain(position)) return type.Operator(position, action);
+            if (elements.range.Contain(position)) return elements.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            type?.Operator(action);
+            elements.Operator(action);
+            action(this);
         }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
@@ -147,6 +173,18 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             array.Read(parameter);
             index.Read(parameter);
         }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (array.range.Contain(position)) return array.Operator(position, action);
+            if (index.range.Contain(position)) return index.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            array.Operator(action);
+            index.Operator(action);
+            action(this);
+        }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
@@ -210,6 +248,18 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             source.Read(parameter);
             index.Read(parameter);
         }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (source.range.Contain(position)) return source.Operator(position, action);
+            if (index.range.Contain(position)) return index.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            source.Operator(action);
+            index.Operator(action);
+            action(this);
+        }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
@@ -272,6 +322,18 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             source.Read(parameter);
             indies.Read(parameter);
+        }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (source.range.Contain(position)) return source.Operator(position, action);
+            if (indies.range.Contain(position)) return indies.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            source.Operator(action);
+            indies.Operator(action);
+            action(this);
         }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)

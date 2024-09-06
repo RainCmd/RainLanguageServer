@@ -21,6 +21,18 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             left.Read(parameter);
             right.Read(parameter);
         }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (left.range.Contain(position)) return left.Operator(position, action);
+            if (right.range.Contain(position)) return right.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            left.Operator(action);
+            right.Operator(action);
+            action(this);
+        }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {

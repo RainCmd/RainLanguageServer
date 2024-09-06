@@ -58,5 +58,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             parameterIndex = 0;
             return false;
         }
+        public virtual void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => Operator(expression => expression.CollectInlayHint(manager, infos));
     }
 }

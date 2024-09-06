@@ -55,6 +55,29 @@ namespace RainLanguageServer.RainLanguage
             if (spaceAction != null) return spaceAction(space);
             return false;
         }
+        private static void FileSpaceOperator(FileSpace space, Action<FileSpace>? spaceAction, Action<FileDeclaration>? declarationAction)
+        {
+            foreach (var child in space.children)
+                FileSpaceOperator(space, spaceAction, declarationAction);
+            spaceAction?.Invoke(space);
+            if (declarationAction != null)
+            {
+                foreach (var declaration in space.variables) declarationAction(declaration);
+                foreach (var declaration in space.functions) declarationAction(declaration);
+                foreach (var declaration in space.enums) declarationAction(declaration);
+                foreach (var declaration in space.structs) declarationAction(declaration);
+                foreach (var declaration in space.interfaces) declarationAction(declaration);
+                foreach (var declaration in space.classes) declarationAction(declaration);
+                foreach (var declaration in space.delegates) declarationAction(declaration);
+                foreach (var declaration in space.tasks) declarationAction(declaration);
+                foreach (var declaration in space.natives) declarationAction(declaration);
+            }
+        }
+        private static void FileSpaceOperator(Manager manager, DocumentUri uri, Action<FileSpace>? spaceAction, Action<FileDeclaration>? declarationAction)
+        {
+            if (manager.allFileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
+                FileSpaceOperator(space, spaceAction, declarationAction);
+        }
 
         public static bool OnHover(Manager manager, DocumentUri uri, Position position, out HoverInfo info)
         {
@@ -163,34 +186,23 @@ namespace RainLanguageServer.RainLanguage
             return false;
         }
 
-        private static void CollectSemanticToken(Manager manager, SemanticTokenCollector collector, FileSpace space)
-        {
-            foreach (var child in space.children)
-                CollectSemanticToken(manager, collector, child);
-            if (space.name != null)
-                collector.Add(DetailTokenType.Namespace, space.name.Value);
-            foreach (var import in space.imports)
-                for (var i = 0; i < import.names.Count; i++)
-                {
-                    if (i > 0) collector.Add(DetailTokenType.Operator, import.names[i - 1].end & import.names[i].start);
-                    collector.Add(DetailTokenType.Namespace, import.names[i]);
-                }
-            foreach (var declaration in space.variables) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
-            foreach (var declaration in space.functions) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
-            foreach (var declaration in space.enums) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
-            foreach (var declaration in space.structs) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
-            foreach (var declaration in space.interfaces) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
-            foreach (var declaration in space.classes) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
-            foreach (var declaration in space.delegates) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
-            foreach (var declaration in space.tasks) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
-            foreach (var declaration in space.natives) declaration.abstractDeclaration?.CollectSemanticToken(manager, collector);
-        }
         public static SemanticTokenCollector CollectSemanticToken(Manager manager, DocumentUri uri)
         {
             var collector = new SemanticTokenCollector();
             lock (manager)
-                if (manager.allFileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
-                    CollectSemanticToken(manager, collector, space);
+                FileSpaceOperator(manager, uri,
+                    space =>
+                    {
+                        if (space.name != null)
+                            collector.Add(DetailTokenType.Namespace, space.name.Value);
+                        foreach (var import in space.imports)
+                            for (var i = 0; i < import.names.Count; i++)
+                            {
+                                if (i > 0) collector.Add(DetailTokenType.Operator, import.names[i - 1].end & import.names[i].start);
+                                collector.Add(DetailTokenType.Namespace, import.names[i]);
+                            }
+                    },
+                    declaration => declaration.abstractDeclaration?.CollectSemanticToken(manager, collector));
             return collector;
         }
 
@@ -316,6 +328,12 @@ namespace RainLanguageServer.RainLanguage
                             return default;
                         });
                 }
+        }
+
+        public static void CollectInlayHint(Manager manager, DocumentUri uri, List<InlayHintInfo> infos)
+        {
+            lock (manager)
+                FileSpaceOperator(manager, uri, null, declaration => declaration.abstractDeclaration?.CollectInlayHint(manager, infos));
         }
 
         public static AbstractSpace? GetSpace(Manager manager, TextPosition position)

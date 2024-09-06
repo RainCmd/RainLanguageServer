@@ -1,5 +1,4 @@
-﻿
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
@@ -31,6 +30,19 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public override void Read(ExpressionParameter parameter)
         {
             foreach (var expression in expressions) expression.Read(parameter);
+        }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            foreach (var expression in expressions)
+                expression.Operator(action);
+            action(this);
         }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
@@ -106,6 +118,17 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             attribute = ExpressionAttribute.Invalid;
         }
         public override void Read(ExpressionParameter parameter) => parameters?.Read(parameter);
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (parameters != null && parameters.range.Contain(position))
+                return parameters.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            parameters?.Operator(action);
+            action(this);
+        }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
@@ -174,6 +197,18 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             method.Read(parameter);
             parameters.Read(parameter);
+        }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (method.range.Contain(position)) return method.Operator(position, action);
+            if (parameters.range.Contain(position)) return parameters.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            method.Operator(action);
+            parameters.Operator(action);
+            action(this);
         }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)

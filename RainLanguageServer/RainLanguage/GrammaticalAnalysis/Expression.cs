@@ -43,6 +43,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
     }
     internal abstract class Expression(TextRange range, Tuple tuple)
     {
+        public delegate bool ExpressionOperator(Expression expression);
         public readonly TextRange range = range;
         public readonly Tuple tuple = tuple;
         public ExpressionAttribute attribute;
@@ -59,6 +60,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         public virtual bool Calculability() => false;
         public abstract void Read(ExpressionParameter parameter);
         public virtual void Write(ExpressionParameter parameter) => parameter.collector.Add(range, ErrorLevel.Error, "表达式不可赋值");
+        public abstract bool Operator(TextPosition position, ExpressionOperator action);
+        public abstract void Operator(Action<Expression> action);
         public abstract bool OnHover(Manager manager, TextPosition position, out HoverInfo info);
         public abstract bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos);
         public abstract bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition);
@@ -66,5 +69,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         public abstract void CollectSemanticToken(Manager manager, SemanticTokenCollector collector);
         public virtual int GetTupleIndex(TextPosition position) => 0;
         public abstract bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex);
+        public virtual void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) { }
     }
 }

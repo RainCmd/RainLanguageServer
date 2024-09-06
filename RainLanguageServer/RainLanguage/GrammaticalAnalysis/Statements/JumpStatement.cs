@@ -38,6 +38,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
             collector.Add(DetailTokenType.KeywordCtrl, symbol);
             condition?.CollectSemanticToken(manager, collector);
         }
+        public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+        {
+            base.CollectInlayHint(manager, infos);
+            if (condition == null)
+                infos.Add(new InlayHintInfo($" {KeyWords.TRUE}", symbol.end));
+        }
     }
     internal class BreakStatement(TextRange symbol, Expression? condition) : JumpStatement(symbol, condition) { }
     internal class ContinueStatement(TextRange symbol, Expression? condition) : JumpStatement(symbol, condition) { }

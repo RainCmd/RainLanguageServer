@@ -43,21 +43,18 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             foreach (var expression in expressions) expression.Write(parameter);
         }
-        public static Expression Create(IList<Expression> expressions, MessageCollector collector)
+        public override bool Operator(TextPosition position, ExpressionOperator action)
         {
-            if (expressions.Count == 0) throw new Exception("至少需要一个表达式，否则无法计算表达式范围");
-            var types = new List<Type>();
             foreach (var expression in expressions)
-            {
-                if (expression.attribute == ExpressionAttribute.Invalid) return new InvalidExpression(expressions);
-                else if (expression.attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple)) types.AddRange(expression.tuple);
-                else
-                {
-                    collector.Add(expression.range, ErrorLevel.Error, "无效的操作");
-                    return new InvalidExpression(expressions);
-                }
-            }
-            return new TupleExpression(expressions[0].range & expressions[^1].range, new Tuple([.. types]), expressions);
+                if (expression.range.Contain(position))
+                    return expression.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            foreach (var expression in expressions)
+                expression.Operator(action);
+            action(this);
         }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
@@ -119,6 +116,23 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             return false;
         }
 
+        public static Expression Create(IList<Expression> expressions, MessageCollector collector)
+        {
+            if (expressions.Count == 0) throw new Exception("至少需要一个表达式，否则无法计算表达式范围");
+            var types = new List<Type>();
+            foreach (var expression in expressions)
+            {
+                if (expression.attribute == ExpressionAttribute.Invalid) return new InvalidExpression(expressions);
+                else if (expression.attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple)) types.AddRange(expression.tuple);
+                else
+                {
+                    collector.Add(expression.range, ErrorLevel.Error, "无效的操作");
+                    return new InvalidExpression(expressions);
+                }
+            }
+            return new TupleExpression(expressions[0].range & expressions[^1].range, new Tuple([.. types]), expressions);
+        }
+
         private static readonly IList<Expression> empty = [];
     }
     internal class TupleEvaluationExpression : Expression
@@ -137,6 +151,18 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             source.Read(parameter);
             indices.Read(parameter);
+        }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (source.range.Contain(position)) return source.Operator(position, action);
+            if (indices.range.Contain(position)) return indices.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            source.Operator(action);
+            indices.Operator(action);
+            action(this);
         }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
@@ -177,8 +203,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 
         public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
         {
-            if(source.range.Contain(position)) return source.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            if(indices.range.Contain(position)) return indices.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            if (source.range.Contain(position)) return source.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            if (indices.range.Contain(position)) return indices.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             infos = default;
             functionIndex = 0;
             parameterIndex = 0;

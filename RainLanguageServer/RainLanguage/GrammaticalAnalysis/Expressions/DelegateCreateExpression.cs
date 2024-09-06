@@ -17,6 +17,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public readonly TextRange? qualifier = qualifier;
         public readonly QualifiedName name = name;
         public override void Read(ExpressionParameter parameter) => callable.references.Add(name.name);
+        public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
@@ -88,6 +90,16 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             target?.Read(parameter);
             callable.references.Add(member);
+        }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (target != null && target.range.Contain(position)) return target.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            target?.Operator(action);
+            action(this);
         }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
@@ -170,6 +182,16 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             }
             else callable.references.Add(member);
         }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (target != null && target.range.Contain(position)) return target.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            target?.Operator(action);
+            action(this);
+        }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
@@ -247,6 +269,16 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public readonly Expression body = body;
 
         public override void Read(ExpressionParameter parameter) => body.Read(parameter);
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (body.range.Contain(position)) return body.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            body.Operator(action);
+            action(this);
+        }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {

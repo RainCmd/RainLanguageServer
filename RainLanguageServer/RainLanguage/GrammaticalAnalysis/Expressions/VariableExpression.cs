@@ -17,6 +17,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public VariableLocalExpression(TextRange range, Local local, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : this(range, local, local.type, identifier, attribute, manager) { }
         public override void Read(ExpressionParameter parameter) => local.read.Add(identifier);
         public override void Write(ExpressionParameter parameter) => local.write.Add(identifier);
+        public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
@@ -150,6 +152,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public override bool Calculability() => variable.isReadonly && variable.calculated && variable.declaration.library == Manager.LIBRARY_SELF;
         public override void Read(ExpressionParameter parameter) => variable.references.Add(name.name);
         public override void Write(ExpressionParameter parameter) => variable.write.Add(name.name);
+        public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
@@ -242,6 +246,16 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             target?.Read(parameter);
             if (member is AbstractStruct.Variable structMember) structMember.write.Add(identifier);
             else if (member is AbstractClass.Variable classMember) classMember.write.Add(identifier);
+        }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (target != null && target.range.Contain(position)) return target.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            target?.Operator(action);
+            action(this);
         }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)

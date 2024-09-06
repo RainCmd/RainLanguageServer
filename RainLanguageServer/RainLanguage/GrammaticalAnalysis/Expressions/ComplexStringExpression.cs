@@ -15,6 +15,19 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             foreach (var expression in expressions) expression.Read(parameter);
         }
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.Operator(position, action);
+            return action(this);
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            foreach (var expression in expressions)
+                expression.Operator(action);
+            action(this);
+        }
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
