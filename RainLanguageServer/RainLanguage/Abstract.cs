@@ -465,7 +465,7 @@ namespace RainLanguageServer.RainLanguage
                 collector.AddType(fileVariable.type, manager, type);
                 collector.Add(DetailTokenType.MemberField, name);
             }
-            public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => infos.Add(new InlayHintInfo($"{KeyWords.PUBLIC} ", fileVariable.range.start));
+            public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => infos.Add(new InlayHintInfo($"{KeyWords.PUBLIC} ", fileVariable.range.Trim.start));
         }
         internal class Function(FileStruct.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -595,7 +595,7 @@ namespace RainLanguageServer.RainLanguage
                 collector.Add(DetailTokenType.MemberFunction, name);
                 CollectSemanticToken(manager, collector, fileFunction.returns, fileFunction.parameters, null);
             }
-            public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => infos.Add(new InlayHintInfo($"{KeyWords.PUBLIC} ", fileFunction.range.start));
+            public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => infos.Add(new InlayHintInfo($"{KeyWords.PUBLIC} ", fileFunction.range.Trim.start));
         }
         public readonly FileInterface fileInterface = file;
         public readonly List<Type> inherits = [];
@@ -662,7 +662,7 @@ namespace RainLanguageServer.RainLanguage
         {
             if (fileInterface.inherits.Count > 0)
             {
-                infos.Add(new InlayHintInfo(" :", name.end));
+                infos.Add(new InlayHintInfo(":", name.end));
                 for (var i = 0; i < fileInterface.inherits.Count - 1; i++)
                     infos.Add(new InlayHintInfo(",", fileInterface.inherits[i].name.name.end));
             }
@@ -984,17 +984,17 @@ namespace RainLanguageServer.RainLanguage
             {
                 if (fileClass.inherits.Count > inherits.Count)
                 {
-                    infos.Add(new InlayHintInfo(" <:", name.end));
+                    infos.Add(new InlayHintInfo("<:", name.end));
                     if (fileClass.inherits.Count > 1)
                     {
-                        infos.Add(new InlayHintInfo(" :", fileClass.inherits[1].range.end));
+                        infos.Add(new InlayHintInfo(":", fileClass.inherits[0].range.end));
                         for (var i = 1; i < fileClass.inherits.Count - 1; i++)
                             infos.Add(new InlayHintInfo(",", fileClass.inherits[i].name.name.end));
                     }
                 }
                 else
                 {
-                    infos.Add(new InlayHintInfo(" :", name.end));
+                    infos.Add(new InlayHintInfo(":", name.end));
                     for (var i = 0; i < fileClass.inherits.Count - 1; i++)
                         infos.Add(new InlayHintInfo(",", fileClass.inherits[i].name.name.end));
                 }

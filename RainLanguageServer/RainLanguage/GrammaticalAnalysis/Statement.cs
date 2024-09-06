@@ -1,5 +1,4 @@
-﻿using LanguageServer.Parameters;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
