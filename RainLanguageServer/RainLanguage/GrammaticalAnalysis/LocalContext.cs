@@ -33,7 +33,7 @@
             this.collector = collector;
             if (declaration != null)
                 thisValue = Add(true, KeyWords.THIS, declaration.name, declaration.declaration.DefineType);
-            snapshoot.Push([]);
+            snapshoot.Push([.. localStack[^1].Values]);
         }
         public LocalContext(MessageCollector collector, AbstractDeclaration declaration, List<Local> locals)
         {
@@ -68,9 +68,12 @@
                     collector.Add(msg);
                 }
                 localStack[^1][name] = local;
-                var current = snapshoot.Pop();
-                current = current.AddLocal(local);
-                snapshoot.Push(current);
+                if (snapshoot.Count > 0)
+                {
+                    var current = snapshoot.Pop();
+                    current = current.AddLocal(local);
+                    snapshoot.Push(current);
+                }
             }
             return local;
         }

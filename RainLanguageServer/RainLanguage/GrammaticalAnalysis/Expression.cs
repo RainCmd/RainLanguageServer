@@ -89,6 +89,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             return result;
         }
 
+        public void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
+        {
+            //todo 代码完成
+        }
         protected virtual void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos) { }
         public void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => Operator(expression => expression.InternalCollectInlayHint(manager, infos));
     }

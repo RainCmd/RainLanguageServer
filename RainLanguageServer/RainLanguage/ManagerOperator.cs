@@ -319,6 +319,16 @@ namespace RainLanguageServer.RainLanguage
             if (value == KeyWords.PRIVATE) return true;
             return false;
         }
+        private static bool IsDefineKeyword(string value)
+        {
+            if (value == KeyWords.ENUM) return true;
+            if (value == KeyWords.STRUCT) return true;
+            if (value == KeyWords.INTERFACE) return true;
+            if (value == KeyWords.CLASS) return true;
+            if (value == KeyWords.DELEGATE) return true;
+            if (value == KeyWords.TASK) return true;
+            return false;
+        }
         public static void Completion(Manager manager, DocumentUri uri, Position position, List<CompletionInfo> infos)
         {
             lock (manager)
@@ -333,13 +343,14 @@ namespace RainLanguageServer.RainLanguage
                                     InfoUtility.CollectChildrenSpaces(infos, fileSpace.parent.space);
                                 return true;
                             }
+                            var context = new Context(fileSpace.document, fileSpace.space, fileSpace.relies, null);
                             foreach (var info in fileSpace.imports)
                                 if (info.range.Contain(textPosition))
                                 {
                                     for (var i = 0; i < info.names.Count; i++)
                                         if (info.names[i].Contain(textPosition))
                                         {
-                                            if (i == 0) InfoUtility.CollectSpaces(manager, infos, fileSpace);
+                                            if (i == 0) InfoUtility.CollectSpaces(manager, infos, context.space, context.relies);
                                             else
                                             {
                                                 var indexSpace = info.space;
@@ -361,23 +372,25 @@ namespace RainLanguageServer.RainLanguage
                                     infos.Add(new CompletionInfo(KeyWords.NAMESPACE, CompletionItemKind.Keyword, "关键字"));
                                     InfoUtility.CollectAccessKeyword(infos);
                                     InfoUtility.CollectDefineKeyword(infos);
-                                    InfoUtility.CollectSpaces(manager, infos, fileSpace);
-                                    InfoUtility.CollectDeclarations(manager, infos, fileSpace, true);
-                                    return true;
+                                    InfoUtility.CollectSpaces(manager, infos, context.space, context.relies);
+                                    InfoUtility.CollectDeclarations(manager, infos, context, true);
                                 }
-                                else if (IsAccessKeyword(lexical.anchor.ToString()) && Lexical.TryAnalysis(line, lexical.anchor.end, out lexical, null) && lexical.anchor.Contain(textPosition))
+                                else if (IsAccessKeyword(lexical.anchor.ToString()))
                                 {
-                                    InfoUtility.CollectDefineKeyword(infos);
-                                    InfoUtility.CollectSpaces(manager, infos, fileSpace);
-                                    InfoUtility.CollectDeclarations(manager, infos, fileSpace, true);
-                                    return true;
+                                    if (Lexical.TryAnalysis(line, lexical.anchor.end, out lexical, null))
+                                    {
+                                        if (lexical.anchor.Contain(textPosition))
+                                        {
+                                            InfoUtility.CollectDefineKeyword(infos);
+                                            InfoUtility.CollectSpaces(manager, infos, context.space, context.relies);
+                                            InfoUtility.CollectDeclarations(manager, infos, context, true);
+                                        }
+                                        else if (!IsDefineKeyword(lexical.anchor.ToString()) && Lexical.TryExtractName(line, lexical.anchor.end, out var names, null))
+                                            InfoUtility.Completion(manager, context, names, textPosition, infos, true);
+                                    }
                                 }
-                                else
-                                {
-                                    InfoUtility.CollectSpaces(manager, infos, fileSpace);
-                                    InfoUtility.CollectDeclarations(manager, infos, fileSpace, true);
-                                    return true;
-                                }
+                                else if (!IsDefineKeyword(lexical.anchor.ToString()) && Lexical.TryExtractName(line, lexical.anchor.end, out var names, null))
+                                    InfoUtility.Completion(manager, context, names, textPosition, infos, true);
                             }
                             return default;
                         },
@@ -395,24 +408,25 @@ namespace RainLanguageServer.RainLanguage
                 FileSpaceOperator(manager, uri, null, declaration => declaration.abstractDeclaration?.CollectInlayHint(manager, infos));
         }
 
-        public static AbstractSpace? GetSpace(Manager manager, TextPosition position)
+        public static AbstractSpace? GetSpace(Manager manager, TextPosition position) => GetFileSpace(manager, position)?.space;
+        public static FileSpace? GetFileSpace(Manager manager, TextPosition position)
         {
             if (manager.allFileSpaces.TryGetValue(position.document.path, out var result))
-                return GetSpace(result, position).space;
+                return GetFileSpace(result, position);
             return null;
         }
-        private static FileSpace GetSpace(FileSpace space, TextPosition position)
+        private static FileSpace GetFileSpace(FileSpace space, TextPosition position)
         {
             foreach (var child in space.children)
                 if (child.range.Contain(position))
-                    return GetSpace(child, position);
+                    return GetFileSpace(child, position);
             return space;
         }
         public static bool TryGetContext(Manager manager, TextPosition position, out Context context)
         {
             if (manager.allFileSpaces.TryGetValue(position.document.path, out var result))
             {
-                var space = GetSpace(result, position);
+                var space = GetFileSpace(result, position);
                 foreach (var declaration in space.structs)
                     if (declaration.range.Contain(position))
                     {

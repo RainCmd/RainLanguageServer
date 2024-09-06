@@ -117,7 +117,7 @@ namespace RainLanguageServer.RainLanguage
             }
             return false;
         }
-        public bool TryFindSpace(Manager manager, TextRange name, [MaybeNullWhen(false)] out AbstractSpace result, MessageCollector collector)
+        public bool TryFindSpace(Manager manager, TextRange name, [MaybeNullWhen(false)] out AbstractSpace result, MessageCollector? collector)
         {
             var targetName = name.ToString();
             for (var index = space; index != null; index = index.parent)
@@ -131,7 +131,7 @@ namespace RainLanguageServer.RainLanguage
                 results.Add(library);
             if (results.Count > 0)
             {
-                if (results.Count > 1)
+                if (results.Count > 1 && collector != null)
                 {
                     var message = new StringBuilder().AppendLine("依赖的命名空间不明确：");
                     foreach (var target in results)

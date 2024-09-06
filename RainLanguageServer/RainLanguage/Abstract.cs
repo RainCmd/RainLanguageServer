@@ -58,7 +58,7 @@ namespace RainLanguageServer.RainLanguage
             parameterIndex = 0;
             return false;
         }
-        public virtual void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) { } // todo 代码补全
+        public virtual void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) { }
         public virtual void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) { }
     }
     internal class AbstractVariable(FileVariable file, AbstractSpace space, TextRange name, Declaration declaration, bool isReadonly, Type type)
@@ -129,6 +129,11 @@ namespace RainLanguageServer.RainLanguage
         {
             if (expression != null) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+        }
+        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
+        {
+            if (fileVariable.type.range.Contain(position)) fileVariable.type.Completion(manager, position, infos);
+            else if (expression != null && expression.range.Contain(position)) expression.Completion(manager, position, infos);
         }
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => expression?.CollectInlayHint(manager, infos);
     }
@@ -275,6 +280,28 @@ namespace RainLanguageServer.RainLanguage
                 foreach (var statement in block.statements)
                     statement.CollectSemanticToken(manager, collector);
         }
+        protected static void Completion(Manager manager, TextPosition position, List<FileType> returns, List<FileParameter> parameters, LogicBlock? block, List<CompletionInfo> infos)
+        {
+            foreach (var type in returns)
+                if (type.range.Contain(position))
+                {
+                    type.Completion(manager, position, infos);
+                    return;
+                }
+            foreach (var parameter in parameters)
+                if (parameter.range.Contain(position))
+                {
+                    if (parameter.type.range.Contain(position)) parameter.type.Completion(manager, position, infos);
+                    return;
+                }
+            if (block != null)
+                foreach (var statement in block.statements)
+                    if (statement.range.Contain(position))
+                    {
+                        statement.Completion(manager, position, infos);
+                        return;
+                    }
+        }
     }
     internal class AbstractFunction(FileFunction file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -297,6 +324,7 @@ namespace RainLanguageServer.RainLanguage
                     return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
+        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
             foreach (var statement in logicBlock.statements)
@@ -357,6 +385,10 @@ namespace RainLanguageServer.RainLanguage
                 if (expression != null && expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             }
+            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
+            {
+                if (expression != null) expression.Completion(manager, position, infos);
+            }
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => expression?.CollectInlayHint(manager, infos);
         }
         public readonly FileEnum fileEnum = file;
@@ -410,6 +442,15 @@ namespace RainLanguageServer.RainLanguage
                 if (element.file.range.Contain(position))
                     return element.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+        }
+        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
+        {
+            foreach (var element in elements)
+                if (element.file.range.Contain(position))
+                {
+                    element.Completion(manager, position, infos);
+                    return;
+                }
         }
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
@@ -465,6 +506,10 @@ namespace RainLanguageServer.RainLanguage
                 collector.AddType(fileVariable.type, manager, type);
                 collector.Add(DetailTokenType.MemberField, name);
             }
+            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
+            {
+                if (fileVariable.type.range.Contain(position)) fileVariable.type.Completion(manager, position, infos);
+            }
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => infos.Add(new InlayHintInfo($"{KeyWords.PUBLIC} ", fileVariable.range.Trim.start));
         }
         internal class Function(FileStruct.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
@@ -493,6 +538,7 @@ namespace RainLanguageServer.RainLanguage
                         return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             }
+            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
             {
                 foreach (var statement in logicBlock.statements)
@@ -564,6 +610,22 @@ namespace RainLanguageServer.RainLanguage
                     return function.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
+        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
+        {
+            foreach (var member in variables)
+                if (member.file.range.Contain(position))
+                {
+                    member.Completion(manager, position, infos);
+                    return;
+                }
+            foreach (var member in functions)
+                if (member.file.range.Contain(position))
+                {
+                    member.Completion(manager, position, infos);
+                    return;
+                }
+            //todo 一些解析失败的成员定义
+        }
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
             foreach (var variable in variables)
@@ -595,6 +657,7 @@ namespace RainLanguageServer.RainLanguage
                 collector.Add(DetailTokenType.MemberFunction, name);
                 CollectSemanticToken(manager, collector, fileFunction.returns, fileFunction.parameters, null);
             }
+            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.returns, fileFunction.parameters, null, infos);
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => infos.Add(new InlayHintInfo($"{KeyWords.PUBLIC} ", fileFunction.range.Trim.start));
         }
         public readonly FileInterface fileInterface = file;
@@ -657,6 +720,22 @@ namespace RainLanguageServer.RainLanguage
                 collector.AddType(fileInterface.inherits[i], manager, inherits[i]);
             foreach (var function in functions)
                 function.CollectSemanticToken(manager, collector);
+        }
+        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
+        {
+            foreach (var type in fileInterface.inherits)
+                if (type.range.Contain(position))
+                {
+                    type.Completion(manager, position, infos);
+                    return;
+                }
+            foreach (var function in functions)
+                if (function.file.range.Contain(position))
+                {
+                    function.Completion(manager, position, infos);
+                    return;
+                }
+            //todo 一些解析失败的成员定义
         }
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
@@ -738,6 +817,11 @@ namespace RainLanguageServer.RainLanguage
                 if (expression != null && expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             }
+            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
+            {
+                if (fileVariable.type.range.Contain(position)) fileVariable.type.Completion(manager, position, infos);
+                else if (expression != null && expression.range.Contain(position)) expression.Completion(manager, position, infos);
+            }
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => expression?.CollectInlayHint(manager, infos);
         }
         internal class Constructor(FileClass.Constructor file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
@@ -780,6 +864,27 @@ namespace RainLanguageServer.RainLanguage
                     if (statement.range.Contain(position))
                         return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            }
+            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
+            {
+                if (fileConstructor.expression != null)
+                {
+                    if (Lexical.TryAnalysis(fileConstructor.expression, 0, out var lexical, null))
+                    {
+                        if (lexical.anchor.Contain(position))
+                        {
+                            infos.Add(new CompletionInfo(KeyWords.THIS, CompletionItemKind.Keyword, "关键字"));
+                            infos.Add(new CompletionInfo(KeyWords.BASE, CompletionItemKind.Keyword, "关键字"));
+                            return;
+                        }
+                        else if (expression != null && expression.range.Contain(position))
+                        {
+                            expression.Completion(manager, position, infos);
+                            return;
+                        }
+                    }
+                }
+                Completion(manager, position, fileConstructor.returns, fileConstructor.parameters, logicBlock, infos);
             }
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
             {
@@ -836,6 +941,7 @@ namespace RainLanguageServer.RainLanguage
                         return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             }
+            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
             {
                 foreach (var statement in logicBlock.statements)
@@ -976,7 +1082,44 @@ namespace RainLanguageServer.RainLanguage
             foreach (var function in functions)
                 if (function.file.range.Contain(position))
                     return function.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            foreach (var statement in descontructorLogicBlock.statements)
+                if (statement.range.Contain(position))
+                    return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+        }
+        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
+        {
+            foreach (var type in fileClass.inherits)
+                if (type.range.Contain(position))
+                {
+                    type.Completion(manager, position, infos);
+                    return;
+                }
+            foreach (var variable in variables)
+                if (variable.file.range.Contain(position))
+                {
+                    variable.Completion(manager, position, infos);
+                    return;
+                }
+            foreach (var ctor in constructors)
+                if (ctor.file.range.Contain(position))
+                {
+                    ctor.Completion(manager, position, infos);
+                    return;
+                }
+            foreach (var function in functions)
+                if (function.file.range.Contain(position))
+                {
+                    function.Completion(manager, position, infos);
+                    return;
+                }
+            foreach (var statement in descontructorLogicBlock.statements)
+                if (statement.range.Contain(position))
+                {
+                    statement.Completion(manager, position, infos);
+                    return;
+                }
+            //todo 一些解析失败的成员定义
         }
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
@@ -1005,6 +1148,8 @@ namespace RainLanguageServer.RainLanguage
                 memeber.CollectInlayHint(manager, infos);
             foreach (var member in functions)
                 member.CollectInlayHint(manager, infos);
+            foreach (var statement in descontructorLogicBlock.statements)
+                statement.CollectInlayHint(manager, infos);
         }
     }
     internal class AbstractDelegate(FileDelegate file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
@@ -1020,6 +1165,7 @@ namespace RainLanguageServer.RainLanguage
             collector.Add(DetailTokenType.TypeDelegate, name);
             CollectSemanticToken(manager, collector, fileDelegate.returns, fileDelegate.parameters, null);
         }
+        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileDelegate.returns, fileDelegate.parameters, null, infos);
     }
     internal class AbstractTask(FileTask file, AbstractSpace space, TextRange name, Declaration declaration, Tuple returns)
         : AbstractDeclaration(file, space, name, declaration)
@@ -1069,6 +1215,15 @@ namespace RainLanguageServer.RainLanguage
             for (var i = 0; i < returns.Count; i++)
                 collector.AddType(fileTask.returns[i], manager, returns[i]);
         }
+        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
+        {
+            foreach (var type in fileTask.returns)
+                if (type.range.Contain(position))
+                {
+                    type.Completion(manager, position, infos);
+                    return;
+                }
+        }
     }
     internal class AbstractNative(FileNative file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -1083,6 +1238,7 @@ namespace RainLanguageServer.RainLanguage
             collector.Add(DetailTokenType.NativeFunction, name);
             CollectSemanticToken(manager, collector, fileNative.returns, fileNative.parameters, null);
         }
+        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileNative.returns, fileNative.parameters, null, infos);
     }
     internal class AbstractSpace(AbstractSpace? parent, string name)
     {

@@ -575,12 +575,12 @@ namespace RainLanguageServer.RainLanguage
             foreach (var item in space.children.Values)
                 infos.Add(new CompletionInfo(item.name.ToString(), CompletionItemKind.Module, "命名空间"));
         }
-        public static void CollectSpaces(Manager manager, List<CompletionInfo> infos, FileSpace space)
+        public static void CollectSpaces(Manager manager, List<CompletionInfo> infos, AbstractSpace space, HashSet<AbstractSpace> relies)
         {
-            foreach (var rely in space.relies)
+            foreach (var rely in relies)
                 CollectChildrenSpaces(infos, rely);
             for (var index = space; index != null; index = index.parent)
-                CollectChildrenSpaces(infos, index.space);
+                CollectChildrenSpaces(infos, index);
             foreach (var item in manager.imports)
                 infos.Add(new CompletionInfo(item, CompletionItemKind.Module, "命名空间"));
         }
@@ -589,69 +589,94 @@ namespace RainLanguageServer.RainLanguage
             if (manager.TryGetDeclaration(declaration, out var abstractDeclaration))
                 infos.Add(new CompletionInfo(abstractDeclaration.name.ToString(), kind, abstractDeclaration.CodeInfo(manager)));
         }
-        public static void CollectSpaceDeclarations(Manager manager, List<CompletionInfo> infos, AbstractSpace space, bool onlyDefine)
+        public static void CollectSpaceDeclarations(Manager manager, List<CompletionInfo> infos, AbstractSpace space, Context context, bool onlyDefine)
         {
             foreach (var declarations in space.declarations.Values)
                 foreach (var declaration in declarations)
-                    switch (declaration.category)
-                    {
-                        case DeclarationCategory.Invalid: break;
-                        case DeclarationCategory.Variable:
-                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Variable);
-                            break;
-                        case DeclarationCategory.Function:
-                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
-                            break;
-                        case DeclarationCategory.Enum:
-                            AddDeclaration(manager, infos, declaration, CompletionItemKind.Enum);
-                            break;
-                        case DeclarationCategory.EnumElement:
-                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.EnumMember);
-                            break;
-                        case DeclarationCategory.Struct:
-                            AddDeclaration(manager, infos, declaration, CompletionItemKind.Struct);
-                            break;
-                        case DeclarationCategory.StructVariable:
-                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
-                            break;
-                        case DeclarationCategory.StructFunction:
-                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
-                            break;
-                        case DeclarationCategory.Class:
-                            AddDeclaration(manager, infos, declaration, CompletionItemKind.Class);
-                            break;
-                        case DeclarationCategory.Constructor:
-                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Constructor);
-                            break;
-                        case DeclarationCategory.ClassVariable:
-                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
-                            break;
-                        case DeclarationCategory.ClassFunction:
-                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
-                            break;
-                        case DeclarationCategory.Interface:
-                            AddDeclaration(manager, infos, declaration, CompletionItemKind.Interface);
-                            break;
-                        case DeclarationCategory.InterfaceFunction:
-                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
-                            break;
-                        case DeclarationCategory.Delegate:
-                            AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
-                            break;
-                        case DeclarationCategory.Task:
-                            AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
-                            break;
-                        case DeclarationCategory.Native:
-                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
-                            break;
-                    }
+                    if (context.IsVisiable(manager, declaration))
+                        switch (declaration.category)
+                        {
+                            case DeclarationCategory.Invalid: break;
+                            case DeclarationCategory.Variable:
+                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Variable);
+                                break;
+                            case DeclarationCategory.Function:
+                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
+                                break;
+                            case DeclarationCategory.Enum:
+                                AddDeclaration(manager, infos, declaration, CompletionItemKind.Enum);
+                                break;
+                            case DeclarationCategory.EnumElement:
+                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.EnumMember);
+                                break;
+                            case DeclarationCategory.Struct:
+                                AddDeclaration(manager, infos, declaration, CompletionItemKind.Struct);
+                                break;
+                            case DeclarationCategory.StructVariable:
+                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
+                                break;
+                            case DeclarationCategory.StructFunction:
+                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
+                                break;
+                            case DeclarationCategory.Class:
+                                AddDeclaration(manager, infos, declaration, CompletionItemKind.Class);
+                                break;
+                            case DeclarationCategory.Constructor:
+                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Constructor);
+                                break;
+                            case DeclarationCategory.ClassVariable:
+                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
+                                break;
+                            case DeclarationCategory.ClassFunction:
+                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
+                                break;
+                            case DeclarationCategory.Interface:
+                                AddDeclaration(manager, infos, declaration, CompletionItemKind.Interface);
+                                break;
+                            case DeclarationCategory.InterfaceFunction:
+                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
+                                break;
+                            case DeclarationCategory.Delegate:
+                                AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
+                                break;
+                            case DeclarationCategory.Task:
+                                AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
+                                break;
+                            case DeclarationCategory.Native:
+                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
+                                break;
+                        }
         }
-        public static void CollectDeclarations(Manager manager, List<CompletionInfo> infos, FileSpace space, bool onlyDefine)
+        public static void CollectDeclarations(Manager manager, List<CompletionInfo> infos, Context context, bool onlyDefine)
         {
-            foreach (var rely in space.relies)
-                CollectSpaceDeclarations(manager, infos, rely, onlyDefine);
-            for (var index = space; index != null; index = index.parent)
-                CollectSpaceDeclarations(manager, infos, index.space, onlyDefine);
+            foreach (var rely in context.relies)
+                CollectSpaceDeclarations(manager, infos, rely, context, onlyDefine);
+            for (var index = context.space; index != null; index = index.parent)
+                CollectSpaceDeclarations(manager, infos, index, context, onlyDefine);
+        }
+        public static void Completion(Manager manager, Context context, List<TextRange> ranges, TextPosition position, List<CompletionInfo> infos, bool onlyDefine)
+        {
+            if (ranges[0].Contain(position))
+            {
+                CollectSpaces(manager, infos, context.space, context.relies);
+                CollectDeclarations(manager, infos, context, onlyDefine);
+            }
+            else if (context.TryFindSpace(manager, ranges[0], out var space, null))
+                for (var i = 1; i < ranges.Count; i++)
+                    if ((ranges[i - 1].end & ranges[i].end).Contain(position))
+                    {
+                        CollectChildrenSpaces(infos, space);
+                        CollectSpaceDeclarations(manager, infos, space, context, onlyDefine);
+                    }
+                    else if (!space.children.TryGetValue(ranges[i].ToString(), out space)) return;
+        }
+        public static void Completion(this FileType fileType, Manager manager, TextPosition position, List<CompletionInfo> infos)
+        {
+            if (ManagerOperator.TryGetContext(manager, position, out var context))
+            {
+                var ranges = new List<TextRange>(fileType.name.qualify) { fileType.name.name };
+                Completion(manager, context, ranges, position, infos, true);
+            }
         }
 
         public static void AddNamespace(this SemanticTokenCollector collector, QualifiedName name)

@@ -451,11 +451,21 @@
             while (TryAnalysis(segment, index, out var lexical, collector))
             {
                 if (lexical.type == LexicalType.Word) names.Add(lexical.anchor);
+                else if (names.Count > 0)
+                {
+                    names.Add((segment.start + index) & lexical.anchor.start);
+                    return true;
+                }
                 else break;
                 index = lexical.anchor.end - segment.start;
                 if (TryAnalysis(segment, index, out lexical, collector) && lexical.type == LexicalType.Dot)
                     index = lexical.anchor.end - segment.start;
                 else return true;
+            }
+            if (names.Count > 0)
+            {
+                names.Add(segment[index..]);
+                return true;
             }
             return false;
         }
