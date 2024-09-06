@@ -8,7 +8,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public readonly TextRange symbol;
         public readonly TextRange member;
         public override bool Valid => true;
-        public VectorMemberExpression(TextRange range, Type type, Expression target, TextRange symbol, TextRange member) : base(range, type)
+        public VectorMemberExpression(TextRange range, Type type, LocalContextSnapshoot snapshoot, Expression target, TextRange symbol, TextRange member) : base(range, type, snapshoot)
         {
             this.target = target;
             this.symbol = symbol;
@@ -77,7 +77,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public readonly TypeExpression type;
         public readonly BracketExpression parameters;
         public override bool Valid => true;
-        public VectorConstructorExpression(TextRange range, TypeExpression type, BracketExpression parameters) : base(range, type.type)
+        public VectorConstructorExpression(TextRange range, TypeExpression type, LocalContextSnapshoot snapshoot, BracketExpression parameters) : base(range, type.type, snapshoot)
         {
             this.type = type;
             this.parameters = parameters;

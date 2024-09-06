@@ -4,13 +4,13 @@
     {
         public readonly AbstractCallable callable;
         public override bool Valid => true;
-        public DelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager) : base(range, type)
+        public DelegateCreateExpression(TextRange range, Type type, LocalContextSnapshoot snapshoot, AbstractCallable callable, Manager.KernelManager manager) : base(range, type, snapshoot)
         {
             this.callable = callable;
             attribute = ExpressionAttribute.Value | type.GetAttribute(manager);
         }
     }
-    internal class FunctionDelegateCreateExpression(TextRange range, TextRange? qualifier, QualifiedName name, Type type, AbstractCallable callable, Manager.KernelManager manager) : DelegateCreateExpression(range, type, callable, manager)
+    internal class FunctionDelegateCreateExpression(TextRange range, TextRange? qualifier, QualifiedName name, Type type, LocalContextSnapshoot snapshoot, AbstractCallable callable, Manager.KernelManager manager) : DelegateCreateExpression(range, type, snapshoot, callable, manager)
     {
         public readonly TextRange? qualifier = qualifier;
         public readonly QualifiedName name = name;
@@ -71,7 +71,7 @@
             collector.Add(DetailTokenType.GlobalFunction, name.name);
         }
     }
-    internal class MemberFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
+    internal class MemberFunctionDelegateCreateExpression(TextRange range, Type type, LocalContextSnapshoot snapshoot, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, snapshoot, callable, manager)
     {
         public readonly Expression? target = target;
         public readonly TextRange? symbol = symbol;
@@ -153,7 +153,7 @@
             collector.Add(DetailTokenType.MemberFunction, member);
         }
     }
-    internal class VirtualFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
+    internal class VirtualFunctionDelegateCreateExpression(TextRange range, Type type, LocalContextSnapshoot snapshoot, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, snapshoot, callable, manager)
     {
         public readonly Expression? target = target;
         public readonly TextRange? symbol = symbol;
@@ -247,7 +247,7 @@
             collector.Add(DetailTokenType.MemberFunction, member);
         }
     }
-    internal class LambdaDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, List<Local> parmeters, TextRange symbol, Expression body) : DelegateCreateExpression(range, type, callable, manager)
+    internal class LambdaDelegateCreateExpression(TextRange range, Type type, LocalContextSnapshoot snapshoot, AbstractCallable callable, Manager.KernelManager manager, List<Local> parmeters, TextRange symbol, Expression body) : DelegateCreateExpression(range, type, snapshoot, callable, manager)
     {
         public readonly List<Local> parmeters = parmeters;
         public readonly TextRange symbol = symbol;
@@ -261,7 +261,7 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             if (body.range.Contain(position)) return body.BreadthFirstOperator(position, action);
             return false;
         }

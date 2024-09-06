@@ -9,7 +9,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public readonly List<AbstractCallable>? callables;
         public readonly BracketExpression parameters;
         public override bool Valid => true;
-        public ConstructorExpression(TextRange range, TypeExpression type, AbstractCallable? callable, List<AbstractCallable>? callables, BracketExpression parameters, Manager.KernelManager manager) : base(range, type.type)
+        public ConstructorExpression(TextRange range, TypeExpression type, LocalContextSnapshoot snapshoot, AbstractCallable? callable, List<AbstractCallable>? callables, BracketExpression parameters, Manager.KernelManager manager) : base(range, type.type, snapshoot)
         {
             this.type = type;
             this.callable = callable;
@@ -33,7 +33,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             if (parameters.range.Contain(position)) return parameters.BreadthFirstOperator(position, action);
             return false;
         }

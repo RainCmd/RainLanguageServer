@@ -7,7 +7,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public readonly BracketExpression parameters;
         public override bool Valid => true;
 
-        public InvokerExpression(TextRange range, Tuple tuple, BracketExpression parameters, Manager.KernelManager manager) : base(range, tuple)
+        public InvokerExpression(TextRange range, Tuple tuple, LocalContextSnapshoot snapshoot, BracketExpression parameters, Manager.KernelManager manager) : base(range, tuple, snapshoot)
         {
             this.parameters = parameters;
             if (tuple.Count == 1) attribute = ExpressionAttribute.Value | tuple[0].GetAttribute(manager);
@@ -34,7 +34,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             return false;
         }
     }
-    internal class InvokerDelegateExpression(TextRange range, Tuple tuple, Expression invoker, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
+    internal class InvokerDelegateExpression(TextRange range, Tuple tuple, LocalContextSnapshoot snapshoot, Expression invoker, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, snapshoot, parameters, manager)
     {
         public readonly Expression invoker = invoker;
 
@@ -107,7 +107,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             return 0;
         }
     }
-    internal class InvokerFunctionExpression(TextRange range, Tuple tuple, TextRange? qualifier, QualifiedName name, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
+    internal class InvokerFunctionExpression(TextRange range, Tuple tuple, LocalContextSnapshoot snapshoot, TextRange? qualifier, QualifiedName name, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, snapshoot, parameters, manager)
     {
         public readonly TextRange? qualifier = qualifier;
         public readonly QualifiedName name = name;
@@ -221,7 +221,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             }
         }
     }
-    internal class InvokerMemberExpression(TextRange range, Tuple tuple, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
+    internal class InvokerMemberExpression(TextRange range, Tuple tuple, LocalContextSnapshoot snapshoot, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, snapshoot, parameters, manager)
     {
         public readonly TextRange? symbol = symbol;
         public readonly TextRange method = method;
@@ -395,7 +395,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             }
         }
     }
-    internal class InvokerVirtualExpression(TextRange range, Tuple tuple, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerMemberExpression(range, tuple, symbol, method, target, callable, parameters, manager)
+    internal class InvokerVirtualExpression(TextRange range, Tuple tuple, LocalContextSnapshoot snapshoot, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerMemberExpression(range, tuple, snapshoot, symbol, method, target, callable, parameters, manager)
     {
         public override void Read(ExpressionParameter parameter)
         {

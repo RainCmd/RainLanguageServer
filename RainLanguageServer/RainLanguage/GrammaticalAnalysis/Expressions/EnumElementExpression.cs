@@ -9,7 +9,7 @@
         public readonly TypeExpression type;
         public override bool Valid => true;
 
-        public EnumElementExpression(TextRange range, TextRange symbol, TextRange identifier, AbstractEnum abstractEnum, AbstractEnum.Element element, TypeExpression type) : base(range, type.type)
+        public EnumElementExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange symbol, TextRange identifier, AbstractEnum abstractEnum, AbstractEnum.Element element, TypeExpression type) : base(range, type.type, snapshoot)
         {
             this.symbol = symbol;
             this.identifier = identifier;

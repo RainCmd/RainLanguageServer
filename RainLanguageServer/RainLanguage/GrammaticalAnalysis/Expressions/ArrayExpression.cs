@@ -5,7 +5,7 @@
         public readonly TypeExpression type;
         public readonly BracketExpression length;
         public override bool Valid => true;
-        public ArrayCreateExpression(TextRange range, Type arrayType, TypeExpression type, BracketExpression length) : base(range, arrayType)
+        public ArrayCreateExpression(TextRange range, Type arrayType, LocalContextSnapshoot snapshoot, TypeExpression type, BracketExpression length) : base(range, arrayType, snapshoot)
         {
             this.type = type;
             this.length = length;
@@ -78,7 +78,7 @@
         public readonly TypeExpression? type;
         public readonly BracketExpression elements;
         public override bool Valid => true;
-        public ArrayInitExpression(TextRange range, Type arrayType, TypeExpression? type, BracketExpression elements) : base(range, arrayType)
+        public ArrayInitExpression(TextRange range, Type arrayType, LocalContextSnapshoot snapshoot, TypeExpression? type, BracketExpression elements) : base(range, arrayType, snapshoot)
         {
             this.type = type;
             this.elements = elements;
@@ -151,7 +151,7 @@
         public readonly Expression array;
         public readonly BracketExpression index;
         public override bool Valid => true;
-        public ArrayEvaluationExpression(TextRange range, Expression array, BracketExpression index, ExpressionAttribute attribute, Manager.KernelManager manager) : base(range, new Type(array.tuple[0], array.tuple[0].dimension - 1))
+        public ArrayEvaluationExpression(TextRange range, LocalContextSnapshoot snapshoot, Expression array, BracketExpression index, ExpressionAttribute attribute, Manager.KernelManager manager) : base(range, new Type(array.tuple[0], array.tuple[0].dimension - 1), snapshoot)
         {
             this.array = array;
             this.index = index;
@@ -175,7 +175,7 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             if (array.range.Contain(position)) return array.BreadthFirstOperator(position, action);
             if (index.range.Contain(position)) return index.BreadthFirstOperator(position, action);
             return false;
@@ -228,7 +228,7 @@
         public readonly Expression source;
         public readonly BracketExpression index;
         public override bool Valid => true;
-        public StringEvaluationExpression(TextRange range, Expression source, BracketExpression index, Manager.KernelManager manager) : base(range, manager.CHAR)
+        public StringEvaluationExpression(TextRange range, LocalContextSnapshoot snapshoot, Expression source, BracketExpression index, Manager.KernelManager manager) : base(range, manager.CHAR, snapshoot)
         {
             this.source = source;
             this.index = index;
@@ -247,7 +247,7 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             if (source.range.Contain(position)) return source.BreadthFirstOperator(position, action);
             if (index.range.Contain(position)) return index.BreadthFirstOperator(position, action);
             return false;
@@ -300,7 +300,7 @@
         public readonly Expression source;
         public readonly BracketExpression indies;
         public override bool Valid => true;
-        public ArraySubExpression(TextRange range, Expression source, BracketExpression indies, Manager.KernelManager manager) : base(range, source.tuple)
+        public ArraySubExpression(TextRange range, LocalContextSnapshoot snapshoot, Expression source, BracketExpression indies, Manager.KernelManager manager) : base(range, source.tuple, snapshoot)
         {
             this.source = source;
             this.indies = indies;
@@ -319,7 +319,7 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             if (source.range.Contain(position)) return source.BreadthFirstOperator(position, action);
             if (indies.range.Contain(position)) return indies.BreadthFirstOperator(position, action);
             return false;

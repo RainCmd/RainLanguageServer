@@ -3,7 +3,7 @@
     internal abstract class ConstExpression : Expression
     {
         public override bool Valid => true;
-        public ConstExpression(TextRange range, Type type) : base(range, type)
+        public ConstExpression(TextRange range, Type type, LocalContextSnapshoot snapshoot) : base(range, type, snapshoot)
         {
             attribute = ExpressionAttribute.Constant;
         }
@@ -54,13 +54,13 @@
 
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => false;
     }
-    internal class ConstBooleanExpression(TextRange range, bool value, Manager.KernelManager manager) : ConstExpression(range, manager.BOOL)
+    internal class ConstBooleanExpression(TextRange range, LocalContextSnapshoot snapshoot, bool value, Manager.KernelManager manager) : ConstExpression(range, manager.BOOL, snapshoot)
     {
         public readonly bool value = value;
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.KeywordConst, range);
     }
-    internal class ConstBooleanKeyworldExpression(TextRange range, bool value, Manager.KernelManager manager) : ConstBooleanExpression(range, value, manager) { }
-    internal class ConstByteExpression(TextRange range, byte value, Manager.KernelManager manager) : ConstExpression(range, manager.BYTE)
+    internal class ConstBooleanKeyworldExpression(TextRange range, LocalContextSnapshoot snapshoot, bool value, Manager.KernelManager manager) : ConstBooleanExpression(range, snapshoot, value, manager) { }
+    internal class ConstByteExpression(TextRange range, LocalContextSnapshoot snapshoot, byte value, Manager.KernelManager manager) : ConstExpression(range, manager.BYTE, snapshoot)
     {
         public readonly byte value = value;
         public override bool TryEvaluate(out char value)
@@ -85,7 +85,7 @@
         }
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Numeric, range);
     }
-    internal class ConstCharExpression(TextRange range, char value, Manager.KernelManager manager) : ConstExpression(range, manager.CHAR)
+    internal class ConstCharExpression(TextRange range, LocalContextSnapshoot snapshoot, char value, Manager.KernelManager manager) : ConstExpression(range, manager.CHAR, snapshoot)
     {
         public readonly char value = value;
         public override bool TryEvaluate(out char value)
@@ -110,7 +110,7 @@
         }
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Numeric, range);
     }
-    internal class ConstIntegerExpression(TextRange range, long value, Manager.KernelManager manager) : ConstExpression(range, manager.INT)
+    internal class ConstIntegerExpression(TextRange range, LocalContextSnapshoot snapshoot, long value, Manager.KernelManager manager) : ConstExpression(range, manager.INT, snapshoot)
     {
         public readonly long value = value;
         public override bool TryEvaluate(out long value)
@@ -130,8 +130,21 @@
         }
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Numeric, range);
     }
-    internal class ConstCharsExpression(TextRange range, long value, Manager.KernelManager manager) : ConstIntegerExpression(range, value, manager) { }
-    internal class ConstRealExpression(TextRange range, double value, Manager.KernelManager manager) : ConstExpression(range, manager.REAL)
+    internal class ConstCharsExpression(TextRange range, LocalContextSnapshoot snapshoot, long value, Manager.KernelManager manager) : ConstIntegerExpression(range, snapshoot, value, manager)
+    {
+        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            if (manager.TryGetDeclaration(tuple[0], out var declaration))
+            {
+                info = new HoverInfo(range, declaration.CodeInfo(manager, ManagerOperator.GetSpace(manager, position)) + "\n= " + value.ToString(), true);
+                return true;
+            }
+            info = default;
+            return false;
+        }
+
+    }
+    internal class ConstRealExpression(TextRange range, LocalContextSnapshoot snapshoot, double value, Manager.KernelManager manager) : ConstExpression(range, manager.REAL, snapshoot)
     {
         public readonly double value = value;
         public override bool TryEvaluate(out double value)
@@ -143,14 +156,14 @@
     }
     internal class ConstStringExpression : ConstExpression
     {
-        public ConstStringExpression(TextRange range, Manager.KernelManager manager) : base(range, manager.STRING)
+        public ConstStringExpression(TextRange range, LocalContextSnapshoot snapshoot, Manager.KernelManager manager) : base(range, manager.STRING, snapshoot)
         {
             attribute |= ExpressionAttribute.Array;
         }
 
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.String, range);
     }
-    internal class ConstTypeExpression(TextRange range, TextRange symbolLeft, TextRange symbolRight, FileType file, Type value, Manager.KernelManager manager) : ConstExpression(range, manager.TYPE)
+    internal class ConstTypeExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange symbolLeft, TextRange symbolRight, FileType file, Type value, Manager.KernelManager manager) : ConstExpression(range, manager.TYPE, snapshoot)
     {
         public readonly TextRange symbolLeft = symbolLeft, symbolRight = symbolRight;
         public readonly FileType file = file;
@@ -170,16 +183,16 @@
             collector.AddType(file, manager, value);
         }
     }
-    internal class ConstNullExpression(TextRange range) : ConstExpression(range, NULL)
+    internal class ConstNullExpression(TextRange range, LocalContextSnapshoot snapshoot) : ConstExpression(range, NULL, snapshoot)
     {
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.KeywordConst, range);
 
     }
-    internal class ConstHandleNullExpression(TextRange range, Type type) : ConstExpression(range, type)
+    internal class ConstHandleNullExpression(TextRange range, Type type, LocalContextSnapshoot snapshoot) : ConstExpression(range, type, snapshoot)
     {
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.KeywordConst, range);
     }
-    internal class ConstEntityNullExpression(TextRange range, Manager.KernelManager manager) : ConstExpression(range, manager.ENTITY)
+    internal class ConstEntityNullExpression(TextRange range, LocalContextSnapshoot snapshoot, Manager.KernelManager manager) : ConstExpression(range, manager.ENTITY, snapshoot)
     {
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.KeywordConst, range);
     }

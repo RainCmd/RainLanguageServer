@@ -6,7 +6,7 @@
         public readonly Expression left, right;
         public override bool Valid => true;
 
-        public LogicExpression(TextRange range, TextRange symbol, Expression left, Expression right, Manager.KernelManager manager) : base(range, manager.BOOL)
+        public LogicExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange symbol, Expression left, Expression right, Manager.KernelManager manager) : base(range, manager.BOOL, snapshoot)
         {
             this.symbol = symbol;
             this.left = left;

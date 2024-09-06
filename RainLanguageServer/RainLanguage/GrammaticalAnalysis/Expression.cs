@@ -41,16 +41,17 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         public readonly Manager manager = manager;
         public readonly MessageCollector collector = collector;
     }
-    internal abstract class Expression(TextRange range, Tuple tuple)
+    internal abstract class Expression(TextRange range, Tuple tuple, LocalContextSnapshoot snapshoot)
     {
         public delegate bool ExpressionOperator(Expression expression);
         public readonly TextRange range = range;
         public readonly Tuple tuple = tuple;
+        public readonly LocalContextSnapshoot snapshoot = snapshoot;
         public ExpressionAttribute attribute;
         public abstract bool Valid { get; }
         public Expression ToInvalid()
         {
-            if (Valid) return new InvalidExpression(this, tuple);
+            if (Valid) return new InvalidExpression(this, tuple, snapshoot);
             return this;
         }
         public static readonly Type BLURRY = new(-3, TypeCode.Invalid, 0, 0);

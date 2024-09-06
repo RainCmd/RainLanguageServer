@@ -6,7 +6,7 @@
         public readonly FileType file;
         public readonly Type type;
         public override bool Valid => true;
-        public TypeExpression(TextRange range, TextRange? qualifier, FileType file, Type type) : base(range, Tuple.Empty)
+        public TypeExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange? qualifier, FileType file, Type type) : base(range, Tuple.Empty, snapshoot)
         {
             this.qualifier = qualifier;
             this.file = file;
@@ -36,7 +36,7 @@
             if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
         }
     }
-    internal class TypeKeyworldExpression(TextRange range, TextRange? qualifier, FileType file, Type type) : TypeExpression(range, qualifier, file, type) 
+    internal class TypeKeyworldExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange? qualifier, FileType file, Type type) : TypeExpression(range, snapshoot, qualifier, file, type)
     {
         protected override void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {

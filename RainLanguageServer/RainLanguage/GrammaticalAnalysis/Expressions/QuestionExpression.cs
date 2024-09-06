@@ -9,7 +9,7 @@
         public readonly Expression? right;
         public override bool Valid => left.Valid;
 
-        public QuestionExpression(TextRange range, TextRange questionSymbol, TextRange? elseSymbol, Expression condition, Expression left, Expression? right) : base(range, left.tuple)
+        public QuestionExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange questionSymbol, TextRange? elseSymbol, Expression condition, Expression left, Expression? right) : base(range, left.tuple, snapshoot)
         {
             this.questionSymbol = questionSymbol;
             this.elseSymbol = elseSymbol;
@@ -33,7 +33,7 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             if (condition.range.Contain(position)) return condition.BreadthFirstOperator(position, action);
             if (left.range.Contain(position)) return left.BreadthFirstOperator(position, action);
             if (right != null && right.range.Contain(position)) return right.BreadthFirstOperator(position, action);

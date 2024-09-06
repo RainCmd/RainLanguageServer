@@ -6,7 +6,7 @@
         public readonly InvokerExpression invoker;
         public override bool Valid => true;
 
-        public TaskCreateExpression(TextRange range, Type type, TextRange symbol, InvokerExpression invoker, Manager.KernelManager manager) : base(range, type)
+        public TaskCreateExpression(TextRange range, Type type, LocalContextSnapshoot snapshoot, TextRange symbol, InvokerExpression invoker, Manager.KernelManager manager) : base(range, type, snapshoot)
         {
             this.symbol = symbol;
             this.invoker = invoker;
@@ -59,7 +59,7 @@
         public readonly Expression source;
         public readonly BracketExpression indices;
         public override bool Valid => true;
-        public TaskEvaluationExpression(TextRange range, Tuple tuple, Expression source, BracketExpression indices, Manager.KernelManager manager) : base(range, tuple)
+        public TaskEvaluationExpression(TextRange range, Tuple tuple, LocalContextSnapshoot snapshoot, Expression source, BracketExpression indices, Manager.KernelManager manager) : base(range, tuple, snapshoot)
         {
             this.source = source;
             this.indices = indices;

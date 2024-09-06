@@ -9,7 +9,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public readonly Expression parameters;
         public override bool Valid => true;
 
-        public OperationExpression(TextRange range, TextRange symbol, AbstractCallable callable, Expression parameters, Manager.KernelManager manager) : base(range, callable.returns)
+        public OperationExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange symbol, AbstractCallable callable, Expression parameters, Manager.KernelManager manager) : base(range, callable.returns, snapshoot)
         {
             this.symbol = symbol;
             this.callable = callable;

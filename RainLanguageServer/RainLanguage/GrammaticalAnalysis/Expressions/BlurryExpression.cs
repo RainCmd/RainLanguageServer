@@ -6,7 +6,7 @@
         public readonly TextRange identifier;
         public override bool Valid => true;
 
-        public BlurryVariableDeclarationExpression(TextRange range, TextRange declaration, TextRange identifier) : base(range, TUPLE_BLURRY)
+        public BlurryVariableDeclarationExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange declaration, TextRange identifier) : base(range, TUPLE_BLURRY, snapshoot)
         {
             this.declaration = declaration;
             this.identifier = identifier;
@@ -45,7 +45,7 @@
         public readonly QualifiedName name;
         public readonly List<AbstractCallable> callables;
         public override bool Valid => true;
-        public MethodExpression(TextRange range, TextRange? qualifier, QualifiedName name, List<AbstractCallable> callables) : base(range, TUPLE_BLURRY)
+        public MethodExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange? qualifier, QualifiedName name, List<AbstractCallable> callables) : base(range, TUPLE_BLURRY, snapshoot)
         {
             this.qualifier = qualifier;
             this.name = name;
@@ -126,7 +126,7 @@
         public readonly Expression? target;
         public readonly List<AbstractCallable> callables;
         public override bool Valid => true;
-        public MethodMemberExpression(TextRange range, TextRange? symbol, TextRange member, Expression? target, List<AbstractCallable> callables) : base(range, TUPLE_BLURRY)
+        public MethodMemberExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange? symbol, TextRange member, Expression? target, List<AbstractCallable> callables) : base(range, TUPLE_BLURRY, snapshoot)
         {
             this.target = target;
             this.symbol = symbol;
@@ -134,7 +134,7 @@
             this.callables = callables;
             attribute = ExpressionAttribute.Method | ExpressionAttribute.Value;
         }
-        public MethodMemberExpression(TextRange range, TextRange member, List<AbstractCallable> callables) : this(range, null, member, null, callables) { }
+        public MethodMemberExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange member, List<AbstractCallable> callables) : this(range, snapshoot, null, member, null, callables) { }
         public override void Read(ExpressionParameter parameter)
         {
             var msg = new Message(member, ErrorLevel.Error, "语义不明确");
@@ -153,7 +153,7 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             if (target != null && target.range.Contain(position)) return target.BreadthFirstOperator(position, action);
             return false;
         }
@@ -221,8 +221,8 @@
     }
     internal class MethodVirtualExpression : MethodMemberExpression
     {
-        public MethodVirtualExpression(TextRange range, TextRange? symbol, TextRange member, Expression? target, List<AbstractCallable> callables) : base(range, symbol, member, target, callables) { }
-        public MethodVirtualExpression(TextRange range, TextRange member, List<AbstractCallable> callables) : base(range, member, callables) { }
+        public MethodVirtualExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange? symbol, TextRange member, Expression? target, List<AbstractCallable> callables) : base(range, snapshoot, symbol, member, target, callables) { }
+        public MethodVirtualExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange member, List<AbstractCallable> callables) : base(range, snapshoot, member, callables) { }
         public override void Read(ExpressionParameter parameter)
         {
             var msg = new Message(member, ErrorLevel.Error, "语义不明确");
@@ -278,7 +278,7 @@
         public readonly TextRange symbol;// start new
         public readonly InvokerExpression invoker;
         public override bool Valid => true;
-        public BlurryTaskExpression(TextRange range, TextRange symbol, InvokerExpression invoker) : base(range, TUPLE_BLURRY)
+        public BlurryTaskExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange symbol, InvokerExpression invoker) : base(range, TUPLE_BLURRY, snapshoot)
         {
             this.symbol = symbol;
             this.invoker = invoker;
@@ -293,7 +293,7 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             if (invoker.range.Contain(position)) return invoker.BreadthFirstOperator(position, action);
             return false;
         }
@@ -332,7 +332,7 @@
         public readonly BracketExpression expression;
         public override bool Valid => expression.Valid;
 
-        public BlurrySetExpression(BracketExpression expression) : base(expression.range, TUPLE_BLURRY)
+        public BlurrySetExpression(BracketExpression expression, LocalContextSnapshoot snapshoot) : base(expression.range, TUPLE_BLURRY, snapshoot)
         {
             this.expression = expression;
             attribute = ExpressionAttribute.Value | ExpressionAttribute.Array;
@@ -385,7 +385,7 @@
         public readonly TextRange symbol;
         public readonly TextRange body;
         public override bool Valid => true;
-        public BlurryLambdaExpression(TextRange range, List<TextRange> parameters, TextRange symbol, TextRange body) : base(range, TUPLE_BLURRY)
+        public BlurryLambdaExpression(TextRange range, LocalContextSnapshoot snapshoot, List<TextRange> parameters, TextRange symbol, TextRange body) : base(range, TUPLE_BLURRY, snapshoot)
         {
             this.parameters = parameters;
             this.symbol = symbol;

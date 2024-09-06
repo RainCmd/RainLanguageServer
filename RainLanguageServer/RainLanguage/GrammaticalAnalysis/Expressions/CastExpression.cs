@@ -7,7 +7,7 @@
         public readonly Expression expression;
         public override bool Valid => true;
 
-        public CastExpression(TextRange range, TypeExpression type, TextRange symbol, Expression expression, Manager.KernelManager manager) : base(range, type.type)
+        public CastExpression(TextRange range, TypeExpression type, LocalContextSnapshoot snapshoot, TextRange symbol, Expression expression, Manager.KernelManager manager) : base(range, type.type, snapshoot)
         {
             this.type = type;
             this.symbol = symbol;
@@ -80,7 +80,7 @@
     {
         public readonly Expression expression;
         public override bool Valid => true;
-        public TupleCastExpression(Expression expression, Tuple tuple, Manager.KernelManager manager) : base(expression.range, tuple)
+        public TupleCastExpression(Expression expression, Tuple tuple, LocalContextSnapshoot snapshoot, Manager.KernelManager manager) : base(expression.range, tuple, snapshoot)
         {
             this.expression = expression;
             if (tuple.Count == 1) attribute = ExpressionAttribute.Value | tuple[0].GetAttribute(manager);
@@ -148,7 +148,7 @@
         public readonly Local? local;
         public override bool Valid => true;
 
-        public IsCastExpression(TextRange range, TextRange symbol, TextRange? identifier, Expression source, TypeExpression type, Local? local, Manager.KernelManager manager) : base(range, manager.BOOL)
+        public IsCastExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange symbol, TextRange? identifier, Expression source, TypeExpression type, Local? local, Manager.KernelManager manager) : base(range, manager.BOOL, snapshoot)
         {
             this.symbol = symbol;
             this.identifier = identifier;
@@ -247,7 +247,7 @@
         public readonly TypeExpression type;
         public override bool Valid => true;
 
-        public AsCastExpression(TextRange range, TextRange symbol, Expression source, TypeExpression type) : base(range, type.type)
+        public AsCastExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange symbol, Expression source, TypeExpression type) : base(range, type.type, snapshoot)
         {
             this.symbol = symbol;
             this.source = source;

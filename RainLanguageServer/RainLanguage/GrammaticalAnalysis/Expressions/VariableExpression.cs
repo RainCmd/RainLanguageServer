@@ -5,13 +5,13 @@
         public readonly Local local;
         public readonly TextRange identifier;
         public override bool Valid => true;
-        public VariableLocalExpression(TextRange range, Local local, Type type, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : base(range, type)
+        public VariableLocalExpression(TextRange range, Local local, Type type, LocalContextSnapshoot snapshoot, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : base(range, type, snapshoot)
         {
             this.local = local;
             this.identifier = identifier;
             this.attribute = attribute | local.type.GetAttribute(manager);
         }
-        public VariableLocalExpression(TextRange range, Local local, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : this(range, local, local.type, identifier, attribute, manager) { }
+        public VariableLocalExpression(TextRange range, Local local, LocalContextSnapshoot snapshoot, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : this(range, local, local.type, snapshoot, identifier, attribute, manager) { }
         public override void Read(ExpressionParameter parameter) => local.read.Add(identifier);
         public override void Write(ExpressionParameter parameter) => local.write.Add(identifier);
         public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
@@ -67,7 +67,7 @@
             else collector.Add(DetailTokenType.Local, identifier);
         }
     }
-    internal class VariableDeclarationLocalExpression(TextRange range, Local local, TextRange identifier, TypeExpression typeExpression, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, identifier, attribute, manager)
+    internal class VariableDeclarationLocalExpression(TextRange range, Local local, LocalContextSnapshoot snapshoot, TextRange identifier, TypeExpression typeExpression, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, snapshoot, identifier, attribute, manager)
     {
         public readonly TypeExpression typeExpression = typeExpression;
 
@@ -123,7 +123,7 @@
             base.CollectSemanticToken(manager, collector);
         }
     }
-    internal class VariableKeyworldLocalExpression(TextRange range, Local local, Type type, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, type, identifier, attribute, manager)
+    internal class VariableKeyworldLocalExpression(TextRange range, Local local, Type type, LocalContextSnapshoot snapshoot, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, type, snapshoot, identifier, attribute, manager)
     {
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
@@ -146,7 +146,7 @@
         public readonly QualifiedName name;
         public readonly AbstractVariable variable;
         public override bool Valid => true;
-        public VariableGlobalExpression(TextRange range, TextRange? qualifier, QualifiedName name, AbstractVariable variable, Manager.KernelManager manager) : base(range, variable.type)
+        public VariableGlobalExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange? qualifier, QualifiedName name, AbstractVariable variable, Manager.KernelManager manager) : base(range, variable.type, snapshoot)
         {
             this.qualifier = qualifier;
             this.name = name;
@@ -224,7 +224,7 @@
         public readonly Expression? target;
         public readonly AbstractDeclaration member;
         public override bool Valid => true;
-        public VariableMemberExpression(TextRange range, Type type, TextRange? symbol, TextRange identifier, Expression? target, AbstractDeclaration member, Manager.KernelManager manager) : base(range, type)
+        public VariableMemberExpression(TextRange range, Type type, LocalContextSnapshoot snapshoot, TextRange? symbol, TextRange identifier, Expression? target, AbstractDeclaration member, Manager.KernelManager manager) : base(range, type, snapshoot)
         {
             this.symbol = symbol;
             this.identifier = identifier;
@@ -234,7 +234,7 @@
             if (member is not AbstractStruct) attribute |= ExpressionAttribute.Assignable;
             else if (target != null) attribute |= target.attribute & ExpressionAttribute.Assignable;
         }
-        public VariableMemberExpression(TextRange range, Type type, TextRange identifier, AbstractDeclaration member, Manager.KernelManager manager) : this(range, type, null, identifier, null, member, manager) { }
+        public VariableMemberExpression(TextRange range, Type type, LocalContextSnapshoot snapshoot, TextRange identifier, AbstractDeclaration member, Manager.KernelManager manager) : this(range, type, snapshoot, null, identifier, null, member, manager) { }
         public override void Read(ExpressionParameter parameter)
         {
             target?.Read(parameter);

@@ -7,7 +7,7 @@
         public readonly Expression right;
         public override bool Valid => left.Valid;
 
-        public QuestionNullExpression(TextRange symbol, Expression left, Expression right) : base(left.range & right.range, left.tuple)
+        public QuestionNullExpression(TextRange symbol, Expression left, Expression right, LocalContextSnapshoot snapshoot) : base(left.range & right.range, left.tuple, snapshoot)
         {
             this.symbol = symbol;
             this.left = left;

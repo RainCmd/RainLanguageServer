@@ -5,7 +5,7 @@
         public readonly TextRange left, right;
         public readonly Expression expression;
         public override bool Valid => expression.Valid;
-        public BracketExpression(TextRange left, TextRange right, Expression expression) : base(left & right, expression.tuple)
+        public BracketExpression(TextRange left, TextRange right, Expression expression, LocalContextSnapshoot snapshoot) : base(left & right, expression.tuple, snapshoot)
         {
             this.left = left;
             this.right = right;
@@ -15,7 +15,7 @@
         public BracketExpression Replace(Expression expression)
         {
             if (this.expression == expression) return this;
-            return new BracketExpression(left, right, expression);
+            return new BracketExpression(left, right, expression, snapshoot);
         }
         public override bool TryEvaluateIndices(List<long> indices)
         {
@@ -31,7 +31,7 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             if (expression.range.Contain(position)) return expression.BreadthFirstOperator(position, action);
             return false;
         }

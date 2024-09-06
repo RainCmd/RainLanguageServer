@@ -6,23 +6,23 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
     {
         public readonly IList<Expression> expressions;
         public override bool Valid => false;
-        public InvalidExpression(TextRange range) : base(range, Tuple.Empty)
+        public InvalidExpression(TextRange range, LocalContextSnapshoot snapshoot) : base(range, Tuple.Empty, snapshoot)
         {
             expressions = [];
             attribute = ExpressionAttribute.Invalid;
         }
-        public InvalidExpression(params Expression[] expressions) : this((IList<Expression>)expressions) { }
-        public InvalidExpression(TextRange range, IList<Expression> expressions) : base(range, Tuple.Empty)
+        public InvalidExpression(LocalContextSnapshoot snapshoot, params Expression[] expressions) : this((IList<Expression>)expressions, snapshoot) { }
+        public InvalidExpression(TextRange range, LocalContextSnapshoot snapshoot, IList<Expression> expressions) : base(range, Tuple.Empty, snapshoot)
         {
             this.expressions = expressions;
             attribute = ExpressionAttribute.Invalid;
         }
-        public InvalidExpression(IList<Expression> expressions) : base(expressions[0].range & expressions[^1].range, Tuple.Empty)
+        public InvalidExpression(IList<Expression> expressions, LocalContextSnapshoot snapshoot) : base(expressions[0].range & expressions[^1].range, Tuple.Empty, snapshoot)
         {
             this.expressions = expressions;
             attribute = ExpressionAttribute.Invalid;
         }
-        public InvalidExpression(Expression expression, Tuple tuple) : base(expression.range, tuple)
+        public InvalidExpression(Expression expression, Tuple tuple, LocalContextSnapshoot snapshoot) : base(expression.range, tuple, snapshoot)
         {
             expressions = [expression];
             attribute = ExpressionAttribute.Invalid;
@@ -102,14 +102,14 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             return result;
         }
     }
-    internal class InvalidKeyworldExpression(TextRange range) : InvalidExpression(range) { }
+    internal class InvalidKeyworldExpression(TextRange range, LocalContextSnapshoot snapshoot) : InvalidExpression(range, snapshoot) { }
     internal class InvalidOperationExpression : Expression
     {
         public readonly TextRange symbol;
         public readonly Expression? parameters;
         public override bool Valid => false;
 
-        public InvalidOperationExpression(TextRange range, TextRange symbol, Expression? parameters = null) : base(range, Tuple.Empty)
+        public InvalidOperationExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange symbol, Expression? parameters = null) : base(range, Tuple.Empty, snapshoot)
         {
             this.symbol = symbol;
             this.parameters = parameters;
@@ -177,7 +177,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public readonly BracketExpression parameters;
         private readonly List<AbstractCallable> callables;
         public override bool Valid => false;
-        public InvalidInvokerExpression(TextRange range, Expression method, BracketExpression parameters) : base(range, Tuple.Empty)
+        public InvalidInvokerExpression(TextRange range, LocalContextSnapshoot snapshoot, Expression method, BracketExpression parameters) : base(range, Tuple.Empty, snapshoot)
         {
             this.method = method;
             this.parameters = parameters;

@@ -609,13 +609,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                     if (parser.TryGetFunction(invokerRange, callables, expression, out var callable))
                     {
                         bracket = bracket.Replace(parser.AssignmentConvert(bracket, callable.signature));
-                        return new InvokerMemberExpression(invokerRange & bracket.range, Tuple.Empty, null, invokerRange, null, callable, bracket, manager.kernelManager);
+                        return new InvokerMemberExpression(invokerRange & bracket.range, Tuple.Empty, localContext.Snapshoot, null, invokerRange, null, callable, bracket, manager.kernelManager);
                     }
                     else collector.Add(invokerRange, ErrorLevel.Error, "未找到匹配的构造函数");
                 }
                 else collector.Add(expression.range, ErrorLevel.Error, "无效的表达式");
             }
-            return new InvalidExpression(new InvalidKeyworldExpression(invokerRange), expression);
+            return new InvalidExpression(localContext.Snapshoot, new InvalidKeyworldExpression(invokerRange, localContext.Snapshoot), expression);
         }
     }
 }
