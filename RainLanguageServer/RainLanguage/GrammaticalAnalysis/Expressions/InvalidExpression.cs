@@ -259,7 +259,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 functionIndex = 0;
                 parameterIndex = parameters.GetTupleIndex(position);
                 foreach (var callable in callables)
-                    infos.Add(callable.GetSignatureInfo(manager));
+                {
+                    if (manager.TryGetDefineDeclaration(callable.declaration, out var declaration) && declaration == callable) declaration = null;
+                    infos.Add(callable.GetSignatureInfo(manager, declaration, ManagerOperator.GetSpace(manager, position)));
+                }
                 return true;
             }
             infos = default;
