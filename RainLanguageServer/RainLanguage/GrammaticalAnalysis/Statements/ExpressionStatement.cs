@@ -1,6 +1,4 @@
-﻿
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
     internal class ExpressionStatement : Statement
     {
@@ -12,9 +10,9 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
             this.expression = expression;
         }
 
-        public override void Operator(Action<Expression> action) => action(expression);
-        public override bool Operator(TextPosition position, ExpressionOperator action) => expression.range.Contain(position) && action(expression);
-        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos) => false;
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => expression.CollectSemanticToken(manager, collector);
+        protected override void InternalOperator(Action<Expression> action) => action(expression);
+        public override void Operator(Action<Statement> action) => action(this);
+        protected override bool InternalOperator(TextPosition position, ExpressionOperator action) => expression.range.Contain(position) && action(expression);
+        public override bool Operator(TextPosition position, StatementOperator action) => action(this);
     }
 }

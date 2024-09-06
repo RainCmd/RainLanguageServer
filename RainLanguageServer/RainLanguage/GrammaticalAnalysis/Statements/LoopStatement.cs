@@ -1,5 +1,4 @@
-﻿
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
     internal class LoopStatement : Statement
     {
@@ -15,44 +14,43 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
             this.condition = condition;
             group.Add(symbol);
         }
-        public override void Operator(Action<Expression> action)
+        protected override void InternalOperator(Action<Expression> action)
         {
             if (condition != null) action(condition);
+        }
+        public override void Operator(Action<Statement> action)
+        {
             loopBlock?.Operator(action);
             elseBlock?.Operator(action);
+            action(this);
         }
-        public override bool Operator(TextPosition position, ExpressionOperator action)
+        protected override bool InternalOperator(TextPosition position, ExpressionOperator action) => condition != null && condition.range.Contain(position) && action(condition);
+        public override bool Operator(TextPosition position, StatementOperator action)
         {
-            if (condition != null && condition.range.Contain(position)) return action(condition);
             if (loopBlock != null && loopBlock.range.Contain(position)) return loopBlock.Operator(position, action);
             if (elseBlock != null && elseBlock.range.Contain(position)) return elseBlock.Operator(position, action);
-            return false;
+            return action(this);
         }
-        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
+
+        protected override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
         {
             if (symbol.Contain(position) || (elseSymbol != null && elseSymbol.Value.Contain(position)))
             {
                 InfoUtility.HighlightGroup(group, infos);
                 return true;
             }
-            if (loopBlock != null && loopBlock.range.Contain(position)) return loopBlock.TryHighlightGroup(position, infos);
-            if (elseBlock != null && elseBlock.range.Contain(position)) return elseBlock.TryHighlightGroup(position, infos);
             return false;
         }
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
             collector.Add(DetailTokenType.KeywordCtrl, symbol);
             if (elseSymbol != null) collector.Add(DetailTokenType.KeywordCtrl, elseSymbol.Value);
-            condition?.CollectSemanticToken(manager, collector);
-            loopBlock?.CollectSemanticToken(manager, collector);
-            elseBlock?.CollectSemanticToken(manager, collector);
         }
     }
     internal class WhileStatement(TextRange symbol, Expression? condition) : LoopStatement(symbol, condition)
     {
-        public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+        protected override void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
-            base.CollectInlayHint(manager, infos);
             if (condition == null)
                 infos.Add(new InlayHintInfo($" {KeyWords.TRUE}", symbol.end));
         }
@@ -61,25 +59,23 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
     {
         public readonly TextRange? separator1 = separator1, separator2 = separator2;//两个分隔符 ;
         public readonly Expression? front = front, back = back;
-        public override void Operator(Action<Expression> action)
+        protected override void InternalOperator(Action<Expression> action)
         {
-            base.Operator(action);
+            base.InternalOperator(action);
             if (front != null) action(front);
             if (back != null) action(back);
         }
-        public override bool Operator(TextPosition position, ExpressionOperator action)
+        protected override bool InternalOperator(TextPosition position, ExpressionOperator action)
         {
             if (front != null && front.range.Contain(position)) return action(front);
             if (back != null && back.range.Contain(position)) return action(back);
-            return base.Operator(position, action);
+            return base.InternalOperator(position, action);
         }
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            base.CollectSemanticToken(manager, collector);
+            base.InternalCollectSemanticToken(manager, collector);
             if (separator1 != null) collector.Add(DetailTokenType.Operator, separator1.Value);
             if (separator2 != null) collector.Add(DetailTokenType.Operator, separator2.Value);
-            front?.CollectSemanticToken(manager, collector);
-            back?.CollectSemanticToken(manager, collector);
         }
     }
 }

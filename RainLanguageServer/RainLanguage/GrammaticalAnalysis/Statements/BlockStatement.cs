@@ -1,5 +1,4 @@
-﻿
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
     internal class BlockStatement : Statement
     {
@@ -9,28 +8,17 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
             base.range = range;
         }
 
-        public override void Operator(Action<Expression> action)
+        public override void Operator(Action<Statement> action)
         {
             foreach (var statement in statements) statement.Operator(action);
+            action(this);
         }
-        public override bool Operator(TextPosition position, ExpressionOperator action)
+        public override bool Operator(TextPosition position, StatementOperator action)
         {
             foreach (var statement in statements)
                 if (statement.range.Contain(position))
                     return statement.Operator(position, action);
-            return false;
-        }
-        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
-        {
-            foreach(var statement in statements)
-                if (statement.range.Contain(position))
-                    return statement.TryHighlightGroup(position, infos);
-            return false;
-        }
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            foreach (var statement in statements)
-                statement.CollectSemanticToken(manager, collector);
+            return action(this);
         }
     }
 }

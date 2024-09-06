@@ -1,5 +1,4 @@
-﻿
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
     internal class SubStatement(Statement parent) : Statement
     {
@@ -13,9 +12,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
             else throw new InvalidOperationException();
         }
 
-        public override void Operator(Action<Expression> action) => throw new NotImplementedException();
-        public override bool Operator(TextPosition position, ExpressionOperator action) => throw new NotImplementedException();
-        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos) => throw new NotImplementedException();
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => throw new NotImplementedException();
+        public override void Operator(Action<Statement> action) => throw new NotImplementedException();
+        public override bool Operator(TextPosition position, StatementOperator action) => throw new NotImplementedException();
     }
 }

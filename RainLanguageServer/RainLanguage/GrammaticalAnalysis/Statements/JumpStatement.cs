@@ -1,6 +1,4 @@
-﻿
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
     internal class JumpStatement : Statement
     {
@@ -15,16 +13,15 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
             this.condition = condition;
         }
 
-        public override void Operator(Action<Expression> action)
+        protected override void InternalOperator(Action<Expression> action)
         {
             if (condition != null) action(condition);
         }
-        public override bool Operator(TextPosition position, ExpressionOperator action)
-        {
-            if (condition != null && condition.range.Contain(position)) return action(condition);
-            return false;
-        }
-        public override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
+        public override void Operator(Action<Statement> action) => action(this);
+        protected override bool InternalOperator(TextPosition position, ExpressionOperator action) => condition != null && condition.range.Contain(position) && action(condition);
+        public override bool Operator(TextPosition position, StatementOperator action) => action(this);
+
+        protected override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
         {
             if (group != null && symbol.Contain(position))
             {
@@ -33,14 +30,9 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
             }
             return false;
         }
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.KeywordCtrl, symbol);
+        protected override void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
-            collector.Add(DetailTokenType.KeywordCtrl, symbol);
-            condition?.CollectSemanticToken(manager, collector);
-        }
-        public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
-        {
-            base.CollectInlayHint(manager, infos);
             if (condition == null)
                 infos.Add(new InlayHintInfo($" {KeyWords.TRUE}", symbol.end));
         }
