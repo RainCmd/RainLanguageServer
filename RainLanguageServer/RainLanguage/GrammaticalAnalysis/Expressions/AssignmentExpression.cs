@@ -1,7 +1,4 @@
-﻿
-using System.Diagnostics.CodeAnalysis;
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class AssignmentExpression : Expression
     {
@@ -26,6 +23,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (left.range.Contain(position)) return left.Operator(position, action);
             if (right.range.Contain(position)) return right.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if(action(this)) return true;
+            if (left.range.Contain(position)) return left.Operator(position, action);
+            if (right.range.Contain(position)) return right.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -75,15 +79,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             if (left.range.Contain(position)) return left.GetTupleIndex(position);
             return 0;
-        }
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (left.range.Contain(position)) return left.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            if (right.range.Contain(position)) return right.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
         }
     }
 }

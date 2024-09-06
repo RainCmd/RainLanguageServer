@@ -1,5 +1,4 @@
-﻿
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
@@ -28,6 +27,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             if (parameters.range.Contain(position)) return parameters.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (action(this)) return true;
+            if (parameters.range.Contain(position)) return parameters.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -87,7 +92,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             parameters.CollectSemanticToken(manager, collector);
         }
 
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        protected override bool InternalTrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
         {
             if (parameters.range.Contain(position))
             {

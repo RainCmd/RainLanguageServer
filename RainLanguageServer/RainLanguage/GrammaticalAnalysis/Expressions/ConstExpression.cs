@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal abstract class ConstExpression : Expression
     {
@@ -27,6 +25,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public override bool Calculability() => true;
         public override void Read(ExpressionParameter parameter) { }
         public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action) => action(this);
         public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
@@ -54,14 +53,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         }
 
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => false;
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class ConstBooleanExpression(TextRange range, bool value, Manager.KernelManager manager) : ConstExpression(range, manager.BOOL)
     {

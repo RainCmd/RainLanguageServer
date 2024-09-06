@@ -1,7 +1,4 @@
-﻿
-using System.Diagnostics.CodeAnalysis;
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class TypeExpression : Expression
     {
@@ -22,6 +19,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 declaration.references.Add(file.name.name);
         }
         public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action) => action(this);
         public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info) => file.OnHover(manager, position, type, ManagerOperator.GetSpace(manager, position), out info);
@@ -37,18 +35,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             collector.AddType(file, manager, type);
             if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
         }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class TypeKeyworldExpression(TextRange range, TextRange? qualifier, FileType file, Type type) : TypeExpression(range, qualifier, file, type)
     {
-        public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+        protected override void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
             if (range == KeyWords.VAR)
                 infos.Add(new InlayHintInfo($":{type.Info(manager, ManagerOperator.GetSpace(manager, range.end))}", range.end));

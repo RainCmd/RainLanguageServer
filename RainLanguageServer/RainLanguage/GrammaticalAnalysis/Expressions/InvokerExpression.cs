@@ -1,5 +1,4 @@
-﻿
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
@@ -16,7 +15,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         }
 
         protected abstract int CollectSignatureInfos(Manager manager, List<SignatureInfo> infos, Context context, AbstractSpace? space);
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        protected override bool InternalTrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
         {
             if (parameters.range.Contain(position))
             {
@@ -49,6 +48,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (invoker.range.Contain(position)) return invoker.Operator(position, action);
             if (parameters.range.Contain(position)) return parameters.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (action(this)) return true;
+            if (invoker.range.Contain(position)) return invoker.Operator(position, action);
+            if (parameters.range.Contain(position)) return parameters.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -100,11 +106,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             infos.Add(abstractDelegate.GetSignatureInfo(manager, null, space));
             return 0;
         }
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (invoker.range.Contain(position)) return invoker.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-        }
     }
     internal class InvokerFunctionExpression(TextRange range, Tuple tuple, TextRange? qualifier, QualifiedName name, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, parameters, manager)
     {
@@ -121,6 +122,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             if (parameters.range.Contain(position)) return parameters.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (action(this)) return true;
+            if (parameters.range.Contain(position)) return parameters.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -232,6 +239,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (target != null && target.range.Contain(position)) return target.Operator(position, action);
             if (parameters.range.Contain(position)) return parameters.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (action(this)) return true;
+            if (target != null && target.range.Contain(position)) return target.Operator(position, action);
+            if (parameters.range.Contain(position)) return parameters.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -379,11 +393,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 infos.Add(callable.GetSignatureInfo(manager, null, space));
                 return 0;
             }
-        }
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (target != null && target.range.Contain(position)) return target.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
     }
     internal class InvokerVirtualExpression(TextRange range, Tuple tuple, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerMemberExpression(range, tuple, symbol, method, target, callable, parameters, manager)

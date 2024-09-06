@@ -38,6 +38,14 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                     return expression.Operator(position, action);
             return action(this);
         }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (action(this)) return true;
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.Operator(position, action);
+            return false;
+        }
         public override void Operator(Action<Expression> action)
         {
             foreach (var expression in expressions)
@@ -93,16 +101,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 else result += expression.tuple.Count;
             return result;
         }
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class InvalidKeyworldExpression(TextRange range) : InvalidExpression(range) { }
     internal class InvalidOperationExpression : Expression
@@ -123,6 +121,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (parameters != null && parameters.range.Contain(position))
                 return parameters.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (action(this)) return true;
+            if (parameters != null && parameters.range.Contain(position))
+                return parameters.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -165,15 +170,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             collector.Add(DetailTokenType.Operator, symbol);
             parameters?.CollectSemanticToken(manager, collector);
         }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (parameters != null && parameters.range.Contain(position)) return parameters.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class InvalidInvokerExpression : Expression
     {
@@ -203,6 +199,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (method.range.Contain(position)) return method.Operator(position, action);
             if (parameters.range.Contain(position)) return parameters.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (action(this)) return true;
+            if (method.range.Contain(position)) return method.Operator(position, action);
+            if (parameters.range.Contain(position)) return parameters.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -247,9 +250,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             parameters.CollectSemanticToken(manager, collector);
         }
 
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        protected override bool InternalTrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
         {
-            if (method.range.Contain(position)) return method.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             if (parameters.range.Contain(position))
             {
                 if (parameters.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex)) return true;

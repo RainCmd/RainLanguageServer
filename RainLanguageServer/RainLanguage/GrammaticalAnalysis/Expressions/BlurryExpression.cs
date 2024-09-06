@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class BlurryVariableDeclarationExpression : Expression
     {
@@ -16,6 +14,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         }
         public override void Read(ExpressionParameter parameter) => parameter.collector.Add(declaration, ErrorLevel.Error, "无法推断类型");
         public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action) => action(this);
         public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
@@ -38,14 +37,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             collector.Add(DetailTokenType.KeywordCtrl, declaration);
             collector.Add(DetailTokenType.Local, identifier);
-        }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
         }
     }
     internal class MethodExpression : Expression//global & native
@@ -72,6 +63,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             parameter.collector.Add(msg);
         }
         public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action) => action(this);
         public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
@@ -126,14 +118,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             InfoUtility.AddNamespace(collector, name);
             collector.Add(DetailTokenType.GlobalFunction, name.name);
         }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class MethodMemberExpression : Expression
     {
@@ -166,6 +150,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             if (target != null && target.range.Contain(position)) return target.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if(action(this)) return true;
+            if (target != null && target.range.Contain(position)) return target.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -227,16 +217,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
             collector.Add(DetailTokenType.MemberFunction, member);
             target?.CollectSemanticToken(manager, collector);
-        }
-
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (target != null && target.range.Contain(position)) return target.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
         }
     }
     internal class MethodVirtualExpression : MethodMemberExpression
@@ -311,6 +291,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (invoker.range.Contain(position)) return invoker.Operator(position, action);
             return action(this);
         }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if(action(this)) return true;
+            if (invoker.range.Contain(position)) return invoker.Operator(position, action);
+            return false;
+        }
         public override void Operator(Action<Expression> action)
         {
             invoker.Operator(action);
@@ -340,16 +326,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             collector.Add(DetailTokenType.Operator, symbol);
             invoker.CollectSemanticToken(manager, collector);
         }
-
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (invoker.range.Contain(position)) return invoker.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class BlurrySetExpression : Expression
     {
@@ -370,6 +346,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             if (expression.range.Contain(position)) return expression.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (action(this)) return true;
+            if (expression.range.Contain(position)) return expression.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -396,16 +378,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => expression.range.Contain(position) && expression.FindReferences(manager, position, references);
 
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => expression.CollectSemanticToken(manager, collector);
-
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class BlurryLambdaExpression : Expression
     {
@@ -425,6 +397,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             parameter.collector.Add(range, ErrorLevel.Error, "无法推断lambda表达式类型");
         }
         public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action) => action(this);
         public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
@@ -449,14 +422,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 collector.Add(DetailTokenType.Local, parameter);
             collector.Add(DetailTokenType.Operator, symbol);
             collector.Add(DetailTokenType.Label, body);
-        }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
         }
     }
 }

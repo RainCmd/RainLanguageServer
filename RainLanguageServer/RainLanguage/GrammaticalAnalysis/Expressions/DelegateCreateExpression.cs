@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal abstract class DelegateCreateExpression : Expression
     {
@@ -18,6 +16,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         public readonly QualifiedName name = name;
         public override void Read(ExpressionParameter parameter) => callable.references.Add(name.name);
         public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action) => action(this);
         public override void Operator(Action<Expression> action) => action(this);
 
         public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
@@ -71,14 +70,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             collector.AddNamespace(name);
             collector.Add(DetailTokenType.GlobalFunction, name.name);
         }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class MemberFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
     {
@@ -95,6 +86,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             if (target != null && target.range.Contain(position)) return target.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (action(this)) return true;
+            if (target != null && target.range.Contain(position)) return target.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -155,15 +152,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
             collector.Add(DetailTokenType.MemberFunction, member);
         }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (target != null && target.range.Contain(position)) return target.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class VirtualFunctionDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, callable, manager)
     {
@@ -186,6 +174,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             if (target != null && target.range.Contain(position)) return target.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (action(this)) return true;
+            if (target != null && target.range.Contain(position)) return target.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -252,15 +246,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
             collector.Add(DetailTokenType.MemberFunction, member);
         }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (target != null && target.range.Contain(position)) return target.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class LambdaDelegateCreateExpression(TextRange range, Type type, AbstractCallable callable, Manager.KernelManager manager, List<Local> parmeters, TextRange symbol, Expression body) : DelegateCreateExpression(range, type, callable, manager)
     {
@@ -273,6 +258,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             if (body.range.Contain(position)) return body.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if(action(this)) return true;
+            if (body.range.Contain(position)) return body.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -336,15 +327,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 collector.Add(DetailTokenType.Local, local.range);
             collector.Add(DetailTokenType.Operator, symbol);
             body.CollectSemanticToken(manager, collector);
-        }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (body.range.Contain(position)) return body.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
         }
     }
 }

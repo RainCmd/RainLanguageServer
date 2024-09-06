@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class TupleExpression : Expression
     {
@@ -49,6 +47,14 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 if (expression.range.Contain(position))
                     return expression.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if(action(this)) return true;
+            foreach (var expression in expressions)
+                if (expression.range.Contain(position))
+                    return expression.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -105,16 +111,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                     result += expression.tuple.Count;
             return result;
         }
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
 
         public static Expression Create(IList<Expression> expressions, MessageCollector collector)
         {
@@ -158,6 +154,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (indices.range.Contain(position)) return indices.Operator(position, action);
             return action(this);
         }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if(action(this)) return true;
+            if (source.range.Contain(position)) return source.Operator(position, action);
+            if (indices.range.Contain(position)) return indices.Operator(position, action);
+            return false;
+        }
         public override void Operator(Action<Expression> action)
         {
             source.Operator(action);
@@ -199,16 +202,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             source.CollectSemanticToken(manager, collector);
             indices.CollectSemanticToken(manager, collector);
-        }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (source.range.Contain(position)) return source.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            if (indices.range.Contain(position)) return indices.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
         }
     }
 }

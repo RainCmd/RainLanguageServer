@@ -61,6 +61,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         public abstract void Read(ExpressionParameter parameter);
         public virtual void Write(ExpressionParameter parameter) => parameter.collector.Add(range, ErrorLevel.Error, "表达式不可赋值");
         public abstract bool Operator(TextPosition position, ExpressionOperator action);
+        public abstract bool BreadthFirstOperator(TextPosition position, ExpressionOperator action);
         public abstract void Operator(Action<Expression> action);
         public abstract bool OnHover(Manager manager, TextPosition position, out HoverInfo info);
         public abstract bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos);
@@ -68,7 +69,26 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         public abstract bool FindReferences(Manager manager, TextPosition position, List<TextRange> references);
         public abstract void CollectSemanticToken(Manager manager, SemanticTokenCollector collector);
         public virtual int GetTupleIndex(TextPosition position) => 0;
-        public abstract bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex);
-        public virtual void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) { }
+        protected virtual bool InternalTrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            infos = default;
+            functionIndex = 0;
+            parameterIndex = 0;
+            return false;
+        }
+        public bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
+        {
+            List<SignatureInfo>? refInfos = default;
+            int refFunctionIndex = 0;
+            int refParameterIndex = 0;
+            var result = BreadthFirstOperator(position, expression => expression.InternalTrySignatureHelp(manager, position, out refInfos, out refFunctionIndex, out refParameterIndex));
+            infos = refInfos;
+            functionIndex = refFunctionIndex;
+            parameterIndex = refParameterIndex;
+            return result;
+        }
+
+        protected virtual void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos) { }
+        public void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => Operator(expression => expression.InternalCollectInlayHint(manager, infos));
     }
 }

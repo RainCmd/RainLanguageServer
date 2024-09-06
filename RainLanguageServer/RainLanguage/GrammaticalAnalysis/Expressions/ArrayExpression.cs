@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
     internal class ArrayCreateExpression : Expression
     {
@@ -24,6 +22,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (type.range.Contain(position)) return type.Operator(position, action);
             if (length.range.Contain(position)) return length.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (action(this)) return true;
+            if (type.range.Contain(position)) return type.Operator(position, action);
+            if (length.range.Contain(position)) return length.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -67,15 +72,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             type.CollectSemanticToken(manager, collector);
             length.CollectSemanticToken(manager, collector);
         }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (length.range.Contain(position)) return length.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class ArrayInitExpression : Expression
     {
@@ -99,6 +95,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (type != null && type.range.Contain(position)) return type.Operator(position, action);
             if (elements.range.Contain(position)) return elements.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (action(this)) return true;
+            if (type != null && type.range.Contain(position)) return type.Operator(position, action);
+            if (elements.range.Contain(position)) return elements.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -142,15 +145,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             type?.CollectSemanticToken(manager, collector);
             elements.CollectSemanticToken(manager, collector);
         }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (elements.range.Contain(position)) return elements.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class ArrayEvaluationExpression : Expression
     {
@@ -178,6 +172,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (array.range.Contain(position)) return array.Operator(position, action);
             if (index.range.Contain(position)) return index.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if(action(this)) return true;
+            if (array.range.Contain(position)) return array.Operator(position, action);
+            if (index.range.Contain(position)) return index.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -221,16 +222,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             array.CollectSemanticToken(manager, collector);
             index.CollectSemanticToken(manager, collector);
         }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (array.range.Contain(position)) return array.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            if (index.range.Contain(position)) return index.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class StringEvaluationExpression : Expression
     {
@@ -253,6 +244,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (source.range.Contain(position)) return source.Operator(position, action);
             if (index.range.Contain(position)) return index.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if(action(this)) return true;
+            if (source.range.Contain(position)) return source.Operator(position, action);
+            if (index.range.Contain(position)) return index.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -296,16 +294,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             source.CollectSemanticToken(manager, collector);
             index.CollectSemanticToken(manager, collector);
         }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (source.range.Contain(position)) return source.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            if (index.range.Contain(position)) return index.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
-        }
     }
     internal class ArraySubExpression : Expression
     {
@@ -328,6 +316,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (source.range.Contain(position)) return source.Operator(position, action);
             if (indies.range.Contain(position)) return indies.Operator(position, action);
             return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if(action(this)) return true;
+            if (source.range.Contain(position)) return source.Operator(position, action);
+            if (indies.range.Contain(position)) return indies.Operator(position, action);
+            return false;
         }
         public override void Operator(Action<Expression> action)
         {
@@ -370,16 +365,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         {
             source.CollectSemanticToken(manager, collector);
             indies.CollectSemanticToken(manager, collector);
-        }
-
-        public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
-        {
-            if (source.range.Contain(position)) return source.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            if (indies.range.Contain(position)) return indies.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
-            infos = default;
-            functionIndex = 0;
-            parameterIndex = 0;
-            return false;
         }
     }
 }
