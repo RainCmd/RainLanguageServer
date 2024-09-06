@@ -599,8 +599,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         public static Expression Parse(Manager manager, AbstractClass declaration, List<AbstractCallable> callables, TextRange invokerRange, List<Local> locals, TextRange parameterRange, MessageCollector collector)
         {
             var context = new Context(declaration.file.space.document, declaration.space, declaration.file.space.relies, declaration);
-            var localContext = new LocalContext(collector, declaration);
-            localContext.AddLocals(locals);
+            var localContext = new LocalContext(collector, declaration, locals);
             var parser = new ExpressionParser(manager, context, localContext, collector, false);
             var expression = parser.Parse(parameterRange);
             if (expression.Valid)

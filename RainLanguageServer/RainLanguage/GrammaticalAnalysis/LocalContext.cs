@@ -8,23 +8,52 @@
         public readonly HashSet<TextRange> read = [];
         public readonly HashSet<TextRange> write = [];
     }
+    internal class LocalContextSnapshoot : List<Local>
+    {
+        public LocalContextSnapshoot() { }
+        public LocalContextSnapshoot(IEnumerable<Local> locals) : base(locals) { }
+        public LocalContextSnapshoot AddLocal(Local local)
+        {
+            var result = new LocalContextSnapshoot(this);
+            var name = local.range.ToString();
+            result.RemoveAll(value => value.range == name);
+            result.Add(local);
+            return result;
+        }
+    }
     internal class LocalContext
     {
         public readonly Local? thisValue;
+        private readonly Stack<LocalContextSnapshoot> snapshoot = [];
         private readonly List<Dictionary<string, Local>> localStack = [[]];
         private readonly MessageCollector collector;
+        public LocalContextSnapshoot Snapshoot => snapshoot.Peek();
         public LocalContext(MessageCollector collector, AbstractDeclaration? declaration = null)
         {
             this.collector = collector;
             if (declaration != null)
                 thisValue = Add(true, KeyWords.THIS, declaration.name, declaration.declaration.DefineType);
+            snapshoot.Push([]);
         }
-        public void PushBlock() => localStack.Add([]);
-        public void PopBlock() => localStack.RemoveAt(^1);
-        public void AddLocals(List<Local> locals)
+        public LocalContext(MessageCollector collector, AbstractDeclaration declaration, List<Local> locals)
         {
+            this.collector = collector;
+            thisValue = Add(true, KeyWords.THIS, declaration.name, declaration.declaration.DefineType);
             foreach (var local in locals)
-                localStack[^1][local.range.ToString()] = local;
+                if (local.range != KeyWords.DISCARD_VARIABLE)
+                    localStack[^1][local.range.ToString()] = local;
+            snapshoot.Push([.. localStack[^1].Values]);
+        }
+        public void PushBlock()
+        {
+            localStack.Add([]);
+            snapshoot.Push(snapshoot.Peek());
+        }
+
+        public void PopBlock()
+        {
+            localStack.RemoveAt(^1);
+            snapshoot.Pop();
         }
 
         public Local Add(bool parameter, string name, TextRange range, Type type)
@@ -39,6 +68,9 @@
                     collector.Add(msg);
                 }
                 localStack[^1][name] = local;
+                var current = snapshoot.Pop();
+                current = current.AddLocal(local);
+                snapshoot.Push(current);
             }
             return local;
         }

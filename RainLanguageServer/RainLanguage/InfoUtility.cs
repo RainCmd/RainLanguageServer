@@ -552,6 +552,108 @@ namespace RainLanguageServer.RainLanguage
             return QualifyAction(qualify, position, space, value => references.AddRange(value.references));
         }
 
+        public static void CollectAccessKeyword(List<CompletionInfo> infos)
+        {
+            infos.Add(new CompletionInfo(KeyWords.PUBLIC, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.INTERNAL, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.SPACE, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.PROTECTED, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.PRIVATE, CompletionItemKind.Keyword, "关键字"));
+        }
+        public static void CollectDefineKeyword(List<CompletionInfo> infos)
+        {
+            infos.Add(new CompletionInfo(KeyWords.ENUM, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.STRUCT, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.INTERFACE, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.CLASS, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.DELEGATE, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.TASK, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.NATIVE, CompletionItemKind.Keyword, "关键字"));
+        }
+        public static void CollectChildrenSpaces(List<CompletionInfo> infos, AbstractSpace space)
+        {
+            foreach (var item in space.children.Values)
+                infos.Add(new CompletionInfo(item.name.ToString(), CompletionItemKind.Module, "命名空间"));
+        }
+        public static void CollectSpaces(Manager manager, List<CompletionInfo> infos, FileSpace space)
+        {
+            foreach (var rely in space.relies)
+                CollectChildrenSpaces(infos, rely);
+            for (var index = space; index != null; index = index.parent)
+                CollectChildrenSpaces(infos, index.space);
+            foreach (var item in manager.imports)
+                infos.Add(new CompletionInfo(item, CompletionItemKind.Module, "命名空间"));
+        }
+        private static void AddDeclaration(Manager manager, List<CompletionInfo> infos, Declaration declaration, CompletionItemKind kind)
+        {
+            if (manager.TryGetDeclaration(declaration, out var abstractDeclaration))
+                infos.Add(new CompletionInfo(abstractDeclaration.name.ToString(), kind, abstractDeclaration.CodeInfo(manager)));
+        }
+        public static void CollectSpaceDeclarations(Manager manager, List<CompletionInfo> infos, AbstractSpace space, bool onlyDefine)
+        {
+            foreach (var declarations in space.declarations.Values)
+                foreach (var declaration in declarations)
+                    switch (declaration.category)
+                    {
+                        case DeclarationCategory.Invalid: break;
+                        case DeclarationCategory.Variable:
+                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Variable);
+                            break;
+                        case DeclarationCategory.Function:
+                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
+                            break;
+                        case DeclarationCategory.Enum:
+                            AddDeclaration(manager, infos, declaration, CompletionItemKind.Enum);
+                            break;
+                        case DeclarationCategory.EnumElement:
+                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.EnumMember);
+                            break;
+                        case DeclarationCategory.Struct:
+                            AddDeclaration(manager, infos, declaration, CompletionItemKind.Struct);
+                            break;
+                        case DeclarationCategory.StructVariable:
+                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
+                            break;
+                        case DeclarationCategory.StructFunction:
+                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
+                            break;
+                        case DeclarationCategory.Class:
+                            AddDeclaration(manager, infos, declaration, CompletionItemKind.Class);
+                            break;
+                        case DeclarationCategory.Constructor:
+                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Constructor);
+                            break;
+                        case DeclarationCategory.ClassVariable:
+                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
+                            break;
+                        case DeclarationCategory.ClassFunction:
+                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
+                            break;
+                        case DeclarationCategory.Interface:
+                            AddDeclaration(manager, infos, declaration, CompletionItemKind.Interface);
+                            break;
+                        case DeclarationCategory.InterfaceFunction:
+                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
+                            break;
+                        case DeclarationCategory.Delegate:
+                            AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
+                            break;
+                        case DeclarationCategory.Task:
+                            AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
+                            break;
+                        case DeclarationCategory.Native:
+                            if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
+                            break;
+                    }
+        }
+        public static void CollectDeclarations(Manager manager, List<CompletionInfo> infos, FileSpace space, bool onlyDefine)
+        {
+            foreach (var rely in space.relies)
+                CollectSpaceDeclarations(manager, infos, rely, onlyDefine);
+            for (var index = space; index != null; index = index.parent)
+                CollectSpaceDeclarations(manager, infos, index.space, onlyDefine);
+        }
+
         public static void AddNamespace(this SemanticTokenCollector collector, QualifiedName name)
         {
             for (var i = 0; i < name.qualify.Count; i++)

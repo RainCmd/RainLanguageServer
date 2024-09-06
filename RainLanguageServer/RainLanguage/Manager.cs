@@ -45,7 +45,7 @@ namespace RainLanguageServer.RainLanguage
         public readonly Dictionary<string, FileSpace> allFileSpaces = [];
         public readonly Dictionary<string, AbstractLibrary> relies = [];
         private readonly Dictionary<int, AbstractLibrary> librarys = [];
-        private readonly HashSet<string> imports = [];
+        public readonly HashSet<string> imports = [];
         private readonly Dictionary<string, TextDocument[]> importDocuments = [];
         private readonly Func<string, TextDocument[]> relyLoader;
         private readonly Func<IEnumerable<TextDocument>> documentLoader;

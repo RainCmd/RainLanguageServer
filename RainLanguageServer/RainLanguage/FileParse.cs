@@ -554,15 +554,18 @@ namespace RainLanguageServer.RainLanguage
             else if (TryParseTupleDeclaration(line, lexical.anchor.start, out var tuple, out name, space.collector))
             {
                 var parameterRange = ParseParameters(line, name.end, out var parameters, space.collector);
-                CheckEnd(line, parameterRange.end, space.collector);
-                var file = new FileFunction(space, visibility, name, parameters, tuple) { range = TrimLine(line, parameterRange.end) };
-                file.attributes.AddRange(attributes);
-                attributes.Clear();
-                file.annotation.AddRange(annotations);
-                annotations.Clear();
-                ParseBlock(reader, line.indent, file.body, annotations);
-                file.range &= reader.GetLastValidLine();
-                space.functions.Add(file);
+                if (parameterRange.Count > 0)
+                {
+                    CheckEnd(line, parameterRange.end, space.collector);
+                    var file = new FileFunction(space, visibility, name, parameters, tuple) { range = TrimLine(line, parameterRange.end) };
+                    file.attributes.AddRange(attributes);
+                    attributes.Clear();
+                    file.annotation.AddRange(annotations);
+                    annotations.Clear();
+                    ParseBlock(reader, line.indent, file.body, annotations);
+                    file.range &= reader.GetLastValidLine();
+                    space.functions.Add(file);
+                }
             }
             else space.collector.Add((lexical.anchor.end - 1) & lexical.anchor.end, ErrorLevel.Error, "需要输入标识符");
         }

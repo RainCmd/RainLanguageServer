@@ -310,6 +310,15 @@ namespace RainLanguageServer.RainLanguage
             return false;
         }
 
+        private static bool IsAccessKeyword(string value)
+        {
+            if (value == KeyWords.PUBLIC) return true;
+            if (value == KeyWords.INTERNAL) return true;
+            if (value == KeyWords.SPACE) return true;
+            if (value == KeyWords.PROTECTED) return true;
+            if (value == KeyWords.PRIVATE) return true;
+            return false;
+        }
         public static void Completion(Manager manager, DocumentUri uri, Position position, List<CompletionInfo> infos)
         {
             lock (manager)
@@ -318,8 +327,58 @@ namespace RainLanguageServer.RainLanguage
                     FileSpaceOperator(space, textPosition,
                         fileSpace =>
                         {
-                            // todo 命名空间相关补全
-                            // 不是定义范围内的都在这里，包括解析失败的定义等
+                            if (fileSpace.name != null && fileSpace.name.Value.Contain(textPosition))
+                            {
+                                if (fileSpace.parent != null)
+                                    InfoUtility.CollectChildrenSpaces(infos, fileSpace.parent.space);
+                                return true;
+                            }
+                            foreach (var info in fileSpace.imports)
+                                if (info.range.Contain(textPosition))
+                                {
+                                    for (var i = 0; i < info.names.Count; i++)
+                                        if (info.names[i].Contain(textPosition))
+                                        {
+                                            if (i == 0) InfoUtility.CollectSpaces(manager, infos, fileSpace);
+                                            else
+                                            {
+                                                var indexSpace = info.space;
+                                                for (var index = 1; index < i && indexSpace != null; index++)
+                                                    indexSpace.children.TryGetValue(info.names[index].ToString(), out indexSpace);
+                                                if (indexSpace != null)
+                                                    InfoUtility.CollectChildrenSpaces(infos, indexSpace);
+                                            }
+                                            return true;
+                                        }
+                                    return true;
+                                }
+                            var line = textPosition.Line;
+                            if (Lexical.TryAnalysis(line, 0, out var lexical, null))
+                            {
+                                if (lexical.anchor.Contain(textPosition))
+                                {
+                                    infos.Add(new CompletionInfo(KeyWords.IMPORT, CompletionItemKind.Keyword, "关键字"));
+                                    infos.Add(new CompletionInfo(KeyWords.NAMESPACE, CompletionItemKind.Keyword, "关键字"));
+                                    InfoUtility.CollectAccessKeyword(infos);
+                                    InfoUtility.CollectDefineKeyword(infos);
+                                    InfoUtility.CollectSpaces(manager, infos, fileSpace);
+                                    InfoUtility.CollectDeclarations(manager, infos, fileSpace, true);
+                                    return true;
+                                }
+                                else if (IsAccessKeyword(lexical.anchor.ToString()) && Lexical.TryAnalysis(line, lexical.anchor.end, out lexical, null) && lexical.anchor.Contain(textPosition))
+                                {
+                                    InfoUtility.CollectDefineKeyword(infos);
+                                    InfoUtility.CollectSpaces(manager, infos, fileSpace);
+                                    InfoUtility.CollectDeclarations(manager, infos, fileSpace, true);
+                                    return true;
+                                }
+                                else
+                                {
+                                    InfoUtility.CollectSpaces(manager, infos, fileSpace);
+                                    InfoUtility.CollectDeclarations(manager, infos, fileSpace, true);
+                                    return true;
+                                }
+                            }
                             return default;
                         },
                         fileDeclaration =>
