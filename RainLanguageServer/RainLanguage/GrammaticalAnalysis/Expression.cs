@@ -102,7 +102,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             }
             return default;
         }
-        public void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Operator(position, value => InternalCompletion(manager, position, infos));
+        public void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Operator(position, value => value.InternalCompletion(manager, position, infos));
         protected virtual void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos) { }
         public void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => Operator(expression => expression.InternalCollectInlayHint(manager, infos));
     }

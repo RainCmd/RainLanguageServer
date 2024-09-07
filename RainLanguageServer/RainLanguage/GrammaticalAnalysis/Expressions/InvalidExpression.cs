@@ -11,7 +11,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             expressions = [];
             attribute = ExpressionAttribute.Invalid;
         }
-        public InvalidExpression(LocalContextSnapshoot snapshoot, params Expression[] expressions) : this((IList<Expression>)expressions, snapshoot) { }
+        public InvalidExpression(LocalContextSnapshoot snapshoot, params Expression[] expressions) : this(expressions, snapshoot) { }
         public InvalidExpression(TextRange range, LocalContextSnapshoot snapshoot, IList<Expression> expressions) : base(range, Tuple.Empty, snapshoot)
         {
             this.expressions = expressions;
@@ -163,6 +163,30 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             if (parameters != null && parameters.range.Contain(position))
                 return parameters.FindReferences(manager, position, references);
             return false;
+        }
+
+        protected override bool InternalCompletion(Manager manager, TextPosition position, List<CompletionInfo> infos)
+        {
+            if (parameters != null)
+            {
+                if (parameters is InvalidExpression)
+                {
+                    if (Lexical.TryExtractName(range, 0, out var names, null))
+                    {
+                        if ((names[0] & names[^1]).Contain(position) && ManagerOperator.TryGetContext(manager, position, out var context))
+                        {
+                            InfoUtility.Completion(manager, context, names, position, infos, CompletionFilter.All);
+                            return default;
+                        }
+                    }
+                }
+                else if (parameters.attribute.ContainAny(ExpressionAttribute.Value) && symbol == "." && ManagerOperator.TryGetContext(manager, position, out var context))
+                {
+                    InfoUtility.CollectMember(manager, parameters.tuple[0], context, infos);
+                    return default;
+                }
+            }
+            return base.InternalCompletion(manager, position, infos);
         }
 
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)

@@ -58,7 +58,7 @@ namespace RainLanguageServer.RainLanguage
         private static void FileSpaceOperator(FileSpace space, Action<FileSpace>? spaceAction, Action<FileDeclaration>? declarationAction)
         {
             foreach (var child in space.children)
-                FileSpaceOperator(space, spaceAction, declarationAction);
+                FileSpaceOperator(child, spaceAction, declarationAction);
             spaceAction?.Invoke(space);
             if (declarationAction != null)
             {

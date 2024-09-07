@@ -660,6 +660,55 @@ namespace RainLanguageServer.RainLanguage
             if (infos.FindIndex(value => value.lable == "kernel") < 0)
                 infos.Add(new CompletionInfo("kernel", CompletionItemKind.Module, "核心库"));
         }
+        public static void CollectMember(Manager manager, Type type, Context context, List<CompletionInfo> infos)
+        {
+            if (type.dimension > 0) type = manager.kernelManager.ARRAY;
+            else if (type.code == TypeCode.Delegate) type = manager.kernelManager.DELEGATE;
+            else if (type.code == TypeCode.Task) type = manager.kernelManager.TASK;
+            if (manager.TryGetDeclaration(type, out var declaration))
+            {
+                if (declaration is AbstractEnum abstractEnum)
+                {
+                    foreach (var element in abstractEnum.elements)
+                        infos.Add(new CompletionInfo(element.name.ToString(), CompletionItemKind.EnumMember, element.CodeInfo(manager, context.space)));
+                }
+                else if (declaration is AbstractStruct abstractStruct)
+                {
+                    foreach (var member in abstractStruct.variables)
+                        infos.Add(new CompletionInfo(member.name.ToString(), CompletionItemKind.Field, member.CodeInfo(manager, context.space)));
+                    foreach (var member in abstractStruct.functions)
+                        if (context.IsVisiable(manager, member.declaration))
+                            infos.Add(new CompletionInfo(member.name.ToString(), CompletionItemKind.Method, member.CodeInfo(manager, context.space)));
+                }
+                else if (declaration is AbstractInterface abstractInterface)
+                {
+                    var set = new HashSet<AbstractCallable>();
+                    foreach (var inherit in manager.GetInheritIterator(abstractInterface))
+                        foreach (var callable in inherit.functions)
+                            if (set.Add(callable))
+                            {
+                                infos.Add(new CompletionInfo(callable.name.ToString(), CompletionItemKind.Method, callable.CodeInfo(manager, context.space)));
+                                set.AddRange(callable.overrides);
+                            }
+                }
+                else if (declaration is AbstractClass abstractClass)
+                {
+                    foreach (var inherit in manager.GetInheritIterator(abstractClass))
+                    {
+                        foreach (var member in inherit.variables)
+                            if (context.IsVisiable(manager, member.declaration))
+                                infos.Add(new CompletionInfo(member.name.ToString(), CompletionItemKind.Field, member.CodeInfo(manager, context.space)));
+                        var set = new HashSet<AbstractCallable>();
+                        foreach (var member in inherit.functions)
+                            if (set.Add(member) && context.IsVisiable(manager, member.declaration))
+                            {
+                                infos.Add(new CompletionInfo(member.name.ToString(), CompletionItemKind.Method, member.CodeInfo(manager, context.space)));
+                                set.AddRange(member.overrides);
+                            }
+                    }
+                }
+            }
+        }
         private static void AddDeclaration(Manager manager, List<CompletionInfo> infos, Declaration declaration, CompletionItemKind kind)
         {
             if (manager.TryGetDeclaration(declaration, out var abstractDeclaration))
@@ -676,7 +725,7 @@ namespace RainLanguageServer.RainLanguage
         {
             return value switch
             {
-                "&" or "|" or "^" or "<" or "<<" or ">" or ">>" or "+" or "++" or "-" or "--" or "*" or "/" or "%" or "!" or "~" => true,
+                "&" or "|" or "^" or "<" or "<<" or ">" or ">>" or "+" or "++" or "-" or "--" or "*" or "/" or "%" or "!" or "~" or "!=" or "==" or ">=" or "<=" => true,
                 _ => false,
             };
         }
@@ -747,7 +796,7 @@ namespace RainLanguageServer.RainLanguage
                 CollectSpaceDeclarations(manager, infos, index, context, filter);
             if (filter.Contain(CompletionFilter.Define)) CollectBaseType(infos);
         }
-        private static void Completion(Manager manager, Context context, List<TextRange> ranges, TextPosition position, List<CompletionInfo> infos, CompletionFilter filter)
+        public static void Completion(Manager manager, Context context, List<TextRange> ranges, TextPosition position, List<CompletionInfo> infos, CompletionFilter filter)
         {
             if (ranges[0].Contain(position))
             {
