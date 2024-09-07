@@ -328,8 +328,11 @@ namespace RainLanguageServer.RainLanguage
             sb.Append(')');
             if (declaration == null)
             {
-                var count = callable.space.declarations[callable.name.ToString()].Count;
-                if (count > 1) sb.Append($" (+{count}个重载)");
+                if (callable.space.declarations.TryGetValue(callable.name.ToString(), out var declarations))
+                {
+                    var count = callable.space.declarations[callable.name.ToString()].Count;
+                    if (count > 1) sb.Append($" (+{count}个重载)");
+                }
             }
             else
             {
@@ -669,63 +672,72 @@ namespace RainLanguageServer.RainLanguage
         {
             return (filter & other) != 0;
         }
+        private static bool IsOperator(string value)
+        {
+            return value switch
+            {
+                "&" or "|" or "^" or "<" or "<<" or ">" or ">>" or "+" or "++" or "-" or "--" or "*" or "/" or "%" or "!" or "~" => true,
+                _ => false,
+            };
+        }
         public static void CollectSpaceDeclarations(Manager manager, List<CompletionInfo> infos, AbstractSpace space, Context context, CompletionFilter filter)
         {
-            foreach (var declarations in space.declarations.Values)
-                foreach (var declaration in declarations)
-                    if (context.IsVisiable(manager, declaration))
-                        switch (declaration.category)
-                        {
-                            case DeclarationCategory.Invalid: break;
-                            case DeclarationCategory.Variable:
-                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Variable);
-                                break;
-                            case DeclarationCategory.Function://todo 过滤运算符重载
-                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
-                                break;
-                            case DeclarationCategory.Enum:
-                                if (filter.Contain(CompletionFilter.Define)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Enum);
-                                break;
-                            case DeclarationCategory.EnumElement:
-                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.EnumMember);
-                                break;
-                            case DeclarationCategory.Struct:
-                                if (filter.Contain(CompletionFilter.Define)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Struct);
-                                break;
-                            case DeclarationCategory.StructVariable:
-                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
-                                break;
-                            case DeclarationCategory.StructFunction:
-                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
-                                break;
-                            case DeclarationCategory.Class:
-                                if (filter.Contain(CompletionFilter.Class)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Class);
-                                break;
-                            case DeclarationCategory.Constructor:
-                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Constructor);
-                                break;
-                            case DeclarationCategory.ClassVariable:
-                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
-                                break;
-                            case DeclarationCategory.ClassFunction:
-                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
-                                break;
-                            case DeclarationCategory.Interface:
-                                if (filter.Contain(CompletionFilter.Interface)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Interface);
-                                break;
-                            case DeclarationCategory.InterfaceFunction:
-                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
-                                break;
-                            case DeclarationCategory.Delegate:
-                                if (filter.Contain(CompletionFilter.Define)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
-                                break;
-                            case DeclarationCategory.Task:
-                                if (filter.Contain(CompletionFilter.Define)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
-                                break;
-                            case DeclarationCategory.Native:
-                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
-                                break;
-                        }
+            foreach (var item in space.declarations)
+                if (!IsOperator(item.Key))
+                    foreach (var declaration in item.Value)
+                        if (context.IsVisiable(manager, declaration))
+                            switch (declaration.category)
+                            {
+                                case DeclarationCategory.Invalid: break;
+                                case DeclarationCategory.Variable:
+                                    if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Variable);
+                                    break;
+                                case DeclarationCategory.Function:
+                                    if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
+                                    break;
+                                case DeclarationCategory.Enum:
+                                    if (filter.Contain(CompletionFilter.Define)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Enum);
+                                    break;
+                                case DeclarationCategory.EnumElement:
+                                    if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.EnumMember);
+                                    break;
+                                case DeclarationCategory.Struct:
+                                    if (filter.Contain(CompletionFilter.Define)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Struct);
+                                    break;
+                                case DeclarationCategory.StructVariable:
+                                    if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
+                                    break;
+                                case DeclarationCategory.StructFunction:
+                                    if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
+                                    break;
+                                case DeclarationCategory.Class:
+                                    if (filter.Contain(CompletionFilter.Class)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Class);
+                                    break;
+                                case DeclarationCategory.Constructor:
+                                    if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Constructor);
+                                    break;
+                                case DeclarationCategory.ClassVariable:
+                                    if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
+                                    break;
+                                case DeclarationCategory.ClassFunction:
+                                    if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
+                                    break;
+                                case DeclarationCategory.Interface:
+                                    if (filter.Contain(CompletionFilter.Interface)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Interface);
+                                    break;
+                                case DeclarationCategory.InterfaceFunction:
+                                    if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
+                                    break;
+                                case DeclarationCategory.Delegate:
+                                    if (filter.Contain(CompletionFilter.Define)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
+                                    break;
+                                case DeclarationCategory.Task:
+                                    if (filter.Contain(CompletionFilter.Define)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
+                                    break;
+                                case DeclarationCategory.Native:
+                                    if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
+                                    break;
+                            }
         }
         public static void CollectDeclarations(Manager manager, List<CompletionInfo> infos, Context context, CompletionFilter filter)
         {
