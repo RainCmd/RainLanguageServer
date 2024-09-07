@@ -447,7 +447,7 @@ namespace RainLanguageServer.RainLanguage
             else sb.Append("(局部变量)");
             sb.Append(local.type.Info(manager, ManagerOperator.GetSpace(manager, position)));
             sb.Append(' ');
-            sb.Append(local.range.ToString());
+            sb.Append(local.name);
             return new HoverInfo(local.range, sb.ToString().MakedownCode(), true);
         }
         public static bool OnHover(List<TextRange> qualify, TextPosition position, out HoverInfo info)
@@ -569,6 +569,7 @@ namespace RainLanguageServer.RainLanguage
         }
         public static void CollectDefineKeyword(List<CompletionInfo> infos)
         {
+            infos.Add(new CompletionInfo(KeyWords.CONST, CompletionItemKind.Keyword, "关键字"));
             infos.Add(new CompletionInfo(KeyWords.ENUM, CompletionItemKind.Keyword, "关键字"));
             infos.Add(new CompletionInfo(KeyWords.STRUCT, CompletionItemKind.Keyword, "关键字"));
             infos.Add(new CompletionInfo(KeyWords.INTERFACE, CompletionItemKind.Keyword, "关键字"));
@@ -576,6 +577,69 @@ namespace RainLanguageServer.RainLanguage
             infos.Add(new CompletionInfo(KeyWords.DELEGATE, CompletionItemKind.Keyword, "关键字"));
             infos.Add(new CompletionInfo(KeyWords.TASK, CompletionItemKind.Keyword, "关键字"));
             infos.Add(new CompletionInfo(KeyWords.NATIVE, CompletionItemKind.Keyword, "关键字"));
+        }
+        private static void AddBaseType(List<CompletionInfo> infos, string type)
+        {
+            if (infos.FindIndex(value => value.lable == type) < 0)
+                infos.Add(new CompletionInfo(type, CompletionItemKind.Keyword, "关键字"));
+        }
+        public static void CollectBaseType(List<CompletionInfo> infos)
+        {
+            AddBaseType(infos, KeyWords.BOOL);
+            AddBaseType(infos, KeyWords.BYTE);
+            AddBaseType(infos, KeyWords.CHAR);
+            AddBaseType(infos, KeyWords.INTEGER);
+            AddBaseType(infos, KeyWords.REAL);
+            AddBaseType(infos, KeyWords.REAL2);
+            AddBaseType(infos, KeyWords.REAL3);
+            AddBaseType(infos, KeyWords.REAL4);
+            AddBaseType(infos, KeyWords.TYPE);
+            AddBaseType(infos, KeyWords.STRING);
+            AddBaseType(infos, KeyWords.HANDLE);
+            AddBaseType(infos, KeyWords.ENTITY);
+            AddBaseType(infos, "Delegate");
+            AddBaseType(infos, "Task");
+            AddBaseType(infos, KeyWords.ARRAY);
+        }
+        public static void CollectCtrlKeyword(List<CompletionInfo> infos)
+        {
+            infos.Add(new CompletionInfo(KeyWords.IF, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.ELSEIF, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.ELSE, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.WHILE, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.FOR, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.BREAK, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.CONTINUE, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.RETURN, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.WAIT, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.EXIT, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.TRY, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.CATCH, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.FINALLY, CompletionItemKind.Keyword, "关键字"));
+        }
+        public static void CollectValueKeyword(Context context, List<CompletionInfo> infos)
+        {
+            if (context.declaration != null)
+            {
+                infos.Add(new CompletionInfo(KeyWords.THIS, CompletionItemKind.Keyword, "关键字"));
+                if (context.declaration is AbstractClass)
+                    infos.Add(new CompletionInfo(KeyWords.BASE, CompletionItemKind.Keyword, "关键字"));
+            }
+            infos.Add(new CompletionInfo(KeyWords.TRUE, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.FALSE, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.NULL, CompletionItemKind.Keyword, "关键字"));
+        }
+        public static void CollectRelationKeyword(List<CompletionInfo> infos)
+        {
+            infos.Add(new CompletionInfo(KeyWords.GLOBAL, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.VAR, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.IS, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.AS, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.AND, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.OR, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.START, CompletionItemKind.Keyword, "关键字"));
+            infos.Add(new CompletionInfo(KeyWords.NEW, CompletionItemKind.Keyword, "关键字"));
+
         }
         public static void CollectChildrenSpaces(List<CompletionInfo> infos, AbstractSpace space)
         {
@@ -590,11 +654,16 @@ namespace RainLanguageServer.RainLanguage
                 CollectChildrenSpaces(infos, index);
             foreach (var item in manager.imports)
                 infos.Add(new CompletionInfo(item, CompletionItemKind.Module, "命名空间"));
+            if (infos.FindIndex(value => value.lable == "kernel") < 0)
+                infos.Add(new CompletionInfo("kernel", CompletionItemKind.Module, "核心库"));
         }
         private static void AddDeclaration(Manager manager, List<CompletionInfo> infos, Declaration declaration, CompletionItemKind kind)
         {
             if (manager.TryGetDeclaration(declaration, out var abstractDeclaration))
-                infos.Add(new CompletionInfo(abstractDeclaration.name.ToString(), kind, abstractDeclaration.CodeInfo(manager)));
+                if (abstractDeclaration is AbstractVariable variable && variable.isReadonly)
+                    infos.Add(new CompletionInfo(abstractDeclaration.name.ToString(), CompletionItemKind.Value, abstractDeclaration.CodeInfo(manager)));
+                else
+                    infos.Add(new CompletionInfo(abstractDeclaration.name.ToString(), kind, abstractDeclaration.CodeInfo(manager)));
         }
         private static bool Contain(this CompletionFilter filter, CompletionFilter other)
         {
@@ -611,7 +680,7 @@ namespace RainLanguageServer.RainLanguage
                             case DeclarationCategory.Variable:
                                 if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Variable);
                                 break;
-                            case DeclarationCategory.Function:
+                            case DeclarationCategory.Function://todo 过滤运算符重载
                                 if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
                                 break;
                             case DeclarationCategory.Enum:
@@ -664,6 +733,7 @@ namespace RainLanguageServer.RainLanguage
                 CollectSpaceDeclarations(manager, infos, rely, context, filter);
             for (var index = context.space; index != null; index = index.parent)
                 CollectSpaceDeclarations(manager, infos, index, context, filter);
+            if (filter.Contain(CompletionFilter.Define)) CollectBaseType(infos);
         }
         private static void Completion(Manager manager, Context context, List<TextRange> ranges, TextPosition position, List<CompletionInfo> infos, CompletionFilter filter)
         {

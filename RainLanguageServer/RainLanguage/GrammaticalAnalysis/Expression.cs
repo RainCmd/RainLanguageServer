@@ -89,10 +89,20 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             return result;
         }
 
-        public void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
+        protected virtual bool InternalCompletion(Manager manager, TextPosition position, List<CompletionInfo> infos)
         {
-            //todo 代码完成
+            if (ManagerOperator.TryGetContext(manager, position, out var context))
+            {
+                snapshoot.Completion(manager, context.space, infos);
+                InfoUtility.CollectValueKeyword(context, infos);
+                InfoUtility.CollectDeclarations(manager, infos, context, CompletionFilter.All);
+                InfoUtility.CollectSpaces(manager, infos, context.space, context.relies);
+                InfoUtility.CollectCtrlKeyword(infos);
+                InfoUtility.CollectRelationKeyword(infos);
+            }
+            return default;
         }
+        public void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Operator(position, value => InternalCompletion(manager, position, infos));
         protected virtual void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos) { }
         public void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => Operator(expression => expression.InternalCollectInlayHint(manager, infos));
     }

@@ -1,8 +1,9 @@
 ﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
-    internal readonly struct Local(bool parameter, TextRange range, Type type)
+    internal readonly struct Local(bool parameter, string name, TextRange range, Type type)
     {
         public readonly bool parameter = parameter;
+        public readonly string name = name;
         public readonly TextRange range = range;
         public readonly Type type = type;
         public readonly HashSet<TextRange> read = [];
@@ -15,10 +16,15 @@
         public LocalContextSnapshoot AddLocal(Local local)
         {
             var result = new LocalContextSnapshoot(this);
-            var name = local.range.ToString();
-            result.RemoveAll(value => value.range == name);
+            result.RemoveAll(value => value.name == local.name);
             result.Add(local);
             return result;
+        }
+        public void Completion(Manager manager, AbstractSpace space, List<CompletionInfo> infos)
+        {
+            foreach (var local in this)
+                if (local.name != KeyWords.THIS && local.name != KeyWords.BASE)
+                    infos.Add(new CompletionInfo(local.name, LanguageServer.Parameters.TextDocument.CompletionItemKind.Variable, local.type.Info(manager, space)));
         }
     }
     internal class LocalContext
@@ -40,8 +46,8 @@
             this.collector = collector;
             thisValue = Add(true, KeyWords.THIS, declaration.name, declaration.declaration.DefineType);
             foreach (var local in locals)
-                if (local.range != KeyWords.DISCARD_VARIABLE)
-                    localStack[^1][local.range.ToString()] = local;
+                if (local.name != KeyWords.DISCARD_VARIABLE)
+                    localStack[^1][local.name] = local;
             snapshoot.Push([.. localStack[^1].Values]);
         }
         public void PushBlock()
@@ -58,7 +64,7 @@
 
         public Local Add(bool parameter, string name, TextRange range, Type type)
         {
-            var local = new Local(parameter, range, type);
+            var local = new Local(parameter, name, range, type);
             if (name != KeyWords.DISCARD_VARIABLE)
             {
                 if (TryGetLocal(name, out var overrideLocal))
