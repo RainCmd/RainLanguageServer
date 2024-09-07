@@ -50,8 +50,6 @@ namespace RainLanguageServer.RainLanguage
         private readonly Func<string, TextDocument[]> relyLoader;
         private readonly Func<IEnumerable<TextDocument>> documentLoader;
         private readonly Func<IEnumerable<TextDocument>> opendDocumentLoader;
-        private readonly HashSet<AbstractDeclaration> set = [];
-        private readonly Queue<AbstractInterface> interfaceQueue = [];
         public Manager(string name, string kernelPath, string[]? imports, Func<string, TextDocument[]> relyLoader, Func<IEnumerable<TextDocument>> documentLoader, Func<IEnumerable<TextDocument>> opendDocumentLoader)
         {
             library = new AbstractLibrary(LIBRARY_SELF, name);
@@ -108,7 +106,7 @@ namespace RainLanguageServer.RainLanguage
         }
         public IEnumerable<AbstractClass> GetInheritIterator(AbstractClass? abstractClass)
         {
-            set.Clear();
+            var set = new HashSet<AbstractDeclaration>();
             while (abstractClass != null)
             {
                 if (!set.Add(abstractClass)) break;
@@ -124,8 +122,8 @@ namespace RainLanguageServer.RainLanguage
         {
             if (abstractInterface != null)
             {
-                set.Clear();
-                interfaceQueue.Clear();
+                var set = new HashSet<AbstractDeclaration>();
+                var interfaceQueue = new Queue<AbstractInterface>();
                 interfaceQueue.Enqueue(abstractInterface);
                 while (interfaceQueue.Count > 0)
                 {
@@ -140,7 +138,7 @@ namespace RainLanguageServer.RainLanguage
                 }
             }
         }
-        private int InternalGetInterfaceInheritDeep(Type baseType, Type subType)
+        private int InternalGetInterfaceInheritDeep(Type baseType, Type subType, HashSet<AbstractDeclaration> set)
         {
             if (baseType == subType) return 0;
             if (TryGetDeclaration(subType, out var declaration) && set.Add(declaration) && declaration is AbstractInterface abstractInterface)
@@ -156,11 +154,7 @@ namespace RainLanguageServer.RainLanguage
             }
             return -1;
         }
-        public int GetInterfaceInheritDeep(Type baseType, Type subType)
-        {
-            set.Clear();
-            return InternalGetInterfaceInheritDeep(baseType, subType);
-        }
+        public int GetInterfaceInheritDeep(Type baseType, Type subType) => InternalGetInterfaceInheritDeep(baseType, subType, []);
         public bool TryGetDeclaration(Type type, [MaybeNullWhen(false)] out AbstractDeclaration declaration)
         {
             if (type.code == TypeCode.Invalid)
