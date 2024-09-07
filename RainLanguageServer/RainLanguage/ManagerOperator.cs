@@ -363,35 +363,7 @@ namespace RainLanguageServer.RainLanguage
                                         }
                                     return true;
                                 }
-                            var line = textPosition.Line;
-                            if (Lexical.TryAnalysis(line, 0, out var lexical, null))
-                            {
-                                if (lexical.anchor.Contain(textPosition))
-                                {
-                                    infos.Add(new CompletionInfo(KeyWords.IMPORT, CompletionItemKind.Keyword, "关键字"));
-                                    infos.Add(new CompletionInfo(KeyWords.NAMESPACE, CompletionItemKind.Keyword, "关键字"));
-                                    InfoUtility.CollectAccessKeyword(infos);
-                                    InfoUtility.CollectDefineKeyword(infos);
-                                    InfoUtility.CollectSpaces(manager, infos, context.space, context.relies);
-                                    InfoUtility.CollectDeclarations(manager, infos, context, true);
-                                }
-                                else if (IsAccessKeyword(lexical.anchor.ToString()))
-                                {
-                                    if (Lexical.TryAnalysis(line, lexical.anchor.end, out lexical, null))
-                                    {
-                                        if (lexical.anchor.Contain(textPosition))
-                                        {
-                                            InfoUtility.CollectDefineKeyword(infos);
-                                            InfoUtility.CollectSpaces(manager, infos, context.space, context.relies);
-                                            InfoUtility.CollectDeclarations(manager, infos, context, true);
-                                        }
-                                        else if (!IsDefineKeyword(lexical.anchor.ToString()) && Lexical.TryExtractName(line, lexical.anchor.end, out var names, null))
-                                            InfoUtility.Completion(manager, context, names, textPosition, infos, true);
-                                    }
-                                }
-                                else if (!IsDefineKeyword(lexical.anchor.ToString()) && Lexical.TryExtractName(line, lexical.anchor.end, out var names, null))
-                                    InfoUtility.Completion(manager, context, names, textPosition, infos, true);
-                            }
+                            InfoUtility.Completion(manager, context, textPosition.Line, textPosition, infos, true, true, true);
                             return default;
                         },
                         fileDeclaration =>

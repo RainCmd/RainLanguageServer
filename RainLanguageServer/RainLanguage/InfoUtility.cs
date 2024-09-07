@@ -40,6 +40,13 @@ namespace RainLanguageServer.RainLanguage
 
         Operator,
     }
+    internal enum CompletionFilter
+    {
+        Interface = 0x1,
+        Class = 0x2,
+        Define = 0x4 | Interface | Class,
+        All = 0x8 | Define,
+    }
     internal static class InfoUtility
     {
         public static string MakedownCode(this string code)
@@ -589,7 +596,11 @@ namespace RainLanguageServer.RainLanguage
             if (manager.TryGetDeclaration(declaration, out var abstractDeclaration))
                 infos.Add(new CompletionInfo(abstractDeclaration.name.ToString(), kind, abstractDeclaration.CodeInfo(manager)));
         }
-        public static void CollectSpaceDeclarations(Manager manager, List<CompletionInfo> infos, AbstractSpace space, Context context, bool onlyDefine)
+        private static bool Contain(this CompletionFilter filter, CompletionFilter other)
+        {
+            return (filter & other) != 0;
+        }
+        public static void CollectSpaceDeclarations(Manager manager, List<CompletionInfo> infos, AbstractSpace space, Context context, CompletionFilter filter)
         {
             foreach (var declarations in space.declarations.Values)
                 foreach (var declaration in declarations)
@@ -598,84 +609,142 @@ namespace RainLanguageServer.RainLanguage
                         {
                             case DeclarationCategory.Invalid: break;
                             case DeclarationCategory.Variable:
-                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Variable);
+                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Variable);
                                 break;
                             case DeclarationCategory.Function:
-                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
+                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
                                 break;
                             case DeclarationCategory.Enum:
-                                AddDeclaration(manager, infos, declaration, CompletionItemKind.Enum);
+                                if (filter.Contain(CompletionFilter.Define)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Enum);
                                 break;
                             case DeclarationCategory.EnumElement:
-                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.EnumMember);
+                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.EnumMember);
                                 break;
                             case DeclarationCategory.Struct:
-                                AddDeclaration(manager, infos, declaration, CompletionItemKind.Struct);
+                                if (filter.Contain(CompletionFilter.Define)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Struct);
                                 break;
                             case DeclarationCategory.StructVariable:
-                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
+                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
                                 break;
                             case DeclarationCategory.StructFunction:
-                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
+                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
                                 break;
                             case DeclarationCategory.Class:
-                                AddDeclaration(manager, infos, declaration, CompletionItemKind.Class);
+                                if (filter.Contain(CompletionFilter.Class)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Class);
                                 break;
                             case DeclarationCategory.Constructor:
-                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Constructor);
+                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Constructor);
                                 break;
                             case DeclarationCategory.ClassVariable:
-                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
+                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Field);
                                 break;
                             case DeclarationCategory.ClassFunction:
-                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
+                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
                                 break;
                             case DeclarationCategory.Interface:
-                                AddDeclaration(manager, infos, declaration, CompletionItemKind.Interface);
+                                if (filter.Contain(CompletionFilter.Interface)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Interface);
                                 break;
                             case DeclarationCategory.InterfaceFunction:
-                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
+                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Method);
                                 break;
                             case DeclarationCategory.Delegate:
-                                AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
+                                if (filter.Contain(CompletionFilter.Define)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
                                 break;
                             case DeclarationCategory.Task:
-                                AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
+                                if (filter.Contain(CompletionFilter.Define)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Event);
                                 break;
                             case DeclarationCategory.Native:
-                                if (!onlyDefine) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
+                                if (filter.Contain(CompletionFilter.All)) AddDeclaration(manager, infos, declaration, CompletionItemKind.Function);
                                 break;
                         }
         }
-        public static void CollectDeclarations(Manager manager, List<CompletionInfo> infos, Context context, bool onlyDefine)
+        public static void CollectDeclarations(Manager manager, List<CompletionInfo> infos, Context context, CompletionFilter filter)
         {
             foreach (var rely in context.relies)
-                CollectSpaceDeclarations(manager, infos, rely, context, onlyDefine);
+                CollectSpaceDeclarations(manager, infos, rely, context, filter);
             for (var index = context.space; index != null; index = index.parent)
-                CollectSpaceDeclarations(manager, infos, index, context, onlyDefine);
+                CollectSpaceDeclarations(manager, infos, index, context, filter);
         }
-        public static void Completion(Manager manager, Context context, List<TextRange> ranges, TextPosition position, List<CompletionInfo> infos, bool onlyDefine)
+        private static void Completion(Manager manager, Context context, List<TextRange> ranges, TextPosition position, List<CompletionInfo> infos, CompletionFilter filter)
         {
             if (ranges[0].Contain(position))
             {
                 CollectSpaces(manager, infos, context.space, context.relies);
-                CollectDeclarations(manager, infos, context, onlyDefine);
+                CollectDeclarations(manager, infos, context, filter);
             }
             else if (context.TryFindSpace(manager, ranges[0], out var space, null))
                 for (var i = 1; i < ranges.Count; i++)
                     if ((ranges[i - 1].end & ranges[i].end).Contain(position))
                     {
                         CollectChildrenSpaces(infos, space);
-                        CollectSpaceDeclarations(manager, infos, space, context, onlyDefine);
+                        CollectSpaceDeclarations(manager, infos, space, context, filter);
                     }
                     else if (!space.children.TryGetValue(ranges[i].ToString(), out space)) return;
+        }
+        private static bool IsAccessKeyword(string value)
+        {
+            if (value == KeyWords.PUBLIC) return true;
+            if (value == KeyWords.INTERNAL) return true;
+            if (value == KeyWords.SPACE) return true;
+            if (value == KeyWords.PROTECTED) return true;
+            if (value == KeyWords.PRIVATE) return true;
+            return false;
+        }
+        public static void Completion(Manager manager, Context context, TextRange range, TextPosition position, List<CompletionInfo> infos, bool accessKeyword = false, bool defineKeyword = false, bool namespaceKeyword = false)
+        {
+            if (accessKeyword || namespaceKeyword)
+            {
+                if (Lexical.TryAnalysis(range, 0, out var lexical, null))
+                {
+                    if (lexical.anchor.Contain(position))
+                    {
+                        if (namespaceKeyword)
+                        {
+                            infos.Add(new CompletionInfo(KeyWords.IMPORT, CompletionItemKind.Keyword, "关键字"));
+                            infos.Add(new CompletionInfo(KeyWords.NAMESPACE, CompletionItemKind.Keyword, "关键字"));
+                        }
+                        CollectAccessKeyword(infos);
+                        CollectDefineKeyword(infos);
+                        CollectSpaces(manager, infos, context.space, context.relies);
+                        CollectDeclarations(manager, infos, context, CompletionFilter.Define);
+                        return;
+                    }
+                    else if (IsAccessKeyword(lexical.anchor.ToString())) range = lexical.anchor.end & range.end;
+                }
+                else return;
+            }
+            if (defineKeyword)
+            {
+                if (Lexical.TryAnalysis(range, 0, out var lexical, null))
+                {
+                    if (lexical.anchor.Contain(position))
+                    {
+                        CollectDefineKeyword(infos);
+                        CollectSpaces(manager, infos, context.space, context.relies);
+                        CollectDeclarations(manager, infos, context, CompletionFilter.Define);
+                        return;
+                    }
+                }
+                else return;
+            }
+            while (Lexical.TryExtractName(range, 0, out var names, null))
+            {
+                if ((names[0].start & names[^1].end).Contain(position))
+                {
+                    Completion(manager, context, names, position, infos, CompletionFilter.Define);
+                    return;
+                }
+                if (Lexical.TryAnalysis(range, names[^1].end, out var lexical, null) && (lexical.type == LexicalType.Comma || lexical.type == LexicalType.Semicolon))
+                    range = lexical.anchor.end & range.end;
+                else return;
+            }
         }
         public static void Completion(this FileType fileType, Manager manager, TextPosition position, List<CompletionInfo> infos)
         {
             if (ManagerOperator.TryGetContext(manager, position, out var context))
             {
                 var ranges = new List<TextRange>(fileType.name.qualify) { fileType.name.name };
-                Completion(manager, context, ranges, position, infos, true);
+                Completion(manager, context, ranges, position, infos, CompletionFilter.Define);
             }
         }
 

@@ -624,7 +624,8 @@ namespace RainLanguageServer.RainLanguage
                     member.Completion(manager, position, infos);
                     return;
                 }
-            //todo 一些解析失败的成员定义
+            var context = new Context(fileStruct.space.document, space, fileStruct.space.relies, this);
+            InfoUtility.Completion(manager, context, position.Line, position, infos, true);
         }
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
@@ -735,7 +736,8 @@ namespace RainLanguageServer.RainLanguage
                     function.Completion(manager, position, infos);
                     return;
                 }
-            //todo 一些解析失败的成员定义
+            var context = new Context(fileInterface.space.document, space, fileInterface.space.relies, this);
+            InfoUtility.Completion(manager, context, position.Line, position, infos);
         }
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
@@ -1119,7 +1121,8 @@ namespace RainLanguageServer.RainLanguage
                     statement.Completion(manager, position, infos);
                     return;
                 }
-            //todo 一些解析失败的成员定义
+            var context = new Context(fileClass.space.document, space, fileClass.space.relies, this);
+            InfoUtility.Completion(manager, context, position.Line, position, infos, true);
         }
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
