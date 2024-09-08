@@ -295,7 +295,7 @@
                     info = local.Hover(manager, position);
                     return true;
                 }
-            if(symbol.Contain(position))
+            if (symbol.Contain(position))
             {
                 info = new HoverInfo(symbol, tuple[0].CodeInfo(manager, ManagerOperator.GetSpace(manager, position)), true);
                 return true;
@@ -352,12 +352,18 @@
 
         protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
         {
-            foreach(var local in parmeters)
-                if(local.range.Contain(position))
+            foreach (var local in parmeters)
+                if (local.range.Contain(position))
                 {
                     local.Rename(ranges);
                     return;
                 }
+        }
+
+        protected override void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos)
+        {
+            foreach (var local in parmeters)
+                infos.Add(new InlayHintInfo($"{local.type.Info(manager, ManagerOperator.GetSpace(manager, local.range.start))} ", local.range.start, InlayHintInfo.Kind.Type));
         }
     }
 }
