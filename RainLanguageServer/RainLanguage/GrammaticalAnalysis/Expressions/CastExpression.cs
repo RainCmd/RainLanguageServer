@@ -239,6 +239,11 @@
             source.CollectSemanticToken(manager, collector);
             type.CollectSemanticToken(manager, collector);
         }
+
+        protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (identifier != null && identifier.Value.Contain(position) && local != null) local.Value.Rename(ranges);
+        }
     }
     internal class AsCastExpression : Expression
     {

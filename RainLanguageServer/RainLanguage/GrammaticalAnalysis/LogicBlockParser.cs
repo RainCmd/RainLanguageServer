@@ -583,8 +583,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             var context = new Context(callable.file.space.document, callable.space, callable.file.space.relies, declaration);
             var localContext = new LocalContext(callable.file.space.collector, declaration);
             foreach (var parameter in callable.parameters)
-                if (parameter.name != null)
-                    logicBlock.parameters.Add(localContext.Add(parameter.name.Value, parameter.type, true));
+                logicBlock.parameters.Add(localContext.Add(parameter.name, parameter.type, true));
 
             var parser = new LogicBlockParser(manager, callable.name, context, localContext, callable.returns, body, callable.file.space.collector, false, logicBlock);
             parser.Parse();

@@ -89,6 +89,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             return result;
         }
 
+        protected virtual void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges) { }
+        public void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges) => Operator(position, value => { value.InternalRename(manager, position, ranges); return default; });
         protected virtual bool InternalCompletion(Manager manager, TextPosition position, List<CompletionInfo> infos)
         {
             if (ManagerOperator.TryGetContext(manager, position, out var context))

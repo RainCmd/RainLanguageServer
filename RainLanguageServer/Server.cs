@@ -114,7 +114,26 @@ namespace RainLanguageServer
             }
             return Result<SignatureHelp, ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
         }
-
+        protected override Result<WorkspaceEdit, ResponseError> Rename(RenameParams param, CancellationToken token)
+        {
+            if (manager != null)
+            {
+                if (ManagerOperator.TryRename(manager, param.textDocument.uri, param.position, out var ranges))
+                {
+                    var result = new WorkspaceEdit() { changes = [] };
+                    var changes = new Dictionary<TextDocument, List<TextEdit>>();
+                    foreach (var range in ranges)
+                    {
+                        if (!changes.TryGetValue(range.start.document, out var edits)) changes.Add(range.start.document, edits = []);
+                        edits.Add(new TextEdit(TR2R(range), param.newName));
+                    }
+                    foreach (var change in changes)
+                        result.changes.Add(new Uri(change.Key.path), [.. change.Value]);
+                    return Result<WorkspaceEdit, ResponseError>.Success(result);
+                }
+            }
+            return Result<WorkspaceEdit, ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
+        }
         protected override Result<Location[], ResponseError> FindReferences(ReferenceParams param, CancellationToken token)
         {
             if (manager != null && ManagerOperator.FindReferences(manager, param.textDocument.uri, param.position, out var result))
@@ -238,6 +257,8 @@ namespace RainLanguageServer
                         var info = infos[i];
                         var line = info.position.Line;
                         results[i] = new InlayHintResult(new Position(line.line, info.position.charactor - line.start.charactor), info.label);
+                        if (info.kind != null)
+                            results[i].kind = (long)info.kind.Value;
                         if (info.tooltip != null)
                             results[i].tooltip = info.tooltip.Value.GetDocumentation();
                     }

@@ -310,25 +310,35 @@ namespace RainLanguageServer.RainLanguage
             return false;
         }
 
-        private static bool IsAccessKeyword(string value)
+        public static bool TryRename(Manager manager, DocumentUri uri, Position position, [MaybeNullWhen(false)] out HashSet<TextRange> edits)
         {
-            if (value == KeyWords.PUBLIC) return true;
-            if (value == KeyWords.INTERNAL) return true;
-            if (value == KeyWords.SPACE) return true;
-            if (value == KeyWords.PROTECTED) return true;
-            if (value == KeyWords.PRIVATE) return true;
+            lock (manager)
+                if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition) && space.space.Library.library == Manager.LIBRARY_SELF)
+                {
+                    var result = new HashSet<TextRange>();
+                    if (FileSpaceOperator(space, textPosition, fileSpace =>
+                    {
+                        if (fileSpace.name != null && fileSpace.name.Value.Contain(textPosition))
+                        {
+                            result.AddRange(fileSpace.space.references);
+                            return true;
+                        }
+                        return false;
+                    },
+                        fileDeclaration =>
+                        {
+                            fileDeclaration.abstractDeclaration?.Rename(manager, textPosition, result);
+                            return true;
+                        }))
+                    {
+                        edits = result;
+                        return true;
+                    }
+                }
+            edits = default;
             return false;
         }
-        private static bool IsDefineKeyword(string value)
-        {
-            if (value == KeyWords.ENUM) return true;
-            if (value == KeyWords.STRUCT) return true;
-            if (value == KeyWords.INTERFACE) return true;
-            if (value == KeyWords.CLASS) return true;
-            if (value == KeyWords.DELEGATE) return true;
-            if (value == KeyWords.TASK) return true;
-            return false;
-        }
+
         public static void Completion(Manager manager, DocumentUri uri, Position position, List<CompletionInfo> infos)
         {
             lock (manager)

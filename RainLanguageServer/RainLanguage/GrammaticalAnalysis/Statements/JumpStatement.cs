@@ -34,7 +34,7 @@
         protected override void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
             if (condition == null)
-                infos.Add(new InlayHintInfo($" {KeyWords.TRUE}", symbol.end));
+                infos.Add(new InlayHintInfo($" {KeyWords.TRUE}", symbol.end, InlayHintInfo.Kind.Paramter));
         }
     }
     internal class BreakStatement(TextRange symbol, Expression? condition) : JumpStatement(symbol, condition) { }

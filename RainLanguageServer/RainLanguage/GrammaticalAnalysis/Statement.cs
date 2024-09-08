@@ -72,6 +72,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             return false;
         }
 
+        public void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges) => Operator(position, (Expression value) => { value.Rename(manager, position, ranges); return default; });
         protected virtual void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos) { }
         public void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {

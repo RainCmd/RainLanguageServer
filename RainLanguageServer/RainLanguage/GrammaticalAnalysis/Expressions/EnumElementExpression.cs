@@ -92,5 +92,10 @@
             collector.Add(DetailTokenType.Operator, symbol);
             collector.Add(DetailTokenType.MemberElement, symbol);
         }
+
+        protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (identifier.Contain(position)) InfoUtility.Rename(element, ranges);
+        }
     }
 }

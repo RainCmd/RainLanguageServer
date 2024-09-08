@@ -34,7 +34,7 @@
         protected override void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
             if (expression == null)
-                infos.Add(new InlayHintInfo(" 1", symbol.end));
+                infos.Add(new InlayHintInfo(" 1", symbol.end, InlayHintInfo.Kind.Paramter));
         }
     }
 }

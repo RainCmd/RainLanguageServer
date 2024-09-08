@@ -6,11 +6,11 @@
         public readonly QualifiedName name = name;
         public readonly int dimension = dimension;
     }
-    internal class FileParameter(FileType type, TextRange? name)
+    internal class FileParameter(FileType type, TextRange name)
     {
-        public readonly TextRange range = name == null ? type.range : type.range & name.Value;
+        public readonly TextRange range = type.range & name;
         public readonly FileType type = type;
-        public readonly TextRange? name = name;
+        public readonly TextRange name = name;
     }
     internal class FileDeclaration(FileSpace space, Visibility visibility, TextRange name)
     {

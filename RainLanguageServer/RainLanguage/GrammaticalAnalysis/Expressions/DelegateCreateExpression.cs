@@ -70,6 +70,12 @@
             collector.AddNamespace(name);
             collector.Add(DetailTokenType.GlobalFunction, name.name);
         }
+
+        protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (name.name.Contain(position)) InfoUtility.Rename(callable, ranges);
+            else InfoUtility.Rename(name.qualify, position, ManagerOperator.GetSpace(manager, position), ranges);
+        }
     }
     internal class MemberFunctionDelegateCreateExpression(TextRange range, Type type, LocalContextSnapshoot snapshoot, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, snapshoot, callable, manager)
     {
@@ -151,6 +157,11 @@
             target?.CollectSemanticToken(manager, collector);
             if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
             collector.Add(DetailTokenType.MemberFunction, member);
+        }
+
+        protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (member.Contain(position)) InfoUtility.Rename(callable, ranges);
         }
     }
     internal class VirtualFunctionDelegateCreateExpression(TextRange range, Type type, LocalContextSnapshoot snapshoot, AbstractCallable callable, Manager.KernelManager manager, Expression? target, TextRange? symbol, TextRange member) : DelegateCreateExpression(range, type, snapshoot, callable, manager)
@@ -246,6 +257,11 @@
             if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
             collector.Add(DetailTokenType.MemberFunction, member);
         }
+
+        protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (member.Contain(position)) InfoUtility.Rename(callable, ranges);
+        }
     }
     internal class LambdaDelegateCreateExpression(TextRange range, Type type, LocalContextSnapshoot snapshoot, AbstractCallable callable, Manager.KernelManager manager, List<Local> parmeters, TextRange symbol, Expression body) : DelegateCreateExpression(range, type, snapshoot, callable, manager)
     {
@@ -332,6 +348,16 @@
                 collector.Add(DetailTokenType.Local, local.range);
             collector.Add(DetailTokenType.Operator, symbol);
             body.CollectSemanticToken(manager, collector);
+        }
+
+        protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            foreach(var local in parmeters)
+                if(local.range.Contain(position))
+                {
+                    local.Rename(ranges);
+                    return;
+                }
         }
     }
 }

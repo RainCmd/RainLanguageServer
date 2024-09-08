@@ -46,7 +46,7 @@
                 if (index + 4 < range.Count)
                 {
                     var value = 0;
-                    for (int i = 0;i<4;i++)
+                    for (int i = 0; i < 4; i++)
                     {
                         value <<= 4;
                         if (range[index + i + 1].TryToHexNumber(out var number)) value += number;
@@ -73,6 +73,14 @@
         public static void AddRange<T>(this HashSet<T> set, IEnumerable<T> values)
         {
             foreach (var value in values) set.Add(value);
+        }
+        public static void RemoveAll<T>(this HashSet<T> set, Predicate<T> match)
+        {
+            var list = new List<T>();
+            foreach (var item in set)
+                if (match(item)) list.Add(item);
+            foreach (var item in list)
+                set.Remove(item);
         }
         public static void Add<TKey, TElement>(this Dictionary<TKey, List<TElement>> dictionary, TKey key, TElement element) where TKey : notnull
         {

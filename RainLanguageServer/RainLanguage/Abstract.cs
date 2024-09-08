@@ -1,6 +1,7 @@
 ﻿using LanguageServer.Parameters.TextDocument;
 using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
 using System.Diagnostics.CodeAnalysis;
+using System.Security.AccessControl;
 using System.Text;
 
 namespace RainLanguageServer.RainLanguage
@@ -58,6 +59,7 @@ namespace RainLanguageServer.RainLanguage
             parameterIndex = 0;
             return false;
         }
+        public abstract void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges);
         public virtual void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) { }
         public virtual void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) { }
     }
@@ -130,6 +132,12 @@ namespace RainLanguageServer.RainLanguage
             if (expression != null) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
+        public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+            else if (fileVariable.type.Rename(manager, position, type, ranges)) return;
+            else if (expression != null && expression.range.Contain(position)) expression.Rename(manager, position, ranges);
+        }
         public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
         {
             if (fileVariable.type.range.Contain(position)) fileVariable.type.Completion(manager, position, infos);
@@ -139,10 +147,10 @@ namespace RainLanguageServer.RainLanguage
     }
     internal abstract class AbstractCallable : AbstractDeclaration
     {
-        internal readonly struct Parameter(Type type, TextRange? name)
+        internal readonly struct Parameter(Type type, TextRange name)
         {
             public readonly Type type = type;
-            public readonly TextRange? name = name;
+            public readonly TextRange name = name;
         }
         public readonly List<Parameter> parameters;
         public readonly Tuple signature;
@@ -172,7 +180,7 @@ namespace RainLanguageServer.RainLanguage
                 {
                     var parameter = parameters[i];
                     if (parameter.type.OnHover(manager, position, signature[i], space, out info)) return true;
-                    else if (IsSelf && parameter.name != null && parameter.name.Value.Contain(position))
+                    else if (IsSelf && parameter.name.Contain(position))
                     {
                         var sb = new StringBuilder();
                         sb.Append("(参数)");
@@ -201,10 +209,10 @@ namespace RainLanguageServer.RainLanguage
                 {
                     var parameter = parameters[i];
                     if (parameter.type.OnHighlight(manager, position, signature[i], infos)) return true;
-                    else if (IsSelf && parameter.name != null && parameter.name.Value.Contain(position))
+                    else if (IsSelf && parameter.name.Contain(position))
                     {
                         if (block != null) block.parameters[i].OnHighlight(infos);
-                        else infos.Add(new HighlightInfo(parameter.name.Value, DocumentHighlightKind.Text));
+                        else infos.Add(new HighlightInfo(parameter.name, DocumentHighlightKind.Text));
                         return true;
                     }
                 }
@@ -225,9 +233,9 @@ namespace RainLanguageServer.RainLanguage
                 {
                     var parameter = parameters[i];
                     if (parameter.type.TryGetDefinition(manager, position, signature[i], out definition)) return true;
-                    else if (IsSelf && parameter.name != null && parameter.name.Value.Contain(position))
+                    else if (IsSelf && parameter.name.Contain(position))
                     {
-                        definition = parameter.name.Value;
+                        definition = parameter.name;
                         return true;
                     }
                 }
@@ -248,7 +256,7 @@ namespace RainLanguageServer.RainLanguage
                 {
                     var parameter = parameters[i];
                     if (parameter.type.FindReferences(manager, position, signature[i], references)) return true;
-                    else if (parameter.name != null && parameter.name.Value.Contain(position))
+                    else if (parameter.name.Contain(position))
                     {
                         block?.parameters[i].FindReferences(references);
                         return true;
@@ -268,17 +276,41 @@ namespace RainLanguageServer.RainLanguage
             {
                 collector.AddType(parameters[i].type, manager, signature[i]);
                 var name = parameters[i].name;
-                if (IsSelf && name != null)
+                if (IsSelf && name.Count > 0)
                 {
                     if (block != null && block.parameters[i].write.Count == 0)
-                        collector.Add(DetailTokenType.DeprecatedLocal, name.Value);
+                        collector.Add(DetailTokenType.DeprecatedLocal, name);
                     else
-                        collector.Add(DetailTokenType.Parameter, name.Value);
+                        collector.Add(DetailTokenType.Parameter, name);
                 }
             }
             if (IsSelf && block != null)
                 foreach (var statement in block.statements)
                     statement.CollectSemanticToken(manager, collector);
+        }
+        protected void Rename(Manager manager, TextPosition position, List<FileType> returns, List<FileParameter> parameters, LogicBlock? block, HashSet<TextRange> ranges)
+        {
+            for (var i = 0; i < returns.Count; i++)
+                if (returns[i].Rename(manager, position, this.returns[i], ranges))
+                    return;
+            for (var i = 0; i < parameters.Count; i++)
+                if (parameters[i].range.Contain(position))
+                {
+                    var parameter = parameters[i];
+                    if (parameter.type.Rename(manager, position, signature[i], ranges)) return;
+                    else if (IsSelf && parameter.name.Contain(position))
+                    {
+                        block?.parameters[i].Rename(ranges);
+                        return;
+                    }
+                }
+            if (IsSelf && block != null)
+                foreach (var statement in block.statements)
+                    if (statement.range.Contain(position))
+                    {
+                        statement.Rename(manager, position, ranges);
+                        return;
+                    }
         }
         protected static void Completion(Manager manager, TextPosition position, List<FileType> returns, List<FileParameter> parameters, LogicBlock? block, List<CompletionInfo> infos)
         {
@@ -323,6 +355,11 @@ namespace RainLanguageServer.RainLanguage
                 if (statement.range.Contain(position))
                     return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+        }
+        public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+            else Rename(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, ranges);
         }
         public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
@@ -385,6 +422,11 @@ namespace RainLanguageServer.RainLanguage
                 if (expression != null && expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             }
+            public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+            {
+                if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+                else if (expression != null && expression.range.Contain(position)) expression.Rename(manager, position, ranges);
+            }
             public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
             {
                 if (expression != null) expression.Completion(manager, position, infos);
@@ -442,6 +484,16 @@ namespace RainLanguageServer.RainLanguage
                 if (element.file.range.Contain(position))
                     return element.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+        }
+        public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+            else foreach (var element in elements)
+                    if (element.file.range.Contain(position))
+                    {
+                        element.Rename(manager, position, ranges);
+                        return;
+                    }
         }
         public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
         {
@@ -506,6 +558,10 @@ namespace RainLanguageServer.RainLanguage
                 collector.AddType(fileVariable.type, manager, type);
                 collector.Add(DetailTokenType.MemberField, name);
             }
+            public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+            {
+                if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+            }
             public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
             {
                 if (fileVariable.type.range.Contain(position)) fileVariable.type.Completion(manager, position, infos);
@@ -537,6 +593,11 @@ namespace RainLanguageServer.RainLanguage
                     if (statement.range.Contain(position))
                         return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            }
+            public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+            {
+                if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+                else Rename(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, ranges);
             }
             public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
@@ -610,6 +671,25 @@ namespace RainLanguageServer.RainLanguage
                     return function.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
+        public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+            else
+            {
+                foreach (var member in variables)
+                    if (member.file.range.Contain(position))
+                    {
+                        member.Rename(manager, position, ranges);
+                        return;
+                    }
+                foreach (var member in functions)
+                    if (member.file.range.Contain(position))
+                    {
+                        member.Rename(manager, position, ranges);
+                        return;
+                    }
+            }
+        }
         public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
         {
             foreach (var member in variables)
@@ -657,6 +737,11 @@ namespace RainLanguageServer.RainLanguage
             {
                 collector.Add(DetailTokenType.MemberFunction, name);
                 CollectSemanticToken(manager, collector, fileFunction.returns, fileFunction.parameters, null);
+            }
+            public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+            {
+                if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+                else Rename(manager, position, fileFunction.returns, fileFunction.parameters, null, ranges);
             }
             public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.returns, fileFunction.parameters, null, infos);
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => infos.Add(new InlayHintInfo($"{KeyWords.PUBLIC} ", fileFunction.range.Trim.start));
@@ -721,6 +806,21 @@ namespace RainLanguageServer.RainLanguage
                 collector.AddType(fileInterface.inherits[i], manager, inherits[i]);
             foreach (var function in functions)
                 function.CollectSemanticToken(manager, collector);
+        }
+        public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+            else
+            {
+                for (int i = 0; i < fileInterface.inherits.Count; i++)
+                    if (fileInterface.inherits[i].Rename(manager, position, inherits[i], ranges)) return;
+                foreach (var member in functions)
+                    if (member.file.range.Contain(position))
+                    {
+                        member.Rename(manager, position, ranges);
+                        return;
+                    }
+            }
         }
         public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
         {
@@ -819,6 +919,12 @@ namespace RainLanguageServer.RainLanguage
                 if (expression != null && expression.range.Contain(position)) return expression.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             }
+            public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+            {
+                if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+                else if (fileVariable.type.Rename(manager, position, type, ranges)) return;
+                else if (expression != null && expression.range.Contain(position)) expression.Rename(manager, position, ranges);
+            }
             public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
             {
                 if (fileVariable.type.range.Contain(position)) fileVariable.type.Completion(manager, position, infos);
@@ -866,6 +972,20 @@ namespace RainLanguageServer.RainLanguage
                     if (statement.range.Contain(position))
                         return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            }
+            public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+            {
+                if (name.Contain(position))
+                {
+                    if (manager.TryGetDefineDeclaration(declaration, out var abstractDeclaration) && abstractDeclaration is AbstractClass abstractClass)
+                    {
+                        InfoUtility.Rename(abstractClass, ranges);
+                        foreach (var member in abstractClass.constructors)
+                            InfoUtility.Rename(member, ranges);
+                    }
+                }
+                else if (expression != null && expression.range.Contain(position)) expression.Rename(manager, position, ranges);
+                else Rename(manager, position, fileConstructor.returns, fileConstructor.parameters, logicBlock, ranges);
             }
             public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
             {
@@ -942,6 +1062,11 @@ namespace RainLanguageServer.RainLanguage
                     if (statement.range.Contain(position))
                         return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
                 return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
+            }
+            public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+            {
+                if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+                else Rename(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, ranges);
             }
             public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
@@ -1089,6 +1214,50 @@ namespace RainLanguageServer.RainLanguage
                     return statement.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
             return base.TrySignatureHelp(manager, position, out infos, out functionIndex, out parameterIndex);
         }
+        public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (name.Contain(position))
+            {
+                InfoUtility.Rename(this, ranges);
+                foreach (var member in constructors)
+                    InfoUtility.Rename(member, ranges);
+            }
+            else
+            {
+                for (var i = 0; i < fileClass.inherits.Count; i++)
+                    if (fileClass.inherits[i].range.Contain(position))
+                    {
+                        if (fileClass.inherits.Count == inherits.Count) fileClass.inherits[i].Rename(manager, position, inherits[i], ranges);
+                        else if (i > 0) fileClass.inherits[i].Rename(manager, position, inherits[i - 1], ranges);
+                        else fileClass.inherits[i].Rename(manager, position, parent, ranges);
+                        return;
+                    }
+                foreach (var member in variables)
+                    if (member.file.range.Contain(position))
+                    {
+                        member.Rename(manager, position, ranges);
+                        return;
+                    }
+                foreach (var member in constructors)
+                    if (member.file.range.Contain(position))
+                    {
+                        member.Rename(manager, position, ranges);
+                        return;
+                    }
+                foreach (var member in functions)
+                    if (member.file.range.Contain(position))
+                    {
+                        member.Rename(manager, position, ranges);
+                        return;
+                    }
+                foreach (var statement in descontructorLogicBlock.statements)
+                    if (statement.range.Contain(position))
+                    {
+                        statement.Rename(manager, position, ranges);
+                        return;
+                    }
+            }
+        }
         public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
         {
             foreach (var type in fileClass.inherits)
@@ -1168,6 +1337,11 @@ namespace RainLanguageServer.RainLanguage
             collector.Add(DetailTokenType.TypeDelegate, name);
             CollectSemanticToken(manager, collector, fileDelegate.returns, fileDelegate.parameters, null);
         }
+        public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+            else Rename(manager, position, fileDelegate.returns, fileDelegate.parameters, null, ranges);
+        }
         public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileDelegate.returns, fileDelegate.parameters, null, infos);
     }
     internal class AbstractTask(FileTask file, AbstractSpace space, TextRange name, Declaration declaration, Tuple returns)
@@ -1218,6 +1392,12 @@ namespace RainLanguageServer.RainLanguage
             for (var i = 0; i < returns.Count; i++)
                 collector.AddType(fileTask.returns[i], manager, returns[i]);
         }
+        public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+            else for (var i = 0; i < returns.Count; i++)
+                    if (fileTask.returns[i].Rename(manager, position, returns[i], ranges)) return;
+        }
         public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
         {
             foreach (var type in fileTask.returns)
@@ -1241,6 +1421,11 @@ namespace RainLanguageServer.RainLanguage
             collector.Add(DetailTokenType.NativeFunction, name);
             CollectSemanticToken(manager, collector, fileNative.returns, fileNative.parameters, null);
         }
+        public override void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (name.Contain(position)) InfoUtility.Rename(this, ranges);
+            else Rename(manager, position, fileNative.returns, fileNative.parameters, null, ranges);
+        }
         public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileNative.returns, fileNative.parameters, null, infos);
     }
     internal class AbstractSpace(AbstractSpace? parent, string name)
@@ -1262,6 +1447,15 @@ namespace RainLanguageServer.RainLanguage
                     name.Insert(0, index.name);
                 }
                 return name.ToString();
+            }
+        }
+        public AbstractLibrary Library
+        {
+            get
+            {
+                var index = this;
+                while (index.parent != null) index = index.parent;
+                return (AbstractLibrary)index;
             }
         }
         public AbstractSpace GetChild(string name)

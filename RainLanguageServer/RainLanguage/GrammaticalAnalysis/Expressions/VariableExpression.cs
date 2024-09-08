@@ -66,6 +66,11 @@
             else if (local.parameter) collector.Add(DetailTokenType.Parameter, identifier);
             else collector.Add(DetailTokenType.Local, identifier);
         }
+
+        protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (identifier.Contain(position)) local.Rename(ranges);
+        }
     }
     internal class VariableDeclarationLocalExpression(TextRange range, Local local, LocalContextSnapshoot snapshoot, TextRange identifier, TypeExpression typeExpression, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, snapshoot, identifier, attribute, manager)
     {
@@ -216,6 +221,12 @@
             else
                 collector.Add(DetailTokenType.GlobalVariable, name.name);
         }
+
+        protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (name.name.Contain(position)) InfoUtility.Rename(variable, ranges);
+            else InfoUtility.Rename(name.qualify, position, ManagerOperator.GetSpace(manager, position), ranges);
+        }
     }
     internal class VariableMemberExpression : Expression
     {
@@ -314,6 +325,11 @@
             target?.CollectSemanticToken(manager, collector);
             if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
             collector.Add(DetailTokenType.MemberField, identifier);
+        }
+
+        protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (!identifier.Contain(position)) InfoUtility.Rename(member, ranges);
         }
     }
 }

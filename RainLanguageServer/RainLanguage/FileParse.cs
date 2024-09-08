@@ -183,7 +183,7 @@ namespace RainLanguageServer.RainLanguage
                 position = qualifiedName.name.end;
                 var dimension = Lexical.ExtractDimension(segment, ref position);
                 var type = new FileType(qualifiedName.Range.start & position, qualifiedName, dimension);
-                var parameter = new FileParameter(type, null);
+                var parameter = new FileParameter(type, position & position);
             label_try_parse_name:
                 if (Lexical.TryAnalysis(segment, position, out lexical, collector))
                 {

@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Xml.Linq;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
 {
@@ -220,6 +221,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 return 0;
             }
         }
+
+        protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (name.name.Contain(position)) InfoUtility.Rename(callable, ranges);
+            else InfoUtility.Rename(name.qualify, position, ManagerOperator.GetSpace(manager, position), ranges);
+        }
     }
     internal class InvokerMemberExpression(TextRange range, Tuple tuple, LocalContextSnapshoot snapshoot, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerExpression(range, tuple, snapshoot, parameters, manager)
     {
@@ -393,6 +400,11 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 infos.Add(callable.GetSignatureInfo(manager, null, space));
                 return 0;
             }
+        }
+
+        protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
+        {
+            if (method.Contain(position)) InfoUtility.Rename(callable, ranges);
         }
     }
     internal class InvokerVirtualExpression(TextRange range, Tuple tuple, LocalContextSnapshoot snapshoot, TextRange? symbol, TextRange method, Expression? target, AbstractCallable callable, BracketExpression parameters, Manager.KernelManager manager) : InvokerMemberExpression(range, tuple, snapshoot, symbol, method, target, callable, parameters, manager)

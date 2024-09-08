@@ -52,7 +52,7 @@
         protected override void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
             if (condition == null)
-                infos.Add(new InlayHintInfo($" {KeyWords.TRUE}", symbol.end));
+                infos.Add(new InlayHintInfo($" {KeyWords.TRUE}", symbol.end, InlayHintInfo.Kind.Paramter));
         }
     }
     internal class ForStatement(TextRange symbol, Expression? condition, TextRange? separator1, TextRange? separator2, Expression? front, Expression? back) : LoopStatement(symbol, condition)

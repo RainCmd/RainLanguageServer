@@ -182,6 +182,7 @@
             collector.Add(DetailTokenType.Operator, symbolRight);
             collector.AddType(file, manager, value);
         }
+        protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges) => file.Rename(manager, position, value, ranges);
     }
     internal class ConstNullExpression(TextRange range, LocalContextSnapshoot snapshoot) : ConstExpression(range, NULL, snapshoot)
     {

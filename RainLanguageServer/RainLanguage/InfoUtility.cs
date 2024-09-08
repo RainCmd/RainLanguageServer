@@ -124,7 +124,7 @@ namespace RainLanguageServer.RainLanguage
                 if (i > 0) builder.Append(", ");
                 var parameter = parameters[i];
                 builder.Append(parameter.type.Info(manager, space));
-                if (parameter.name != null)
+                if (parameter.name.Count > 0)
                 {
                     builder.Append(' ');
                     builder.Append(parameter.name.ToString());
@@ -405,7 +405,7 @@ namespace RainLanguageServer.RainLanguage
                 if (i > 0) sb.Append(", ");
                 var parameter = callable.parameters[i];
                 var parameterInfo = parameter.type.Info(manager, space);
-                if (parameter.name != null) parameterInfo = $"{parameterInfo} {parameter.name}";
+                if (parameter.name.Count > 0) parameterInfo = $"{parameterInfo} {parameter.name}";
                 sb.Append(parameterInfo);
                 parameters[i] = new SignatureInfo.ParameterInfo(parameterInfo, null);
             }
@@ -571,6 +571,39 @@ namespace RainLanguageServer.RainLanguage
         public static bool FindReferences(List<TextRange> qualify, TextPosition position, AbstractSpace? space, List<TextRange> references)
         {
             return QualifyAction(qualify, position, space, value => references.AddRange(value.references));
+        }
+
+        public static void Rename(List<TextRange> qualify, TextPosition position, AbstractSpace? space, HashSet<TextRange> ranges) => QualifyAction(qualify, position, space, value => ranges.AddRange(value.references));
+        public static bool Rename(this FileType fileType, Manager manager, TextPosition position, Type type, HashSet<TextRange> ranges)
+        {
+            if (fileType.range.Contain(position))
+            {
+                if (type.library == Manager.LIBRARY_SELF)
+                    if (manager.TryGetDeclaration(type, out var declaration))
+                    {
+                        if (fileType.name.name.Contain(position)) Rename(declaration, ranges);
+                        else Rename(fileType.name.qualify, position, declaration.space, ranges);
+                    }
+                return true;
+            }
+            return false;
+        }
+        public static void Rename(AbstractDeclaration declaration, HashSet<TextRange> ranges)
+        {
+            if (declaration.declaration.library != Manager.LIBRARY_SELF) return;
+            ranges.Add(declaration.name);
+            ranges.AddRange(declaration.references);
+            var name = declaration.name.ToString();
+            ranges.RemoveAll(value => value != name);
+        }
+        public static void Rename(this Local local, HashSet<TextRange> ranges)
+        {
+            if (local.name == local.range)
+            {
+                ranges.Add(local.range);
+                ranges.AddRange(local.read);
+                ranges.AddRange(local.write);
+            }
         }
 
         public static void CollectAccessKeyword(List<CompletionInfo> infos)

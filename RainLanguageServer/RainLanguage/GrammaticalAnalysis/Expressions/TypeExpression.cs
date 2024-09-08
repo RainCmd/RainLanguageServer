@@ -35,13 +35,15 @@
             collector.AddType(file, manager, type);
             if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
         }
+
+        protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges) => file.Rename(manager, position, type, ranges);
     }
     internal class TypeKeyworldExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange? qualifier, FileType file, Type type) : TypeExpression(range, snapshoot, qualifier, file, type)
     {
         protected override void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
             if (range == KeyWords.VAR)
-                infos.Add(new InlayHintInfo($":{type.Info(manager, ManagerOperator.GetSpace(manager, range.end))}", range.end));
+                infos.Add(new InlayHintInfo($":{type.Info(manager, ManagerOperator.GetSpace(manager, range.end))}", range.end, InlayHintInfo.Kind.Type));
         }
     }
 }
