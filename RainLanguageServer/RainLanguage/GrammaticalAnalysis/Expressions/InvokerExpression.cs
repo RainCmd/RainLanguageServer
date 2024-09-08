@@ -64,42 +64,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             action(this);
         }
 
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            if (invoker.range.Contain(position)) return invoker.OnHover(manager, position, out info);
-            if (parameters.range.Contain(position)) return parameters.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (invoker.range.Contain(position)) return invoker.OnHighlight(manager, position, infos);
-            if (parameters.range.Contain(position)) return parameters.OnHighlight(manager, position, infos);
-            return false;
-        }
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            if (invoker.range.Contain(position)) return invoker.TryGetDefinition(manager, position, out definition);
-            if (parameters.range.Contain(position)) return parameters.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
-        {
-            if (invoker.range.Contain(position)) return invoker.FindReferences(manager, position, references);
-            if (parameters.range.Contain(position)) return parameters.FindReferences(manager, position, references);
-            return false;
-        }
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            invoker.CollectSemanticToken(manager, collector);
-            parameters.CollectSemanticToken(manager, collector);
-        }
-
         protected override int CollectSignatureInfos(Manager manager, List<SignatureInfo> infos, Context context, AbstractSpace? space)
         {
             if (!manager.TryGetDeclaration(invoker.tuple[0], out var declaration)) throw new Exception("类型错误");
@@ -136,7 +100,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             action(this);
         }
 
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        protected override bool InternalOnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
             if (InfoUtility.OnHover(name.qualify, position, out info)) return true;
             if (name.name.Contain(position))
@@ -144,12 +108,11 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 info = new HoverInfo(name.name, callable.Info(manager, null, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
                 return true;
             }
-            if (parameters.range.Contain(position)) return parameters.OnHover(manager, position, out info);
             info = default;
             return false;
         }
 
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        protected override bool InternalOnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
             if (InfoUtility.OnHighlight(name.qualify, position, callable.space, infos)) return true;
             if (name.name.Contain(position))
@@ -157,23 +120,21 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 InfoUtility.Highlight(callable, infos);
                 return true;
             }
-            if (parameters.range.Contain(position)) return parameters.OnHighlight(manager, position, infos);
             return false;
         }
 
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        protected override bool InternalTryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
         {
             if (name.name.Contain(position))
             {
                 definition = callable.name;
                 return true;
             }
-            if (parameters.range.Contain(position)) return parameters.TryGetDefinition(manager, position, out definition);
             definition = default;
             return false;
         }
 
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        protected override bool InternalFindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
             if (InfoUtility.FindReferences(name.qualify, position, callable.space, references)) return true;
             if (name.name.Contain(position))
@@ -181,16 +142,14 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                 references.AddRange(callable.references);
                 return true;
             }
-            if (parameters.range.Contain(position)) return parameters.FindReferences(manager, position, references);
             return false;
         }
 
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
             if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
             collector.AddNamespace(name);
             collector.Add(DetailTokenType.GlobalFunction, name.name);
-            parameters.CollectSemanticToken(manager, collector);
         }
 
         protected override int CollectSignatureInfos(Manager manager, List<SignatureInfo> infos, Context context, AbstractSpace? space)
@@ -261,63 +220,53 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             action(this);
         }
 
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        protected override bool InternalOnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
-            if (target != null && target.range.Contain(position)) return target.OnHover(manager, position, out info);
             if (method.Contain(position))
             {
                 manager.TryGetDefineDeclaration(callable.declaration, out var declaration);
                 info = new HoverInfo(method, callable.Info(manager, declaration, ManagerOperator.GetSpace(manager, position)).MakedownCode(), true);
                 return true;
             }
-            if (parameters.range.Contain(position)) return parameters.OnHover(manager, position, out info);
             info = default;
             return false;
         }
 
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        protected override bool InternalOnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
-            if (target != null && target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
             if (method.Contain(position))
             {
                 InfoUtility.Highlight(callable, infos);
                 return true;
             }
-            if (parameters.range.Contain(position)) return parameters.OnHighlight(manager, position, infos);
             return false;
         }
 
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        protected override bool InternalTryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
         {
-            if (target != null && target.range.Contain(position)) return target.TryGetDefinition(manager, position, out definition);
             if (method.Contain(position))
             {
                 definition = callable.name;
                 return true;
             }
-            if (parameters.range.Contain(position)) return parameters.TryGetDefinition(manager, position, out definition);
             definition = default;
             return false;
         }
 
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        protected override bool InternalFindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
-            if (target != null && target.range.Contain(position)) return target.FindReferences(manager, position, references);
             if (method.Contain(position))
             {
                 references.AddRange(callable.references);
                 return true;
             }
-            if (parameters.range.Contain(position)) return parameters.FindReferences(manager, position, references);
             return false;
         }
 
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            target?.CollectSemanticToken(manager, collector);
             if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
             collector.Add(DetailTokenType.MemberFunction, method);
-            parameters.CollectSemanticToken(manager, collector);
         }
 
         protected override int CollectSignatureInfos(Manager manager, List<SignatureInfo> infos, Context context, AbstractSpace? space)
@@ -421,9 +370,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             else callable.references.Add(method);
             parameters.Read(parameter);
         }
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        protected override bool InternalOnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
-            if (target != null && target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
             if (method.Contain(position))
             {
                 InfoUtility.Highlight(callable, infos);
@@ -432,12 +380,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                         InfoUtility.Highlight(item, infos);
                 return true;
             }
-            if (parameters.range.Contain(position)) return parameters.OnHighlight(manager, position, infos);
             return false;
         }
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        protected override bool InternalFindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
-            if (target != null && target.range.Contain(position)) return target.FindReferences(manager, position, references);
             if (method.Contain(position))
             {
                 references.AddRange(callable.references);
@@ -446,7 +392,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                         references.AddRange(item.references);
                 return true;
             }
-            if (parameters.range.Contain(position)) return parameters.FindReferences(manager, position, references);
             return false;
         }
     }

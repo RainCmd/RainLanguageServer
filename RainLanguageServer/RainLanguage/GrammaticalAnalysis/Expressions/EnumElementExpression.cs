@@ -40,9 +40,8 @@
             action(this);
         }
 
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        protected override bool InternalOnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
-            if (type.range.Contain(position)) return type.OnHover(manager, position, out info);
             if (identifier.Contain(position))
             {
                 info = new HoverInfo(identifier, element.CodeInfo(manager, ManagerOperator.GetSpace(manager, position)), true);
@@ -52,9 +51,8 @@
             return false;
         }
 
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        protected override bool InternalOnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
-            if (type.range.Contain(position)) return type.OnHighlight(manager, position, infos);
             if (identifier.Contain(position))
             {
                 InfoUtility.Highlight(element, infos);
@@ -63,9 +61,8 @@
             return false;
         }
 
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        protected override bool InternalTryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
         {
-            if (type.range.Contain(position)) return type.TryGetDefinition(manager, position, out definition);
             if (identifier.Contain(position))
             {
                 definition = element.name;
@@ -75,9 +72,8 @@
             return false;
         }
 
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        protected override bool InternalFindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
-            if (type.range.Contain(position)) return type.FindReferences(manager, position, references);
             if (identifier.Contain(position))
             {
                 references.AddRange(element.references);
@@ -86,9 +82,8 @@
             return false;
         }
 
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
-            type.CollectSemanticToken(manager, collector);
             collector.Add(DetailTokenType.Operator, symbol);
             collector.Add(DetailTokenType.MemberElement, symbol);
         }

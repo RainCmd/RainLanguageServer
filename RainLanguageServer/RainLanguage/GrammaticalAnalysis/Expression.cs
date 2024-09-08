@@ -1,5 +1,6 @@
 ﻿using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
 using System.Diagnostics.CodeAnalysis;
+using System.Security.AccessControl;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
@@ -64,11 +65,50 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         public abstract bool Operator(TextPosition position, ExpressionOperator action);
         public abstract bool BreadthFirstOperator(TextPosition position, ExpressionOperator action);
         public abstract void Operator(Action<Expression> action);
-        public abstract bool OnHover(Manager manager, TextPosition position, out HoverInfo info);
-        public abstract bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos);
-        public abstract bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition);
-        public abstract bool FindReferences(Manager manager, TextPosition position, List<TextRange> references);
-        public abstract void CollectSemanticToken(Manager manager, SemanticTokenCollector collector);
+
+        protected virtual bool InternalOnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            info = default;
+            return false;
+        }
+        public bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        {
+            HoverInfo result = default;
+            if (Operator(position, value => value.InternalOnHover(manager, position, out result)))
+            {
+                info = result;
+                return true;
+            }
+            info = default;
+            return false;
+        }
+
+        protected virtual bool InternalOnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) { return false; }
+        public bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => Operator(position, value => value.InternalOnHighlight(manager, position, infos));
+
+        protected virtual bool InternalTryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            definition = default;
+            return false;
+        }
+        public bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        {
+            TextRange result = default;
+            if (Operator(position, value => value.InternalTryGetDefinition(manager, position, out result)))
+            {
+                definition = result;
+                return true;
+            }
+            definition = default;
+            return false;
+        }
+
+        protected virtual bool InternalFindReferences(Manager manager, TextPosition position, List<TextRange> references) { return false; }
+        public bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => Operator(position, value => value.InternalFindReferences(manager, position, references));
+
+        protected virtual void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) { }
+        public void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => Operator(value => value.InternalCollectSemanticToken(manager, collector));
+
         public virtual int GetTupleIndex(TextPosition position) => 0;
         protected virtual bool InternalTrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)
         {
@@ -91,6 +131,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 
         protected virtual void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges) { }
         public void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges) => Operator(position, value => { value.InternalRename(manager, position, ranges); return default; });
+
         protected virtual bool InternalCompletion(Manager manager, TextPosition position, List<CompletionInfo> infos)
         {
             if (ManagerOperator.TryGetContext(manager, position, out var context))
@@ -105,6 +146,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             return default;
         }
         public void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Operator(position, value => value.InternalCompletion(manager, position, infos));
+
         protected virtual void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos) { }
         public void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => Operator(expression => expression.InternalCollectInlayHint(manager, infos));
     }

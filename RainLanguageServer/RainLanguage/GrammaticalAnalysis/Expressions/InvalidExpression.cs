@@ -53,46 +53,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             action(this);
         }
 
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.OnHighlight(manager, position, infos);
-            return false;
-        }
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.FindReferences(manager, position, references);
-            return false;
-        }
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            foreach (var expression in expressions)
-                expression.CollectSemanticToken(manager, collector);
-        }
-
         public override int GetTupleIndex(TextPosition position)
         {
             var result = 0;
@@ -135,36 +95,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             action(this);
         }
 
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            if (parameters != null && parameters.range.Contain(position))
-                return parameters.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (parameters != null && parameters.range.Contain(position))
-                return parameters.OnHighlight(manager, position, infos);
-            return false;
-        }
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            if (parameters != null && parameters.range.Contain(position))
-                return parameters.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
-        {
-            if (parameters != null && parameters.range.Contain(position))
-                return parameters.FindReferences(manager, position, references);
-            return false;
-        }
-
         protected override bool InternalCompletion(Manager manager, TextPosition position, List<CompletionInfo> infos)
         {
             if (parameters != null)
@@ -189,11 +119,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             return base.InternalCompletion(manager, position, infos);
         }
 
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            collector.Add(DetailTokenType.Operator, symbol);
-            parameters?.CollectSemanticToken(manager, collector);
-        }
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Operator, symbol);
     }
     internal class InvalidInvokerExpression : Expression
     {
@@ -236,42 +162,6 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
             method.Operator(action);
             parameters.Operator(action);
             action(this);
-        }
-
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            if (method.range.Contain(position)) return method.OnHover(manager, position, out info);
-            if (parameters.range.Contain(position)) return parameters.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (method.range.Contain(position)) return method.OnHighlight(manager, position, infos);
-            if (parameters.range.Contain(position)) return parameters.OnHighlight(manager, position, infos);
-            return false;
-        }
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            if (method.range.Contain(position)) return method.TryGetDefinition(manager, position, out definition);
-            if (parameters.range.Contain(position)) return parameters.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
-        {
-            if (method.range.Contain(position)) return method.FindReferences(manager, position, references);
-            if (parameters.range.Contain(position)) return parameters.FindReferences(manager, position, references);
-            return false;
-        }
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            method.CollectSemanticToken(manager, collector);
-            parameters.CollectSemanticToken(manager, collector);
         }
 
         protected override bool InternalTrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)

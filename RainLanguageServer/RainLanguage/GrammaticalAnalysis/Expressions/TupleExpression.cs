@@ -63,46 +63,6 @@
             action(this);
         }
 
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.OnHighlight(manager, position, infos);
-            return false;
-        }
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.FindReferences(manager, position, references);
-            return false;
-        }
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            foreach (var expression in expressions)
-                expression.CollectSemanticToken(manager, collector);
-        }
-
         public override int GetTupleIndex(TextPosition position)
         {
             var result = 0;
@@ -168,40 +128,6 @@
             action(this);
         }
 
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            if (source.range.Contain(position)) return source.OnHover(manager, position, out info);
-            if (indices.range.Contain(position)) return indices.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (source.range.Contain(position)) return source.OnHighlight(manager, position, infos);
-            if (indices.range.Contain(position)) return indices.OnHighlight(manager, position, infos);
-            return false;
-        }
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            if (source.range.Contain(position)) return source.TryGetDefinition(manager, position, out definition);
-            if (indices.range.Contain(position)) return indices.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
-        {
-            if (source.range.Contain(position)) return source.FindReferences(manager, position, references);
-            if (indices.range.Contain(position)) return indices.FindReferences(manager, position, references);
-            return false;
-        }
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            source.CollectSemanticToken(manager, collector);
-            indices.CollectSemanticToken(manager, collector);
-        }
+        //todo 给索引后边内联上类型名
     }
 }

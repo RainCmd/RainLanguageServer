@@ -36,42 +36,6 @@
             length.Operator(action);
             action(this);
         }
-
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            if (type.range.Contain(position)) return type.OnHover(manager, position, out info);
-            if (length.range.Contain(position)) return length.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (type.range.Contain(position)) return type.OnHighlight(manager, position, infos);
-            if (length.range.Contain(position)) return length.OnHighlight(manager, position, infos);
-            return false;
-        }
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            if (type.range.Contain(position)) return type.TryGetDefinition(manager, position, out definition);
-            if (length.range.Contain(position)) return length.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
-        {
-            if (type.range.Contain(position)) return type.FindReferences(manager, position, references);
-            if (length.range.Contain(position)) return length.FindReferences(manager, position, references);
-            return false;
-        }
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            type.CollectSemanticToken(manager, collector);
-            length.CollectSemanticToken(manager, collector);
-        }
     }
     internal class ArrayInitExpression : Expression
     {
@@ -108,42 +72,6 @@
             type?.Operator(action);
             elements.Operator(action);
             action(this);
-        }
-
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            if (type != null && type.range.Contain(position)) return type.OnHover(manager, position, out info);
-            if (elements.range.Contain(position)) return elements.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (type != null && type.range.Contain(position)) return type.OnHighlight(manager, position, infos);
-            if (elements.range.Contain(position)) return elements.OnHighlight(manager, position, infos);
-            return false;
-        }
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            if (type != null && type.range.Contain(position)) return type.TryGetDefinition(manager, position, out definition);
-            if (elements.range.Contain(position)) return elements.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
-        {
-            if (type != null && type.range.Contain(position)) return type.FindReferences(manager, position, references);
-            if (elements.range.Contain(position)) return elements.FindReferences(manager, position, references);
-            return false;
-        }
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            type?.CollectSemanticToken(manager, collector);
-            elements.CollectSemanticToken(manager, collector);
         }
     }
     internal class ArrayEvaluationExpression : Expression
@@ -186,42 +114,6 @@
             index.Operator(action);
             action(this);
         }
-
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            if (array.range.Contain(position)) return array.OnHover(manager, position, out info);
-            if (index.range.Contain(position)) return index.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (array.range.Contain(position)) return array.OnHighlight(manager, position, infos);
-            if (index.range.Contain(position)) return index.OnHighlight(manager, position, infos);
-            return false;
-        }
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            if (array.range.Contain(position)) return array.TryGetDefinition(manager, position, out definition);
-            if (index.range.Contain(position)) return index.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
-        {
-            if (array.range.Contain(position)) return array.FindReferences(manager, position, references);
-            if (index.range.Contain(position)) return index.FindReferences(manager, position, references);
-            return false;
-        }
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            array.CollectSemanticToken(manager, collector);
-            index.CollectSemanticToken(manager, collector);
-        }
     }
     internal class StringEvaluationExpression : Expression
     {
@@ -258,42 +150,6 @@
             index.Operator(action);
             action(this);
         }
-
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            if (source.range.Contain(position)) return source.OnHover(manager, position, out info);
-            if (index.range.Contain(position)) return index.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (source.range.Contain(position)) return source.OnHighlight(manager, position, infos);
-            if (index.range.Contain(position)) return index.OnHighlight(manager, position, infos);
-            return false;
-        }
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            if (source.range.Contain(position)) return source.TryGetDefinition(manager, position, out definition);
-            if (index.range.Contain(position)) return index.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
-        {
-            if (source.range.Contain(position)) return source.FindReferences(manager, position, references);
-            if (index.range.Contain(position)) return index.FindReferences(manager, position, references);
-            return false;
-        }
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            source.CollectSemanticToken(manager, collector);
-            index.CollectSemanticToken(manager, collector);
-        }
     }
     internal class ArraySubExpression : Expression
     {
@@ -329,42 +185,6 @@
             source.Operator(action);
             indies.Operator(action);
             action(this);
-        }
-
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            if (source.range.Contain(position)) return source.OnHover(manager, position, out info);
-            if (indies.range.Contain(position)) return indies.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            if (source.range.Contain(position)) return source.OnHighlight(manager, position, infos);
-            if (indies.range.Contain(position)) return indies.OnHighlight(manager, position, infos);
-            return false;
-        }
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            if (source.range.Contain(position)) return source.TryGetDefinition(manager, position, out definition);
-            if (indies.range.Contain(position)) return indies.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
-        {
-            if (source.range.Contain(position)) return source.FindReferences(manager, position, references);
-            if (indies.range.Contain(position)) return indies.FindReferences(manager, position, references);
-            return false;
-        }
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            source.CollectSemanticToken(manager, collector);
-            indies.CollectSemanticToken(manager, collector);
         }
     }
 }

@@ -17,23 +17,7 @@
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action) => action(this);
         public override void Operator(Action<Expression> action) => action(this);
 
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => false;
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => false;
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
             collector.Add(DetailTokenType.KeywordCtrl, declaration);
             collector.Add(DetailTokenType.Local, identifier);
@@ -66,7 +50,7 @@
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action) => action(this);
         public override void Operator(Action<Expression> action) => action(this);
 
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        protected override bool InternalOnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
             if (InfoUtility.OnHover(name.qualify, position, out info)) return true;
             if (name.name.Contain(position))
@@ -77,7 +61,7 @@
             return false;
         }
 
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        protected override bool InternalOnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
             if (InfoUtility.OnHighlight(name.qualify, position, callables[0].space, infos)) return true;
             if (name.name.Contain(position))
@@ -89,7 +73,7 @@
             return false;
         }
 
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        protected override bool InternalTryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
         {
             if (name.name.Contain(position))
             {
@@ -100,7 +84,7 @@
             return false;
         }
 
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        protected override bool InternalFindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
             if (InfoUtility.FindReferences(name.qualify, position, callables[0].space, references)) return true;
             if (name.name.Contain(position))
@@ -112,7 +96,7 @@
             return false;
         }
 
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
             if (qualifier != null) collector.Add(DetailTokenType.KeywordCtrl, qualifier.Value);
             InfoUtility.AddNamespace(collector, name);
@@ -163,9 +147,8 @@
             action(this);
         }
 
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
+        protected override bool InternalOnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
-            if (target != null && target.range.Contain(position)) return target.OnHover(manager, position, out info);
             if (member.Contain(position))
             {
                 manager.TryGetDefineDeclaration(callables[0].declaration, out var declaration);
@@ -176,9 +159,8 @@
             return false;
         }
 
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        protected override bool InternalOnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
-            if (target != null && target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
             if (member.Contain(position))
             {
                 foreach (var callable in callables)
@@ -188,9 +170,8 @@
             return false;
         }
 
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
+        protected override bool InternalTryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
         {
-            if (target != null && target.range.Contain(position)) return target.TryGetDefinition(manager, position, out definition);
             if (member.Contain(position))
             {
                 definition = callables[0].name;
@@ -200,9 +181,8 @@
             return false;
         }
 
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+        protected override bool InternalFindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
-            if (target != null && target.range.Contain(position)) return target.FindReferences(manager, position, references);
             if (member.Contain(position))
             {
                 foreach (var callable in callables)
@@ -212,11 +192,10 @@
             return false;
         }
 
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
             if (symbol != null) collector.Add(DetailTokenType.Operator, symbol.Value);
             collector.Add(DetailTokenType.MemberFunction, member);
-            target?.CollectSemanticToken(manager, collector);
         }
     }
     internal class MethodVirtualExpression : MethodMemberExpression
@@ -240,9 +219,8 @@
             target?.Read(parameter);
         }
 
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
+        protected override bool InternalOnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
         {
-            if (target != null && target.range.Contain(position)) return target.OnHighlight(manager, position, infos);
             if (member.Contain(position))
             {
                 foreach (var callable in callables)
@@ -256,9 +234,9 @@
             }
             return false;
         }
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
+
+        protected override bool InternalFindReferences(Manager manager, TextPosition position, List<TextRange> references)
         {
-            if (target != null && target.range.Contain(position)) return target.FindReferences(manager, position, references);
             if (member.Contain(position))
             {
                 foreach (var callable in callables)
@@ -303,29 +281,7 @@
             action(this);
         }
 
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            if (invoker.range.Contain(position)) return invoker.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => invoker.range.Contain(position) && invoker.OnHighlight(manager, position, infos);
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            if (invoker.range.Contain(position)) return invoker.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => invoker.range.Contain(position) && invoker.FindReferences(manager, position, references);
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            collector.Add(DetailTokenType.Operator, symbol);
-            invoker.CollectSemanticToken(manager, collector);
-        }
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Operator, symbol);
     }
     internal class BlurrySetExpression : Expression
     {
@@ -358,26 +314,6 @@
             expression.Operator(action);
             action(this);
         }
-
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            if (expression.range.Contain(position)) return expression.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => expression.range.Contain(position) && expression.OnHighlight(manager, position, infos);
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            if (expression.range.Contain(position)) return expression.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => expression.range.Contain(position) && expression.FindReferences(manager, position, references);
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector) => expression.CollectSemanticToken(manager, collector);
     }
     internal class BlurryLambdaExpression : Expression
     {
@@ -400,23 +336,7 @@
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action) => action(this);
         public override void Operator(Action<Expression> action) => action(this);
 
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos) => false;
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references) => false;
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
             foreach (var parameter in parameters)
                 collector.Add(DetailTokenType.Local, parameter);

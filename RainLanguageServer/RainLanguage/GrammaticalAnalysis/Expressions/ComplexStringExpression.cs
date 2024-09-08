@@ -34,45 +34,5 @@
                 expression.Operator(action);
             action(this);
         }
-
-        public override bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.OnHover(manager, position, out info);
-            info = default;
-            return false;
-        }
-
-        public override bool OnHighlight(Manager manager, TextPosition position, List<HighlightInfo> infos)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.OnHighlight(manager, position, infos);
-            return false;
-        }
-
-        public override bool TryGetDefinition(Manager manager, TextPosition position, out TextRange definition)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.TryGetDefinition(manager, position, out definition);
-            definition = default;
-            return false;
-        }
-
-        public override bool FindReferences(Manager manager, TextPosition position, List<TextRange> references)
-        {
-            foreach (var expression in expressions)
-                if (expression.range.Contain(position))
-                    return expression.FindReferences(manager, position, references);
-            return false;
-        }
-
-        public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
-        {
-            foreach (var expression in expressions)
-                expression.CollectSemanticToken(manager, collector);
-        }
     }
 }
