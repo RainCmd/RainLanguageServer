@@ -107,6 +107,31 @@ namespace RainLanguageServer.RainLanguage
                 sb.AppendLine(AnnotationTrim(annotation).Trim.ToString());
             return sb.ToString();
         }
+        private static bool AppendTuple(StringBuilder builder, Manager manager, AbstractSpace? space, Tuple tuple)
+        {
+            for (var i = 0; i < tuple.Count; i++)
+            {
+                if (i > 0) builder.Append(", ");
+                builder.Append(tuple[i].Info(manager, space));
+            }
+            return tuple.Count > 0;
+        }
+        private static void AppendParameters(StringBuilder builder, Manager manager, AbstractSpace? space, List<AbstractCallable.Parameter> parameters)
+        {
+            builder.Append('(');
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                if (i > 0) builder.Append(", ");
+                var parameter = parameters[i];
+                builder.Append(parameter.type.Info(manager, space));
+                if (parameter.name != null)
+                {
+                    builder.Append(' ');
+                    builder.Append(parameter.name.ToString());
+                }
+            }
+            builder.Append(')');
+        }
         public static string CodeInfo(this Type type, Manager manager, AbstractSpace? space = null)
         {
             if (manager.TryGetDeclaration(type, out var declaration))
@@ -135,8 +160,16 @@ namespace RainLanguageServer.RainLanguage
                         break;
                 }
                 sb.Append(' ');
+                var abstractDelegate = declaration as AbstractDelegate;
+                if (abstractDelegate != null)
+                {
+                    if (AppendTuple(sb, manager, space, abstractDelegate.returns)) sb.Append(' ');
+                }
+                else if (declaration is AbstractTask abstractTask)
+                    if (AppendTuple(sb, manager, space, abstractTask.returns)) sb.Append(' ');
                 if (GetQualifier(type.library, declaration.space, space, sb)) sb.Append('.');
                 sb.Append(declaration.name.ToString());
+                if (abstractDelegate != null) AppendParameters(sb, manager, space, abstractDelegate.parameters);
                 return GetAnnotation(declaration) + sb.ToString().MakedownCode();
             }
             return "无效的类型";
@@ -299,12 +332,7 @@ namespace RainLanguageServer.RainLanguage
                 sb.Append(KeyWords.NATIVE);
                 sb.Append(' ');
             }
-            for (var i = 0; i < callable.returns.Count; i++)
-            {
-                if (i > 0) sb.Append(", ");
-                sb.Append(callable.returns[i].Info(manager, space));
-            }
-            if (callable.returns.Count > 0) sb.Append(' ');
+            if (AppendTuple(sb, manager, space, callable.returns)) sb.Append(' ');
             if (declaration != null)
             {
                 if (GetQualifier(declaration.declaration.library, declaration.space, space, sb)) sb.Append('.');
@@ -313,19 +341,7 @@ namespace RainLanguageServer.RainLanguage
             }
             else if (GetQualifier(callable.declaration.library, callable.space, space, sb)) sb.Append('.');
             sb.Append(callable.name);
-            sb.Append('(');
-            for (var i = 0; i < callable.parameters.Count; i++)
-            {
-                if (i > 0) sb.Append(", ");
-                var parameter = callable.parameters[i];
-                sb.Append(parameter.type.Info(manager, space));
-                if (parameter.name != null)
-                {
-                    sb.Append(' ');
-                    sb.Append(parameter.name.ToString());
-                }
-            }
-            sb.Append(')');
+            AppendParameters(sb, manager, space, callable.parameters);
             if (declaration == null)
             {
                 if (callable.space.declarations.TryGetValue(callable.name.ToString(), out var declarations))
@@ -374,12 +390,7 @@ namespace RainLanguageServer.RainLanguage
             Info? info = string.IsNullOrEmpty(annotation) ? null : new Info(annotation, false);
             var parameters = new SignatureInfo.ParameterInfo[callable.signature.Count];
             var sb = new StringBuilder();
-            for (var i = 0; i < callable.returns.Count; i++)
-            {
-                if (i > 0) sb.Append(", ");
-                sb.Append(callable.returns[i].Info(manager, space));
-            }
-            if (callable.returns.Count > 0) sb.Append(' ');
+            if (AppendTuple(sb, manager, space, callable.returns)) sb.Append(' ');
             if (declaration != null)
             {
                 if (GetQualifier(declaration.declaration.library, declaration.space, space, sb)) sb.Append('.');

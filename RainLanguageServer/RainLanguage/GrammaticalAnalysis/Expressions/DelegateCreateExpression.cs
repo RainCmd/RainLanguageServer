@@ -279,6 +279,11 @@
                     info = local.Hover(manager, position);
                     return true;
                 }
+            if(symbol.Contain(position))
+            {
+                info = new HoverInfo(symbol, tuple[0].CodeInfo(manager, ManagerOperator.GetSpace(manager, position)), true);
+                return true;
+            }
             if (body.range.Contain(position)) return body.OnHover(manager, position, out info);
             info = default;
             return false;
