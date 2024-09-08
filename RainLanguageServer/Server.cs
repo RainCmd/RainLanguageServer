@@ -114,6 +114,21 @@ namespace RainLanguageServer
             }
             return Result<SignatureHelp, ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
         }
+        protected override Result<LanguageServer.Parameters.Range, ResponseError> PrepareRename(TextDocumentPositionParams param, CancellationToken token)
+        {
+            if (manager != null && ManagerOperator.TryRename(manager, param.textDocument.uri, param.position, out var ranges) && ranges.Count > 0)
+            {
+                if (manager.fileSpaces.TryGetValue(new UnifiedPath(param.textDocument.uri), out var space))
+                {
+                    var position = new TextPosition(space.document, space.document[(int)param.position.line].start.charactor + (int)param.position.character);
+                    foreach (var range in ranges)
+                        if (range.Contain(position))
+                            return Result<LanguageServer.Parameters.Range, ResponseError>.Success(TR2R(range));
+                }
+            }
+            return Result<LanguageServer.Parameters.Range, ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled, "该元素不能重命名"));
+        }
+
         protected override Result<WorkspaceEdit, ResponseError> Rename(RenameParams param, CancellationToken token)
         {
             if (manager != null)
