@@ -127,7 +127,5 @@
             indices.Operator(action);
             action(this);
         }
-
-        //todo 给索引后边内联上类型名
     }
 }

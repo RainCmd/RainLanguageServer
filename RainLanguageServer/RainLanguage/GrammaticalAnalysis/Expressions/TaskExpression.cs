@@ -68,7 +68,5 @@
             indices.Operator(action);
             action(this);
         }
-
-        //todo 内联提示索引类型
     }
 }

@@ -378,7 +378,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                                     indices.Add(i);
                                             var tuple = new Type[indices.Count];
                                             var error = false;
-                                            for (var i = 0; i < abstractStruct.variables.Count; i++)
+                                            for (var i = 0; i < indices.Count; i++)
                                             {
                                                 if (indices[i] < 0) indices[i] += abstractStruct.variables.Count;
                                                 if (indices[i] >= 0 && indices[i] < abstractStruct.variables.Count) tuple[i] = abstractStruct.variables[(int)indices[i]].type;
