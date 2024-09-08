@@ -25,6 +25,7 @@
             foreach (var catchBlock in catchBlocks)
                 catchBlock.block.Operator(action);
             finallyBlock?.Operator(action);
+            action(this);
         }
         protected override bool InternalOperator(TextPosition position, ExpressionOperator action)
         {
