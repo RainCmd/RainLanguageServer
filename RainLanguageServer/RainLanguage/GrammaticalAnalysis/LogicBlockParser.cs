@@ -475,12 +475,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                             tryStatement.range &= catchBlock.expression.range;
                         else tryStatement.range &= catchBlock.catchSymbol;
                     }
+                    if (tryStatement.finallySymbol != null) tryStatement.range &= tryStatement.finallySymbol.Value;
                     if (tryStatement.finallyBlock != null)
                     {
                         Trim(tryStatement.finallyBlock.statements);
                         if (TryTidyBlockRange(tryStatement.finallyBlock))
                             tryStatement.range &= tryStatement.finallyBlock.range;
-                        else if (tryStatement.finallySymbol != null) tryStatement.range &= tryStatement.finallySymbol.Value;
                     }
                 }
                 else if (statement is SubStatement) statements.RemoveAt(i);

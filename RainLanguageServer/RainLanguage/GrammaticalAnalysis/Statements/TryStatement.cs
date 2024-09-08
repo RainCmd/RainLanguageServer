@@ -13,7 +13,7 @@
         public BlockStatement? tryBlock;
         public readonly List<CatchBlock> catchBlocks = [];
         public BlockStatement? finallyBlock;
-        public readonly List<TextRange> group = [];
+        public readonly List<TextRange> group = [trySymbol];
         protected override void InternalOperator(Action<Expression> action)
         {
             foreach (var catchBlock in catchBlocks)
