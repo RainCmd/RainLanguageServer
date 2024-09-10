@@ -1,5 +1,6 @@
 ﻿using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq.Expressions;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
@@ -1206,6 +1207,19 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                             PushInvalidExpression(expressionStack, lexical.anchor, attribute, "无效的操作", new InvalidKeyworldExpression(lexical.anchor, localContext.Snapshoot));
                             attribute = ExpressionAttribute.Invalid;
                         }
+                        else if (lexical.anchor == KeyWords.DISCARD_VARIABLE)
+                        {
+                            if (attribute.ContainAny(ExpressionAttribute.None))
+                            {
+                                index = lexical.anchor.end;
+                                var expression = new DiscardVariableExpression(lexical.anchor, localContext.Snapshoot);
+                                expressionStack.Push(expression);
+                                attribute = expression.attribute;
+                                goto label_next_lexical;
+                            }
+                            PushInvalidExpression(expressionStack, lexical.anchor, attribute, "应输入 , 或 ;", new InvalidKeyworldExpression(lexical.anchor, localContext.Snapshoot));
+                            attribute = ExpressionAttribute.Invalid;
+                        }
                         else if (TryMatchBaseType(lexical.anchor, out var type))
                         {
                             if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
@@ -1841,7 +1855,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 collector.Add(expression.range, ErrorLevel.Error, "类型数量不一致");
                 return new InvalidExpression(expression, span, localContext.Snapshoot);
             }
-            else if (expression is BlurryVariableDeclarationExpression blurryVariable) return InferLeftValueType(blurryVariable, span[0]);
+            if (TryInferLeftValueType(ref expression, span[0])) return expression;
             else if (expression is TupleExpression tuple)
             {
                 var expressions = new List<Expression>();
@@ -1861,16 +1875,34 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             }
             return expression;
         }
-        public Expression InferLeftValueType(BlurryVariableDeclarationExpression blurry, Type type)
+        private bool CheckInferLeftValueType(ref Expression expression, Type type)
         {
             if (type == Expression.BLURRY || type == Expression.NULL)
             {
-                collector.Add(blurry.range, ErrorLevel.Error, "表达式类型不明确");
-                return new InvalidExpression(blurry, type, localContext.Snapshoot);
+                collector.Add(expression.range, ErrorLevel.Error, "表达式类型不明确");
+                expression = new InvalidExpression(expression, type, localContext.Snapshoot);
+                return true;
             }
-            var typeExpression = new TypeKeyworldExpression(blurry.declaration, localContext.Snapshoot, null, new FileType(blurry.declaration, new QualifiedName([blurry.declaration]), type.dimension), type);
-            var local = localContext.Add(blurry.identifier, type);
-            return new VariableDeclarationLocalExpression(blurry.range, local, localContext.Snapshoot, blurry.identifier, typeExpression, ExpressionAttribute.Assignable | ExpressionAttribute.Value, manager.kernelManager);
+            return false;
+        }
+        public bool TryInferLeftValueType(ref Expression expression, Type type)
+        {
+            if (expression is BlurryVariableDeclarationExpression blurry)
+            {
+                if (CheckInferLeftValueType(ref expression, type)) return true;
+                var typeExpression = new TypeKeyworldExpression(blurry.declaration, localContext.Snapshoot, null, new FileType(blurry.declaration, new QualifiedName([blurry.declaration]), type.dimension), type);
+                var local = localContext.Add(blurry.identifier, type);
+                expression = new VariableDeclarationLocalExpression(blurry.range, local, localContext.Snapshoot, blurry.identifier, typeExpression, ExpressionAttribute.Assignable | ExpressionAttribute.Value, manager.kernelManager);
+                return true;
+            }
+            else if (expression is DiscardVariableExpression discard)
+            {
+                if (CheckInferLeftValueType(ref expression, type)) return true;
+                var local = localContext.Add(discard.range, type);
+                expression = new VariableKeyworldLocalExpression(discard.range, local, type, localContext.Snapshoot, discard.range, ExpressionAttribute.Assignable, manager.kernelManager);
+                return true;
+            }
+            return false;
         }
         private Expression CreateOperation(TextRange range, string operation, TextRange symbol, params Expression[] expressions)
         {

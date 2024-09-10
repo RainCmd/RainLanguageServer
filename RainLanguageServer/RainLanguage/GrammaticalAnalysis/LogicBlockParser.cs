@@ -314,7 +314,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     expression = parser.Parse(range);
                                     if (expression.Valid)
                                     {
-                                        if (expression is BlurryVariableDeclarationExpression blurryVariable) expression = parser.InferLeftValueType(blurryVariable, manager.kernelManager.STRING);
+                                        parser.TryInferLeftValueType(ref expression, manager.kernelManager.STRING);
                                         if (!expression.attribute.ContainAny(ExpressionAttribute.Value)) collector.Add(expression.range, ErrorLevel.Error, "表达式返回值不是一个有效值");
                                         else if (expression.tuple[0] != manager.kernelManager.STRING) collector.Add(expression.range, ErrorLevel.Error, "catch语句的表达式必须是字符串类型");
                                     }

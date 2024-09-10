@@ -23,6 +23,21 @@
             collector.Add(DetailTokenType.Local, identifier);
         }
     }
+    internal class DiscardVariableExpression : Expression
+    {
+        public override bool Valid => true;
+
+        public DiscardVariableExpression(TextRange range, LocalContextSnapshoot snapshoot) : base(range, TUPLE_BLURRY, snapshoot)
+        {
+            attribute = ExpressionAttribute.Assignable;
+        }
+        public override void Read(ExpressionParameter parameter) => parameter.collector.Add(range, ErrorLevel.Error, "无法推断类型");
+        public override bool Operator(TextPosition position, ExpressionOperator action) => action(this);
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action) => action(this);
+        public override void Operator(Action<Expression> action) => action(this);
+
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.KeywordCtrl, range);
+    }
     internal class MethodExpression : Expression//global & native
     {
         public readonly TextRange? qualifier;// global关键字
