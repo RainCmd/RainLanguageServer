@@ -65,7 +65,7 @@
         public Local Add(bool parameter, string name, TextRange range, Type type)
         {
             var local = new Local(parameter, name, range, type);
-            if (name != KeyWords.DISCARD_VARIABLE)
+            if (name != KeyWords.DISCARD_VARIABLE && !string.IsNullOrEmpty(name))
             {
                 if (TryGetLocal(name, out var overrideLocal))
                 {

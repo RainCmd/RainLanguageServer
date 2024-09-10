@@ -79,7 +79,7 @@
             foreach (var expression in expressions)
             {
                 if (expression.attribute == ExpressionAttribute.Invalid) return new InvalidExpression(expressions, snapshoot);
-                else if (expression.attribute.ContainAny(ExpressionAttribute.Value | ExpressionAttribute.Tuple)) types.AddRange(expression.tuple);
+                else if (expression.attribute.ContainAny(ExpressionAttribute.Assignable | ExpressionAttribute.Value | ExpressionAttribute.Tuple)) types.AddRange(expression.tuple);
                 else
                 {
                     collector.Add(expression.range, ErrorLevel.Error, "无效的操作");

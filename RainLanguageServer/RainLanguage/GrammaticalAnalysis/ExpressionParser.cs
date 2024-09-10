@@ -1926,6 +1926,11 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 result = null;
                 return false;
             }
+            if (callbales.Count == 1)
+            {
+                result = callbales[0];
+                return true;
+            }
             var results = new List<AbstractCallable>();
             var min = 0;
             var types = new List<Type>();
