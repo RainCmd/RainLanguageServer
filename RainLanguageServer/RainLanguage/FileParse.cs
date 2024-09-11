@@ -379,15 +379,18 @@ namespace RainLanguageServer.RainLanguage
                             if (TryParseTupleDeclaration(memberLine, index, out var tuple, out var memberName, space.collector))
                             {
                                 var parameterRange = ParseParameters(memberLine, memberName.end, out var parameters, space.collector);
-                                CheckEnd(memberLine, parameterRange.end, space.collector);
-                                var member = new FileStruct.Function(space, visibility, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
-                                member.attributes.AddRange(attributes);
-                                attributes.Clear();
-                                member.annotation.AddRange(annotations);
-                                annotations.Clear();
-                                file.functions.Add(member);
-                                ParseBlock(reader, memberLine.indent, member.body, annotations);
-                                member.range &= reader.GetLastValidLine();
+                                if (parameterRange.Count > 0)
+                                {
+                                    CheckEnd(memberLine, parameterRange.end, space.collector);
+                                    var member = new FileStruct.Function(space, visibility, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
+                                    member.attributes.AddRange(attributes);
+                                    attributes.Clear();
+                                    member.annotation.AddRange(annotations);
+                                    annotations.Clear();
+                                    file.functions.Add(member);
+                                    ParseBlock(reader, memberLine.indent, member.body, annotations);
+                                    member.range &= reader.GetLastValidLine();
+                                }
                             }
                             else space.collector.Add((index - 1) & index, ErrorLevel.Error, "需要输入标识符");
                         }
@@ -440,28 +443,31 @@ namespace RainLanguageServer.RainLanguage
                                 if (TryParseTupleDeclaration(memberLine, index, out var tuple, out var memberName, space.collector))
                                 {
                                     var parameterRange = ParseParameters(memberLine, memberName.end, out var parameters, space.collector);
-                                    if (tuple.Count == 0 && memberName.ToString() == file.name)
+                                    if (parameterRange.Count > 0)
                                     {
-                                        var member = new FileClass.Constructor(space, visibility, memberName, parameters, tuple, parameterRange.end & memberLine.end) { range = TrimLine(memberLine, parameterRange.end) };
-                                        member.attributes.AddRange(attributes);
-                                        attributes.Clear();
-                                        member.annotation.AddRange(annotations);
-                                        annotations.Clear();
-                                        file.constructors.Add(member);
-                                        ParseBlock(reader, memberLine.indent, member.body, annotations);
-                                        member.range &= reader.GetLastValidLine();
-                                    }
-                                    else
-                                    {
-                                        CheckEnd(memberLine, parameterRange.end, space.collector);
-                                        var member = new FileClass.Function(space, visibility, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
-                                        member.attributes.AddRange(attributes);
-                                        attributes.Clear();
-                                        member.annotation.AddRange(annotations);
-                                        annotations.Clear();
-                                        file.functions.Add(member);
-                                        ParseBlock(reader, memberLine.indent, member.body, annotations);
-                                        member.range &= reader.GetLastValidLine();
+                                        if (tuple.Count == 0 && memberName.ToString() == file.name)
+                                        {
+                                            var member = new FileClass.Constructor(space, visibility, memberName, parameters, tuple, parameterRange.end & memberLine.end) { range = TrimLine(memberLine, parameterRange.end) };
+                                            member.attributes.AddRange(attributes);
+                                            attributes.Clear();
+                                            member.annotation.AddRange(annotations);
+                                            annotations.Clear();
+                                            file.constructors.Add(member);
+                                            ParseBlock(reader, memberLine.indent, member.body, annotations);
+                                            member.range &= reader.GetLastValidLine();
+                                        }
+                                        else
+                                        {
+                                            CheckEnd(memberLine, parameterRange.end, space.collector);
+                                            var member = new FileClass.Function(space, visibility, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
+                                            member.attributes.AddRange(attributes);
+                                            attributes.Clear();
+                                            member.annotation.AddRange(annotations);
+                                            annotations.Clear();
+                                            file.functions.Add(member);
+                                            ParseBlock(reader, memberLine.indent, member.body, annotations);
+                                            member.range &= reader.GetLastValidLine();
+                                        }
                                     }
                                 }
                                 else space.collector.Add((index - 1) & index, ErrorLevel.Error, "需要输入标识符");

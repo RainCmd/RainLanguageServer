@@ -30,6 +30,7 @@ namespace RainLanguageServer.RainLanguage
             {
                 if (declaration.visibility.ContainAny(Visibility.Public | Visibility.Internal)) return true;
                 if (!manager.TryGetDeclaration(declaration, out var abstractDeclaration)) return false;
+                if (declaration.visibility.ContainAny(Visibility.Protected)) return abstractDeclaration.file.space.document == document;
                 if (abstractDeclaration.space.Contain(space))
                 {
                     if (declaration.visibility.ContainAny(Visibility.Space)) return true;
