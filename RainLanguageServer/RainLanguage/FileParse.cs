@@ -312,7 +312,7 @@ namespace RainLanguageServer.RainLanguage
             {
                 if (TryParseVariable(line, lexical.anchor.end, out var name, out var type, out var expression, space.collector))
                 {
-                    if (expression == null) space.collector.Add(name, ErrorLevel.Error, "常量必须在声明时赋值");
+                    if (expression == null && space.space.Library.library == Manager.LIBRARY_SELF) space.collector.Add(name, ErrorLevel.Error, "常量必须在声明时赋值");
                     var variable = new FileVariable(space, visibility, name, true, type, expression) { range = TrimLine(line, name.end) };
                     variable.attributes.AddRange(attributes);
                     attributes.Clear();
