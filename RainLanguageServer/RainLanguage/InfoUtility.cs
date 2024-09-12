@@ -76,7 +76,7 @@ namespace RainLanguageServer.RainLanguage
         {
             var sb = new StringBuilder();
             if (GetQualifier(declaration.declaration.library, declaration.space, null, sb)) sb.Append('.');
-            if (manager.TryGetDefineDeclaration(declaration.declaration, out var define))
+            if (manager.TryGetDefineDeclaration(declaration.declaration, out var define) && define != declaration)
             {
                 sb.Append(define.name.ToString());
                 sb.Append('.');

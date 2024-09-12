@@ -111,6 +111,151 @@
                     return true;
             return false;
         }
+        private static void CheckVisiable(Manager manager, AbstractDeclaration declaration, Visibility visibility, Type type, TextRange typeName)
+        {
+            if (visibility == Visibility.Private) return;
+            if (type.library != Manager.LIBRARY_SELF) return;
+            if (manager.TryGetDeclaration(type, out var abstractDeclaration))
+            {
+                switch (visibility)
+                {
+                    case Visibility.None: return;
+                    case Visibility.Public:
+                        switch (abstractDeclaration.declaration.visibility)
+                        {
+                            case Visibility.None:
+                            case Visibility.Public: return;
+                            case Visibility.Internal:
+                            case Visibility.Space:
+                            case Visibility.Protected:
+                            case Visibility.Private: break;
+                        }
+                        break;
+                    case Visibility.Internal:
+                        switch (abstractDeclaration.declaration.visibility)
+                        {
+                            case Visibility.None:
+                            case Visibility.Public:
+                            case Visibility.Internal: return;
+                            case Visibility.Space:
+                            case Visibility.Protected:
+                            case Visibility.Private: break;
+                        }
+                        break;
+                    case Visibility.Space:
+                        switch (abstractDeclaration.declaration.visibility)
+                        {
+                            case Visibility.None:
+                            case Visibility.Public:
+                            case Visibility.Internal:
+                            case Visibility.Space: return;
+                            case Visibility.Protected:
+                            case Visibility.Private: break;
+                        }
+                        break;
+                    case Visibility.Protected:
+                        switch (abstractDeclaration.declaration.visibility)
+                        {
+                            case Visibility.None:
+                            case Visibility.Public:
+                            case Visibility.Internal: return;
+                            case Visibility.Space: break;
+                            case Visibility.Protected: return;
+                            case Visibility.Private: break;
+                        }
+                        break;
+                    case Visibility.Private: return;
+                }
+                var msg = new Message(declaration.name, ErrorLevel.Error, "可访问性不一致");
+                msg.AddRelated(typeName, $"{abstractDeclaration.GetFullName(manager)} 的可访问性低于 {declaration.GetFullName(manager)}");
+                declaration.file.space.collector.Add(msg);
+            }
+        }
+        private static Visibility GetMoreStringent(Visibility a, Visibility b) => a > b ? a : b;
+        private static void CheckVisiable(Manager manager, AbstractLibrary library)
+        {
+            foreach (var abstractVariable in library.variables)
+                CheckVisiable(manager, abstractVariable, abstractVariable.declaration.visibility, abstractVariable.type, abstractVariable.fileVariable.type.name.name);
+            foreach (var abstractFunction in library.functions)
+            {
+                for (var i = 0; i < abstractFunction.parameters.Count; i++)
+                    CheckVisiable(manager, abstractFunction, abstractFunction.declaration.visibility, abstractFunction.signature[i], abstractFunction.fileFunction.parameters[i].type.name.name);
+                for (var i = 0; i < abstractFunction.returns.Count; i++)
+                    CheckVisiable(manager, abstractFunction, abstractFunction.declaration.visibility, abstractFunction.returns[i], abstractFunction.fileFunction.returns[i].name.name);
+            }
+            foreach (var abstractStruct in library.structs)
+            {
+                foreach (var field in abstractStruct.variables)
+                    CheckVisiable(manager, abstractStruct, GetMoreStringent(abstractStruct.declaration.visibility, field.declaration.visibility), field.type, field.fileVariable.type.name.name);
+                foreach (var method in abstractStruct.functions)
+                {
+                    var visibility = GetMoreStringent(abstractStruct.declaration.visibility, method.declaration.visibility);
+                    for (var i = 0; i < method.parameters.Count; i++)
+                        CheckVisiable(manager, method, visibility, method.signature[i], method.fileFunction.parameters[i].type.name.name);
+                    for (var i = 0; i < method.returns.Count; i++)
+                        CheckVisiable(manager, method, visibility, method.returns[i], method.fileFunction.returns[i].name.name);
+                }
+            }
+            foreach (var abstractInterface in library.interfaces)
+            {
+                for (var i = 0; i < abstractInterface.inherits.Count; i++)
+                    CheckVisiable(manager, abstractInterface, abstractInterface.declaration.visibility, abstractInterface.inherits[i], abstractInterface.fileInterface.inherits[i].name.name);
+                foreach (var method in abstractInterface.functions)
+                {
+                    var visibility = GetMoreStringent(abstractInterface.declaration.visibility, method.declaration.visibility);
+                    for (var i = 0; i < method.parameters.Count; i++)
+                        CheckVisiable(manager, method, visibility, method.signature[i], method.fileFunction.parameters[i].type.name.name);
+                    for (var i = 0; i < method.returns.Count; i++)
+                        CheckVisiable(manager, method, visibility, method.returns[i], method.fileFunction.returns[i].name.name);
+                }
+            }
+            foreach (var abstractClass in library.classes)
+            {
+                if (abstractClass.inherits.Count < abstractClass.fileClass.inherits.Count)
+                {
+                    CheckVisiable(manager, abstractClass, abstractClass.declaration.visibility, abstractClass.parent, abstractClass.fileClass.inherits[0].name.name);
+                    for (var i = 0; i < abstractClass.inherits.Count; i++)
+                        CheckVisiable(manager, abstractClass, abstractClass.declaration.visibility, abstractClass.inherits[i], abstractClass.fileClass.inherits[i + 1].name.name);
+                }
+                else for (var i = 0; i < abstractClass.inherits.Count; i++)
+                        CheckVisiable(manager, abstractClass, abstractClass.declaration.visibility, abstractClass.inherits[i], abstractClass.fileClass.inherits[i].name.name);
+                foreach (var field in abstractClass.variables)
+                    CheckVisiable(manager, abstractClass, GetMoreStringent(abstractClass.declaration.visibility, field.declaration.visibility), field.type, field.fileVariable.type.name.name);
+                foreach (var method in abstractClass.constructors)
+                {
+                    var visibility = GetMoreStringent(abstractClass.declaration.visibility, method.declaration.visibility);
+                    for (var i = 0; i < method.parameters.Count; i++)
+                        CheckVisiable(manager, method, visibility, method.signature[i], method.fileConstructor.parameters[i].type.name.name);
+                    for (var i = 0; i < method.returns.Count; i++)
+                        CheckVisiable(manager, method, visibility, method.returns[i], method.fileConstructor.returns[i].name.name);
+                }
+                foreach (var method in abstractClass.functions)
+                {
+                    var visibility = GetMoreStringent(abstractClass.declaration.visibility, method.declaration.visibility);
+                    for (var i = 0; i < method.parameters.Count; i++)
+                        CheckVisiable(manager, method, visibility, method.signature[i], method.fileFunction.parameters[i].type.name.name);
+                    for (var i = 0; i < method.returns.Count; i++)
+                        CheckVisiable(manager, method, visibility, method.returns[i], method.fileFunction.returns[i].name.name);
+                }
+            }
+            foreach (var abstractDelegate in library.delegates)
+            {
+                for (var i = 0; i < abstractDelegate.parameters.Count; i++)
+                    CheckVisiable(manager, abstractDelegate, abstractDelegate.declaration.visibility, abstractDelegate.signature[i], abstractDelegate.fileDelegate.parameters[i].type.name.name);
+                for (var i = 0; i < abstractDelegate.returns.Count; i++)
+                    CheckVisiable(manager, abstractDelegate, abstractDelegate.declaration.visibility, abstractDelegate.returns[i], abstractDelegate.fileDelegate.returns[i].name.name);
+            }
+            foreach (var abstractTask in library.tasks)
+                for (var i = 0; i < abstractTask.returns.Count; i++)
+                    CheckVisiable(manager, abstractTask, abstractTask.declaration.visibility, abstractTask.returns[i], abstractTask.fileTask.returns[i].name.name);
+            foreach (var abstractNative in library.natives)
+            {
+                for (var i = 0; i < abstractNative.parameters.Count; i++)
+                    CheckVisiable(manager, abstractNative, abstractNative.declaration.visibility, abstractNative.signature[i], abstractNative.fileNative.parameters[i].type.name.name);
+                for (var i = 0; i < abstractNative.returns.Count; i++)
+                    CheckVisiable(manager, abstractNative, abstractNative.declaration.visibility, abstractNative.returns[i], abstractNative.fileNative.returns[i].name.name);
+            }
+        }
         public static void CheckValidity(Manager manager, AbstractLibrary library)
         {
             CheckDuplicationName(manager, library);
@@ -371,6 +516,7 @@
                 }
                 filter.Clear();
             }
+            CheckVisiable(manager, library);
         }
     }
 }
