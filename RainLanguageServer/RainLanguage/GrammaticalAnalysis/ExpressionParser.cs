@@ -1,6 +1,5 @@
 ﻿using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq.Expressions;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
@@ -2397,16 +2396,20 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             else if (source == target) return 0;
             else if (target == manager.kernelManager.CHAR)
             {
-                if (source == manager.kernelManager.BYTE) return 0xff;
+                if (source == manager.kernelManager.BYTE) return 0xf;
             }
             else if (target == manager.kernelManager.INT)
             {
-                if (source == manager.kernelManager.BYTE || source == manager.kernelManager.CHAR) return 0xff;
-                else if (source.dimension == 0 && source.code == TypeCode.Enum) return 0xfff;
+                if (source == manager.kernelManager.BYTE) return 0xff;
+                else if (source == manager.kernelManager.CHAR) return 0xf;
+                else if (source.dimension == 0 && source.code == TypeCode.Enum) return 0xffff;
             }
             else if (target == manager.kernelManager.REAL)
             {
-                if (source == manager.kernelManager.BYTE || source == manager.kernelManager.CHAR || source == manager.kernelManager.INT) return 0xff;
+                if (source == manager.kernelManager.BYTE) return 0xfff;
+                else if (source == manager.kernelManager.CHAR) return 0xff;
+                else if (source == manager.kernelManager.INT) return 0xf;
+                else if (source.dimension == 0 && source.code == TypeCode.Enum) return 0xfffff;
             }
             else if (target == manager.kernelManager.REAL2)
             {

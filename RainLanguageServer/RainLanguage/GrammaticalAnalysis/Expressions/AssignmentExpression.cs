@@ -26,7 +26,7 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             if (left.range.Contain(position)) return left.BreadthFirstOperator(position, action);
             if (right.range.Contain(position)) return right.BreadthFirstOperator(position, action);
             return false;

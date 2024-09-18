@@ -22,7 +22,7 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             foreach (var expression in expressions)
                 if (expression.range.Contain(position))
                     return expression.BreadthFirstOperator(position, action);

@@ -1,7 +1,6 @@
 ﻿using LanguageServer.Parameters.TextDocument;
 using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
 using System.Diagnostics.CodeAnalysis;
-using System.Security.AccessControl;
 using System.Text;
 
 namespace RainLanguageServer.RainLanguage

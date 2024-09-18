@@ -27,7 +27,7 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             if (type.range.Contain(position)) return type.BreadthFirstOperator(position, action);
             if (expression.range.Contain(position)) return expression.BreadthFirstOperator(position, action);
             return false;
@@ -60,7 +60,7 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             if (expression.range.Contain(position)) return expression.BreadthFirstOperator(position, action);
             return false;
         }
@@ -107,7 +107,7 @@
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if(action(this)) return true;
+            if (action(this)) return true;
             if (source.range.Contain(position)) return source.BreadthFirstOperator(position, action);
             if (type.range.Contain(position)) return type.BreadthFirstOperator(position, action);
             return false;

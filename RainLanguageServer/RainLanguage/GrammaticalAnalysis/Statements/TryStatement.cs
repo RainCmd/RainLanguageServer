@@ -37,7 +37,7 @@
         {
             if (tryBlock != null && tryBlock.range.Contain(position)) return tryBlock.Operator(position, action);
             foreach (var catchBlock in catchBlocks)
-                if (catchBlock.block.range.Contain(position)) 
+                if (catchBlock.block.range.Contain(position))
                     return catchBlock.block.Operator(position, action);
             if (finallyBlock != null && finallyBlock.range.Contain(position)) return finallyBlock.Operator(position, action);
             return action(this);
