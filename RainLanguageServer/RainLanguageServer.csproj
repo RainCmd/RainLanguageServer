@@ -24,7 +24,7 @@
   </PropertyGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="rmdir /s /q $(SolutionDir)RainLanguagePlugin\bin\server\&#xD;&#xA;xcopy /y $(TargetDir) $(SolutionDir)RainLanguagePlugin\bin\server\" />
+    <Exec Command="rmdir /s /q $(SolutionDir)..\bin\server\&#xD;&#xA;xcopy /y $(TargetDir) $(SolutionDir)..\bin\server\" />
   </Target>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
