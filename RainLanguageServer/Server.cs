@@ -79,7 +79,7 @@ namespace RainLanguageServer
                     for (var i = 0; i < infos.Count; i++)
                     {
                         var info = infos[i];
-                        items[i] = new CompletionItem(info.lable) { kind = info.kind, data = info.data };
+                        items[i] = new CompletionItem(info.lable) { kind = info.kind, documentation = new MarkupContent(MarkupKind.Markdown, info.documentation) };
                     }
                     return Result<CompletionResult, ResponseError>.Success(new CompletionResult(items));
                 }

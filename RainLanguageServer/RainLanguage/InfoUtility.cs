@@ -839,6 +839,8 @@ namespace RainLanguageServer.RainLanguage
             for (var index = context.space; index != null; index = index.parent)
                 CollectSpaceDeclarations(manager, infos, index, context, filter);
             if (filter.Contain(CompletionFilter.Define)) CollectBaseType(infos);
+            if (context.declaration != null)
+                CollectMember(manager, context.declaration.declaration.DefineType, context, infos);
         }
         public static void Completion(Manager manager, Context context, List<TextRange> ranges, TextPosition position, List<CompletionInfo> infos, CompletionFilter filter)
         {
