@@ -5,6 +5,7 @@
         public readonly TypeExpression type;
         public readonly TextRange symbol;
         public readonly Expression expression;
+        public Manager.KernelManager manager;
         public override bool Valid => true;
 
         public CastExpression(TextRange range, TypeExpression type, LocalContextSnapshoot snapshoot, TextRange symbol, Expression expression, Manager.KernelManager manager) : base(range, type.type, snapshoot)
@@ -12,7 +13,13 @@
             this.type = type;
             this.symbol = symbol;
             this.expression = expression;
+            this.manager = manager;
             attribute = ExpressionAttribute.Value | type.type.GetAttribute(manager);
+        }
+        public override bool TryEvaluateIndices(List<long> indices)
+        {
+            if (tuple.Count == 1 && tuple[0] == manager.INT) return expression.TryEvaluateIndices(indices);
+            return false;
         }
         public override void Read(ExpressionParameter parameter)
         {

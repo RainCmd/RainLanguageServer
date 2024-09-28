@@ -351,28 +351,88 @@ namespace RainLanguageServer.RainLanguage
                 while (constants.RemoveAll(value => value.calculated = value.expression!.Calculability()) > 0) ;
                 foreach (var item in constants)
                     item.file.space.collector.Add(item.name, ErrorLevel.Error, "无法计算常量值");
+
+                var indices = new List<long>();
                 foreach (var item in library.enums)
                 {
                     var context = new Context(item.file.space.document, item.space, item.file.space.relies, null);
                     var localContext = new LocalContext(item.file.space.collector);
                     var parser = new ExpressionParser(this, context, localContext, item.file.space.collector, false);
                     var parameter = new ExpressionParameter(this, item.file.space.collector);
+
+                    var calculated = true;
+                    var uncalculated = 0;
                     var value = 0L;
                     foreach (var element in item.elements)
                         if (element.fileElement.expression == null)
                         {
-                            element.value = value++;
-                            element.calculated = true;
+                            if (calculated)
+                            {
+                                element.value = value++;
+                                element.calculated = true;
+                            }
+                            else uncalculated++;
                         }
                         else
                         {
                             localContext.PushBlock();
                             element.expression = parser.AssignmentConvert(parser.Parse(element.fileElement.expression.Value), kernelManager.INT);
                             element.expression.Read(parameter);
-                            if (element.expression.Calculability()) element.calculated = true;
-                            else item.file.space.collector.Add(item.name, ErrorLevel.Error, "无法计算常量值，可能存在循环定义");
+                            if (element.expression.Calculability())
+                            {
+                                element.calculated = true;
+                                calculated = true;
+                                indices.Clear();
+                                if (element.expression.TryEvaluateIndices(indices) && indices.Count == 1) value = element.value = indices[0];
+                                else item.file.space.collector.Add(element.expression.range, ErrorLevel.Error, "必须是返回单个整数的表达式");
+                            }
+                            else if (element.expression.Valid)
+                            {
+                                uncalculated++;
+                                calculated = false;
+                            }
+                            else
+                            {
+                                element.calculated = true;
+                                calculated = true;
+                            }
                             localContext.PopBlock();
                         }
+                    while (uncalculated > 0)
+                    {
+                        var lastUncalculated = uncalculated;
+                        uncalculated = 0;
+                        calculated = false;
+                        foreach (var element in item.elements)
+                            if (!element.calculated)
+                                if (element.expression == null)
+                                {
+                                    if (calculated)
+                                    {
+                                        element.value = value++;
+                                        element.calculated = true;
+                                    }
+                                    else uncalculated++;
+                                }
+                                else if (element.expression.Calculability())
+                                {
+                                    element.calculated = true;
+                                    calculated = true;
+                                    indices.Clear();
+                                    if (element.expression.TryEvaluateIndices(indices) && indices.Count == 1) value = element.value = indices[0];
+                                    else item.file.space.collector.Add(element.expression.range, ErrorLevel.Error, "必须是返回单个整数的表达式");
+                                }
+                                else
+                                {
+                                    uncalculated++;
+                                    calculated = false;
+                                }
+                        if (uncalculated == lastUncalculated) break;
+                    }
+                    if (uncalculated > 0)
+                        foreach (var element in item.elements)
+                            if (!element.calculated && element.expression != null)
+                                item.file.space.collector.Add(element.name, ErrorLevel.Error, "无法计算常量值，可能存在循环定义");
                 }
                 //todo 前面会把所有未打开的文档信息都清理掉，所以这里只解析打开的文档会导致数据丢失，目前已知有概率点开新文件时文件数据仍未解析，目前未知是否是这里导致的问题
                 //     暂时先全量解析，目前来看全量解析耗时还在可以接受的范围内

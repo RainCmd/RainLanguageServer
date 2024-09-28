@@ -110,9 +110,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                         }
                     }
                 }
-                else if (parameters.attribute.ContainAny(ExpressionAttribute.Value) && symbol == "." && ManagerOperator.TryGetContext(manager, position, out var context))
+                else if (symbol == "." && ManagerOperator.TryGetContext(manager, position, out var context))
                 {
-                    InfoUtility.CollectMember(manager, parameters.tuple[0], context, infos);
+                    if (parameters.attribute.ContainAny(ExpressionAttribute.Value))
+                        InfoUtility.CollectMember(manager, parameters.tuple[0], context, infos);
+                    else if (parameters is TypeExpression typeExpression)
+                        InfoUtility.CollectMember(manager, typeExpression.type, context, infos);
                     return default;
                 }
             }

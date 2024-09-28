@@ -18,6 +18,16 @@
             this.type = type;
             attribute = ExpressionAttribute.Constant;
         }
+        public override bool TryEvaluateIndices(List<long> indices)
+        {
+            if(element.calculated)
+            {
+                indices.Add(element.value);
+                return true;
+            }
+            return false;
+        }
+        public override bool Calculability() => element.calculated;
         public override void Read(ExpressionParameter parameter)
         {
             abstractEnum.references.Add(type.range);
