@@ -658,7 +658,11 @@ namespace RainLanguageServer.RainLanguage
                                 index.space.attributes.AddRange(attributes);
                                 attributes.Clear();
                                 ParseSpace(index, reader, line.indent);
-                                index.range &= reader.GetLastValidLine();
+                                while (index != space)
+                                {
+                                    index.range &= reader.GetLastValidLine();
+                                    index = index.parent!;
+                                }
                             }
                             else space.collector.Add(lexical.anchor, ErrorLevel.Error, "需要输入命名空间名");
                         }
