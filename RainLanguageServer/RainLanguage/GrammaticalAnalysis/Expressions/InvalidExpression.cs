@@ -110,13 +110,26 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
                         }
                     }
                 }
-                else if (symbol == "." && ManagerOperator.TryGetContext(manager, position, out var context))
+                else if (ManagerOperator.TryGetContext(manager, position, out var context))
                 {
-                    if (parameters.attribute.ContainAny(ExpressionAttribute.Value))
-                        InfoUtility.CollectMember(manager, parameters.tuple[0], context, infos);
-                    else if (parameters is TypeExpression typeExpression)
-                        InfoUtility.CollectMember(manager, typeExpression.type, context, infos);
-                    return default;
+                    if (Lexical.TryAnalysis(symbol, 0, out var lexical, null))
+                    {
+                        if (lexical.type == LexicalType.Dot || lexical.type == LexicalType.QuestionDot)
+                        {
+                            if (parameters.attribute.ContainAny(ExpressionAttribute.Value))
+                                InfoUtility.CollectMember(manager, parameters.tuple[0], context, infos);
+                            else if (parameters is TypeExpression typeExpression)
+                                InfoUtility.CollectMember(manager, typeExpression.type, context, infos);
+                        }
+                        else if (lexical.type == LexicalType.RealInvoker || lexical.type == LexicalType.QuestionRealInvoke)
+                        {
+                            if (parameters.attribute.ContainAny(ExpressionAttribute.Value))
+                                InfoUtility.CollectClassFunction(manager, parameters.tuple[0], context, infos);
+                            else if (parameters is TypeExpression typeExpression)
+                                InfoUtility.CollectClassFunction(manager, typeExpression.type, context, infos);
+                        }
+                        return default;
+                    }
                 }
             }
             return base.InternalCompletion(manager, position, infos);

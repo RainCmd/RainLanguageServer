@@ -753,6 +753,25 @@ namespace RainLanguageServer.RainLanguage
                 }
             }
         }
+        public static void CollectClassFunction(Manager manager, Type type, Context context, List<CompletionInfo> infos)
+        {
+            if (type.dimension > 0) type = manager.kernelManager.ARRAY;
+            else if (type.code == TypeCode.Delegate) type = manager.kernelManager.DELEGATE;
+            else if (type.code == TypeCode.Task) type = manager.kernelManager.TASK;
+            if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractClass abstractClass)
+            {
+                foreach (var inherit in manager.GetInheritIterator(abstractClass))
+                {
+                    var set = new HashSet<AbstractCallable>();
+                    foreach (var member in inherit.functions)
+                        if (set.Add(member) && context.IsVisiable(manager, member.declaration))
+                        {
+                            infos.Add(new CompletionInfo(member.name.ToString(), CompletionItemKind.Method, member.CodeInfo(manager, context.space)));
+                            set.AddRange(member.overrides);
+                        }
+                }
+            }
+        }
         private static void AddDeclaration(Manager manager, List<CompletionInfo> infos, Declaration declaration, CompletionItemKind kind)
         {
             if (manager.TryGetDeclaration(declaration, out var abstractDeclaration))
