@@ -1,5 +1,6 @@
 ﻿using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq.Expressions;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {
@@ -925,19 +926,17 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                             var anchor = lexical.anchor;
                             if (anchor[^1] == '\'') anchor = anchor[1..^1];
                             else anchor = anchor[1..];
-                            Expression? expression;
-                            if (anchor.Count == 1) expression = new ConstCharExpression(lexical.anchor, localContext.Snapshoot, anchor[0], manager.kernelManager);
-                            else
+                            var count = 0;
+                            for (var i = 0; i < anchor.Count; i++, count++)
                             {
-                                for (var i = 0; i < anchor.Count; i++)
-                                {
-                                    var c = anchor[i] & 0xff;
-                                    value <<= 8;
-                                    if (c == '\\') value += Utility.EscapeCharacter(anchor, ref i);
-                                    else value += c;
-                                }
-                                expression = new ConstCharsExpression(lexical.anchor, localContext.Snapshoot, value, manager.kernelManager);
+                                var c = anchor[i] & 0xff;
+                                value <<= 8;
+                                if (c == '\\') value += Utility.EscapeCharacter(anchor, ref i);
+                                else value += c;
                             }
+                            Expression expression;
+                            if (count == 1) expression = new ConstCharExpression(lexical.anchor, localContext.Snapshoot, (char)value, manager.kernelManager);
+                            else expression = new ConstCharsExpression(lexical.anchor, localContext.Snapshoot, value, manager.kernelManager);
                             if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
                             {
                                 expressionStack.Push(expression);
@@ -1166,6 +1165,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                 if (Lexical.TryExtractName(range, lexical.anchor.end, out var names, collector))
                                 {
                                     var typeExpression = GetTypeExpression(range, names, ref index, out var type);
+                                    if (!type.Managed) collector.Add(typeExpression.range, ErrorLevel.Error, "不是引用类型");
                                     var source = expressionStack.Pop();
                                     var expression = new AsCastExpression(source.range.start & index, localContext.Snapshoot, lexical.anchor, source, typeExpression, type);
                                     expressionStack.Push(expression);
