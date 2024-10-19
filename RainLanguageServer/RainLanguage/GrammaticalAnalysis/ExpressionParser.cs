@@ -923,16 +923,21 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         {
                             long value = 0;
                             var anchor = lexical.anchor;
-                            if (anchor[^1] == '\'') anchor = anchor[1..^2];
+                            if (anchor[^1] == '\'') anchor = anchor[1..^1];
                             else anchor = anchor[1..];
-                            for (var i = 0; i < anchor.Count; i++)
+                            Expression? expression;
+                            if (anchor.Count == 1) expression = new ConstCharExpression(lexical.anchor, localContext.Snapshoot, anchor[0], manager.kernelManager);
+                            else
                             {
-                                var c = anchor[i] & 0xff;
-                                value <<= 8;
-                                if (c == '\\') value += Utility.EscapeCharacter(anchor, ref i);
-                                else value += c;
+                                for (var i = 0; i < anchor.Count; i++)
+                                {
+                                    var c = anchor[i] & 0xff;
+                                    value <<= 8;
+                                    if (c == '\\') value += Utility.EscapeCharacter(anchor, ref i);
+                                    else value += c;
+                                }
+                                expression = new ConstCharsExpression(lexical.anchor, localContext.Snapshoot, value, manager.kernelManager);
                             }
-                            var expression = new ConstCharsExpression(lexical.anchor, localContext.Snapshoot, value, manager.kernelManager);
                             if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
                             {
                                 expressionStack.Push(expression);
