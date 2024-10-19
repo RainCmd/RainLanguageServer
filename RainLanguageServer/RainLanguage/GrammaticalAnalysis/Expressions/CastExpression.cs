@@ -88,11 +88,11 @@
         public readonly TextRange symbol;
         public readonly TextRange? identifier;
         public readonly Expression source;
-        public readonly TypeExpression type;
+        public readonly Expression type;
         public readonly Local? local;
         public override bool Valid => true;
 
-        public IsCastExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange symbol, TextRange? identifier, Expression source, TypeExpression type, Local? local, Manager.KernelManager manager) : base(range, manager.BOOL, snapshoot)
+        public IsCastExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange symbol, TextRange? identifier, Expression source, Expression type, Local? local, Manager.KernelManager manager) : base(range, manager.BOOL, snapshoot)
         {
             this.symbol = symbol;
             this.identifier = identifier;
@@ -183,38 +183,38 @@
     {
         public readonly TextRange symbol;
         public readonly Expression source;
-        public readonly TypeExpression type;
+        public readonly Expression typeExpression;
         public override bool Valid => true;
 
-        public AsCastExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange symbol, Expression source, TypeExpression type) : base(range, type.type, snapshoot)
+        public AsCastExpression(TextRange range, LocalContextSnapshoot snapshoot, TextRange symbol, Expression source, Expression typeExpression, Type type) : base(range, type, snapshoot)
         {
             this.symbol = symbol;
             this.source = source;
-            this.type = type;
+            this.typeExpression = typeExpression;
             attribute = ExpressionAttribute.Value;
         }
         public override void Read(ExpressionParameter parameter)
         {
             source.Read(parameter);
-            type.Read(parameter);
+            typeExpression.Read(parameter);
         }
         public override bool Operator(TextPosition position, ExpressionOperator action)
         {
             if (source.range.Contain(position)) return source.Operator(position, action);
-            if (type.range.Contain(position)) return type.Operator(position, action);
+            if (typeExpression.range.Contain(position)) return typeExpression.Operator(position, action);
             return action(this);
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
             if (action(this)) return true;
             if (source.range.Contain(position)) return source.BreadthFirstOperator(position, action);
-            if (type.range.Contain(position)) return type.BreadthFirstOperator(position, action);
+            if (typeExpression.range.Contain(position)) return typeExpression.BreadthFirstOperator(position, action);
             return false;
         }
         public override void Operator(Action<Expression> action)
         {
             source.Operator(action);
-            type.Operator(action);
+            typeExpression.Operator(action);
             action(this);
         }
 

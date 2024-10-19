@@ -1132,13 +1132,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                             {
                                 if (Lexical.TryExtractName(range, lexical.anchor.end, out var names, collector))
                                 {
-                                    var name = new QualifiedName(names);
-                                    index = name.name.end;
-                                    var dimension = Lexical.ExtractDimension(range, ref index);
-                                    var file = new FileType(name.Range.start & index, name, dimension);
-                                    var type = FileLink.GetType(context, manager, file, collector);
+                                    var typeExpression = GetTypeExpression(range, names, ref index, out var type);
                                     var source = expressionStack.Pop();
-                                    var typeExpression = new TypeExpression(file.range, localContext.Snapshoot, null, file, type);
                                     if (Lexical.TryAnalysis(range, index, out var identifier, collector))
                                     {
                                         index = identifier.anchor.end;
@@ -1165,14 +1160,9 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                             {
                                 if (Lexical.TryExtractName(range, lexical.anchor.end, out var names, collector))
                                 {
-                                    var name = new QualifiedName(names);
-                                    index = name.name.end;
-                                    var dimension = Lexical.ExtractDimension(range, ref index);
-                                    var file = new FileType(name.Range.start & index, name, dimension);
-                                    var type = FileLink.GetType(context, manager, file, collector);
+                                    var typeExpression = GetTypeExpression(range, names, ref index, out var type);
                                     var source = expressionStack.Pop();
-                                    var typeExpression = new TypeExpression(file.range, localContext.Snapshoot, null, file, type);
-                                    var expression = new AsCastExpression(source.range.start & index, localContext.Snapshoot, lexical.anchor, source, typeExpression);
+                                    var expression = new AsCastExpression(source.range.start & index, localContext.Snapshoot, lexical.anchor, source, typeExpression, type);
                                     expressionStack.Push(expression);
                                     attribute = expression.attribute;
                                     goto label_next_lexical;
@@ -1296,6 +1286,24 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             }
             else if (expressionStack.Count > 0) return expressionStack.Pop();
             else return new TupleExpression(range, localContext.Snapshoot);
+        }
+        private Expression GetTypeExpression(TextRange range, List<TextRange> names, ref TextPosition index, out Type type)
+        {
+            if (names[^1].Count == 0)
+            {
+                index = names[^1].end;
+                type = default;
+                return new InvalidOperationExpression(names[0] & names[^1], localContext.Snapshoot, (names[^2] & names[^1]).Trim, new InvalidExpression(names[0] & names[^2], localContext.Snapshoot));
+            }
+            else
+            {
+                var name = new QualifiedName(names);
+                index = name.name.end;
+                var dimension = Lexical.ExtractDimension(range, ref index);
+                var file = new FileType(name.Range.start & index, name, dimension);
+                type = FileLink.GetType(context, manager, file, collector);
+                return new TypeExpression(file.range, localContext.Snapshoot, null, file, type);
+            }
         }
         private void PushDeclarationsExpression(TextRange range, ref TextPosition index, ref ExpressionAttribute attribute, Stack<Expression> expressionStack, List<AbstractDeclaration> declarations, TextRange? qualifier, QualifiedName name)
         {

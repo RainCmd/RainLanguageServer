@@ -68,7 +68,7 @@ namespace RainLanguageServer.RainLanguage
                     case DeclarationCategory.Native:
                         break;
                 }
-                throw new InvalidOperationException();
+                return default;
             }
         }
         public bool Equals(Declaration other) => library == other.library && category == other.category && index == other.index && define == other.define;
