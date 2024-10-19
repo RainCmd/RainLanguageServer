@@ -1516,12 +1516,15 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         return TryFindDeclaration(range, ref index, expressionStack, attribute, children, spaceName, out results, out name, context);
                     }
                     PushInvalidExpression(expressionStack, spaceName[0] & lexical.anchor, attribute, "声明未找到", new InvalidExpression(spaceName[0] & lexical.anchor, localContext.Snapshoot));
-                    results = default;
-                    name = default;
-                    return false;
+                }
+                else
+                {
+                    index = dot.end;
+                    var parameter = new InvalidExpression(spaceName[0] & spaceName[^1], localContext.Snapshoot);
+                    PushInvalidExpression(expressionStack, dot, attribute, "缺少标识符", new InvalidOperationExpression(parameter.range & dot, localContext.Snapshoot, dot, parameter));
                 }
             }
-            PushInvalidExpression(expressionStack, spaceName[0] & spaceName[^1], attribute, "声明未找到", new InvalidExpression(spaceName[0] & spaceName[^1], localContext.Snapshoot));
+            else PushInvalidExpression(expressionStack, spaceName[0] & spaceName[^1], attribute, "声明未找到", new InvalidExpression(spaceName[0] & spaceName[^1], localContext.Snapshoot));
             results = default;
             name = default;
             return false;
