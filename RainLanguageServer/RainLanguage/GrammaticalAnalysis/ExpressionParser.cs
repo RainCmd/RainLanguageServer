@@ -1138,6 +1138,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                 {
                                     var typeExpression = GetTypeExpression(range, names, ref index, out var type);
                                     var source = expressionStack.Pop();
+                                    if (Convert(manager, source.tuple[0], type) >= 0) collector.Add(source.range & typeExpression.range, ErrorLevel.Warning, "给定的表达式始终为目标类型");
+                                    else if (Convert(manager, type, source.tuple[0]) < 0) collector.Add(source.range & typeExpression.range, ErrorLevel.Warning, "给定的表达式始终无法转换为目标类型");
                                     if (Lexical.TryAnalysis(range, index, out var identifier, collector))
                                     {
                                         index = identifier.anchor.end;
