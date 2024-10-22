@@ -25,12 +25,13 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions
         }
         public override bool Operator(TextPosition position, ExpressionOperator action)
         {
-            if (parameters.range.Contain(position)) return parameters.Operator(position, action);
-            return action(this);
+            if (parameters.range.Contain(position) && parameters.Operator(position, action)) return true;
+            if (symbol.Contain(position)) return action(this);
+            return false;
         }
         public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
         {
-            if (action(this)) return true;
+            if (symbol.Contain(position) && action(this)) return true;
             if (parameters.range.Contain(position)) return parameters.BreadthFirstOperator(position, action);
             return false;
         }
