@@ -150,6 +150,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                                 constructors.Add(constructor);
                                         if (TryGetFunction(expression.range, constructors, bracket, out var callable))
                                         {
+                                            bracket = bracket.Replace(AssignmentConvert(bracket.expression, callable.signature));
                                             if (destructor) collector.Add(expression.range, ErrorLevel.Error, "析构函数中不能创建托管对象");
                                             expression = new ConstructorExpression(expression.range & bracket.range, type, localContext.Snapshoot, callable, null, bracket, manager.kernelManager);
                                         }
