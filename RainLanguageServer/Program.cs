@@ -13,7 +13,7 @@ namespace RainLanguageServer
             socket.Bind(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 14567));
             socket.Listen(1);
             var stream = new System.Net.Sockets.NetworkStream(socket.Accept());
-            var log = File.CreateText(Path.Combine(Environment.CurrentDirectory, "\\server.log"));
+            var log = File.CreateText(Path.Combine(Environment.CurrentDirectory, "..\\..\\..\\..\\server.log"));
             var recorder = new RecorderStream(stream, log);
             var server = new Server(recorder, recorder, 10);
             server.OnTimeout += method => Console.WriteLine($"{method} 请求处理时间已超时");

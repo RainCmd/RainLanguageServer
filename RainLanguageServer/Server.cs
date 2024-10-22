@@ -323,6 +323,7 @@ namespace RainLanguageServer
         }
         protected override void DidCloseTextDocument(DidCloseTextDocumentParams param)
         {
+            Proxy.TextDocument.PublishDiagnostics(new PublishDiagnosticsParams(new Uri(param.textDocument.uri), []));
             lock (documents)
                 documents.Remove(new UnifiedPath(param.textDocument.uri));
             OnChanged();
