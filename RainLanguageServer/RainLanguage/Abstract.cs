@@ -277,7 +277,7 @@ namespace RainLanguageServer.RainLanguage
                 var name = parameters[i].name;
                 if (IsSelf && name.Count > 0)
                 {
-                    if (block != null && block.parameters[i].write.Count == 0)
+                    if (block != null && block.parameters[i].read.Count == 0)
                         collector.Add(DetailTokenType.DeprecatedLocal, name);
                     else
                         collector.Add(DetailTokenType.Parameter, name);
