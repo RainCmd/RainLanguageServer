@@ -1070,7 +1070,8 @@ namespace RainLanguageServer.RainLanguage
                     collector.AddRange(SemanticTokenType.Number, SemanticTokenModifier.Readonly, range);
                     break;
                 case DetailTokenType.String:
-                    collector.AddRange(SemanticTokenType.String, SemanticTokenModifier.Readonly, range);
+                    //由tmLangauge.json中配置着色
+                    //collector.AddRange(SemanticTokenType.String, SemanticTokenModifier.Readonly, range);
                     break;
 
                 case DetailTokenType.Namespace:

@@ -989,10 +989,19 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                             collector.Add(bracket.expression.range, ErrorLevel.Error, "内插字符串内的表达式必须是返回单个值");
                                         expressions.Add(bracket);
 
-                                        i = bracket.range.end - anchor.start;
+                                        i = bracket.range.end - anchor.start - 1;
                                         start = bracket.range.end;
                                     }
                                 }
+                                else if (c == '}')
+                                {
+                                    if (i + 1 < anchor.Count && anchor[i + 1] != '}')
+                                    {
+                                        var position = anchor.start + i;
+                                        collector.Add(position & position + 1, ErrorLevel.Error, "缺少配对的符号");
+                                    }
+                                }
+                                else if (c == '\\') i++;
                             }
                             if (start < lexical.anchor.end)
                                 expressions.Add(new ConstStringExpression(start & lexical.anchor.end, localContext.Snapshoot, manager.kernelManager));
