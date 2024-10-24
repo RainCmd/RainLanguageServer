@@ -147,7 +147,7 @@ namespace RainLanguageServer.RainLanguage
                         sb.Append(KeyWords.ENUM);
                         break;
                     case TypeCode.Handle:
-                        sb.Append(KeyWords.HANDLE);
+                        sb.Append(KeyWords.CLASS);
                         break;
                     case TypeCode.Interface:
                         sb.Append(KeyWords.INTERFACE);
