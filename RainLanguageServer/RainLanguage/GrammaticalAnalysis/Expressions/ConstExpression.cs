@@ -106,9 +106,10 @@
         }
         protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Numeric, range);
     }
-    internal class ConstIntegerExpression(TextRange range, LocalContextSnapshoot snapshoot, long value, Manager.KernelManager manager) : ConstExpression(range, manager.INT, snapshoot)
+    internal class ConstIntegerExpression(TextRange range, LocalContextSnapshoot snapshoot, long value, bool showValue, Manager.KernelManager manager) : ConstExpression(range, manager.INT, snapshoot)
     {
         public readonly long value = value;
+        public readonly bool showValue = showValue;
         public override bool TryEvaluate(out long value)
         {
             value = this.value;
@@ -124,12 +125,9 @@
             indices.Add(value);
             return true;
         }
-        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Numeric, range);
-    }
-    internal class ConstCharsExpression(TextRange range, LocalContextSnapshoot snapshoot, long value, Manager.KernelManager manager) : ConstIntegerExpression(range, snapshoot, value, manager)
-    {
         protected override bool InternalOnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
+            if (!showValue) return base.InternalOnHover(manager, position, out info);
             if (manager.TryGetDeclaration(tuple[0], out var declaration))
             {
                 info = new HoverInfo(range, declaration.CodeInfo(manager, ManagerOperator.GetSpace(manager, position)) + "\n= " + value.ToString(), true);
@@ -138,6 +136,10 @@
             info = default;
             return false;
         }
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Numeric, range);
+    }
+    internal class ConstCharsExpression(TextRange range, LocalContextSnapshoot snapshoot, long value, Manager.KernelManager manager) : ConstIntegerExpression(range, snapshoot, value, true, manager)
+    {
         protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) { }
     }
     internal class ConstRealExpression(TextRange range, LocalContextSnapshoot snapshoot, double value, Manager.KernelManager manager) : ConstExpression(range, manager.REAL, snapshoot)
@@ -149,6 +151,28 @@
             return true;
         }
         protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Numeric, range);
+    }
+    internal class ConstRealTransformExpression(Expression source, LocalContextSnapshoot snapshoot, double value, Manager.KernelManager manager) : ConstRealExpression(source.range, snapshoot, value, manager)
+    {
+        public readonly Expression source = source;
+        public override void Read(ExpressionParameter parameter) => source.Read(parameter);
+        public override bool Operator(TextPosition position, ExpressionOperator action)
+        {
+            if (source.range.Contain(position)) return source.Operator(position, action);
+            return action(this);
+        }
+        public override bool BreadthFirstOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (action(this)) return true;
+            if (source.range.Contain(position)) return source.BreadthFirstOperator(position, action);
+            return false;
+        }
+        public override void Operator(Action<Expression> action)
+        {
+            source.Operator(action);
+            action(this);
+        }
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) { }
     }
     internal class ConstStringExpression : ConstExpression
     {

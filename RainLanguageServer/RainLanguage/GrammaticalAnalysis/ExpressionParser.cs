@@ -857,7 +857,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                     case LexicalType.ConstNumber:
                         {
                             var value = long.Parse(lexical.anchor.ToString().Replace("_", ""));
-                            var expression = new ConstIntegerExpression(lexical.anchor, localContext.Snapshoot, value, manager.kernelManager);
+                            var expression = new ConstIntegerExpression(lexical.anchor, localContext.Snapshoot, value, false, manager.kernelManager);
                             if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
                             {
                                 expressionStack.Push(expression);
@@ -882,7 +882,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     if (c == '1') value++;
                                 }
                             }
-                            var expression = new ConstIntegerExpression(lexical.anchor, localContext.Snapshoot, value, manager.kernelManager);
+                            var expression = new ConstIntegerExpression(lexical.anchor, localContext.Snapshoot, value, true, manager.kernelManager);
                             if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
                             {
                                 expressionStack.Push(expression);
@@ -908,7 +908,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     else throw new Exception($"{c}不是16进制字符");
                                 }
                             }
-                            var expression = new ConstIntegerExpression(lexical.anchor, localContext.Snapshoot, value, manager.kernelManager);
+                            var expression = new ConstIntegerExpression(lexical.anchor, localContext.Snapshoot, value, true, manager.kernelManager);
                             if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
                             {
                                 expressionStack.Push(expression);
@@ -2216,12 +2216,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 if (type == manager.kernelManager.REAL)
                 {
                     if (constExpression is not ConstRealExpression && constExpression.TryEvaluate(out double value))
-                        return new ConstRealExpression(expression.range, localContext.Snapshoot, value, manager.kernelManager);
+                        return new ConstRealTransformExpression(constExpression, localContext.Snapshoot, value, manager.kernelManager);
                 }
                 else if (type == manager.kernelManager.INT)
                 {
                     if (constExpression is not ConstIntegerExpression && constExpression.TryEvaluate(out long value))
-                        return new ConstIntegerExpression(expression.range, localContext.Snapshoot, value, manager.kernelManager);
+                        return new ConstIntegerExpression(expression.range, localContext.Snapshoot, value, true, manager.kernelManager);
                 }
                 else if (type == manager.kernelManager.CHAR)
                 {
