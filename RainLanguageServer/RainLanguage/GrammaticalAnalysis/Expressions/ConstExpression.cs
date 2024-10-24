@@ -138,7 +138,7 @@
             info = default;
             return false;
         }
-
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) { }
     }
     internal class ConstRealExpression(TextRange range, LocalContextSnapshoot snapshoot, double value, Manager.KernelManager manager) : ConstExpression(range, manager.REAL, snapshoot)
     {
