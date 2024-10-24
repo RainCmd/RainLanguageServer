@@ -97,7 +97,7 @@
         public void CollectUnnecessary()
         {
             foreach (var local in locals)
-                if (local.read.Count == 0)
+                if (local.read.Count == 0 && local.name != KeyWords.THIS)
                     collector.Add(local.range, ErrorLevel.Hint, "未使用的变量", true);
         }
     }

@@ -715,6 +715,7 @@ namespace RainLanguageServer.RainLanguage
                 {
                     foreach (var element in abstractEnum.elements)
                         infos.Add(new CompletionInfo(element.name.ToString(), CompletionItemKind.EnumMember, element.CodeInfo(manager, context.space)));
+                    CollectMember(manager, manager.kernelManager.ENUM, context, infos);
                 }
                 else if (declaration is AbstractStruct abstractStruct)
                 {
