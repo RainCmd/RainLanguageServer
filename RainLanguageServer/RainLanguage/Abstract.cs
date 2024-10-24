@@ -123,7 +123,7 @@ namespace RainLanguageServer.RainLanguage
         public override void CollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
             collector.AddType(fileVariable.type, manager, type);
-            collector.Add(DetailTokenType.GlobalVariable, name);
+            collector.Add(isReadonly ? DetailTokenType.Constant : DetailTokenType.GlobalVariable, name);
             expression?.CollectSemanticToken(manager, collector);
         }
         public override bool TrySignatureHelp(Manager manager, TextPosition position, [MaybeNullWhen(false)] out List<SignatureInfo> infos, out int functionIndex, out int parameterIndex)

@@ -1022,10 +1022,10 @@ namespace RainLanguageServer.RainLanguage
                     collector.AddRange(SemanticTokenType.Class, SemanticTokenModifier.Definition, range);
                     break;
                 case DetailTokenType.TypeDelegate:
-                    collector.AddRange(SemanticTokenType.Type, SemanticTokenModifier.Definition, range);
+                    collector.AddRange(SemanticTokenType.Event, SemanticTokenModifier.Definition, range);
                     break;
                 case DetailTokenType.TypeTask:
-                    collector.AddRange(SemanticTokenType.Type, SemanticTokenModifier.Definition, range);
+                    collector.AddRange(SemanticTokenType.Event, SemanticTokenModifier.Definition, range);
                     break;
 
                 case DetailTokenType.MemberElement:
@@ -1064,14 +1064,13 @@ namespace RainLanguageServer.RainLanguage
                     collector.AddRange(SemanticTokenType.Variable, SemanticTokenModifier.DefaultLibrary, range);
                     break;
                 case DetailTokenType.KeywordConst:
-                    collector.AddRange(SemanticTokenType.Macro, SemanticTokenModifier.Readonly, range);
+                    //collector.AddRange(SemanticTokenType.Regexp, SemanticTokenModifier.Documentation, range);
                     break;
 
                 case DetailTokenType.Numeric:
                     collector.AddRange(SemanticTokenType.Number, SemanticTokenModifier.Readonly, range);
                     break;
                 case DetailTokenType.String:
-                    //由tmLangauge.json中配置着色
                     //collector.AddRange(SemanticTokenType.String, SemanticTokenModifier.Readonly, range);
                     break;
 

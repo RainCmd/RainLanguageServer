@@ -473,6 +473,7 @@ namespace RainLanguageServer.RainLanguage
                                 else space.collector.Add((index - 1) & index, ErrorLevel.Error, "需要输入标识符");
                             }
                         }
+                        else space.collector.Add((index - 1) & index, ErrorLevel.Error, "需要输入标识符");
                     }, attributes, annotations);
 
             }
