@@ -210,12 +210,12 @@ namespace RainLanguageServer.RainLanguage
         {
             foreach (var child in space.children)
                 CollectCodeLens(manager, child, infos);
-            foreach (var file in space.variables)
-                if (file.abstractDeclaration is AbstractVariable abstractVariable)
-                {
-                    infos.Add(new CodeLenInfo(abstractVariable.name, $"读取：{abstractVariable.references.Count}"));
-                    infos.Add(new CodeLenInfo(abstractVariable.name, $"写入：{abstractVariable.write.Count}"));
-                }
+            //foreach (var file in space.variables)
+            //    if (file.abstractDeclaration is AbstractVariable abstractVariable)
+            //    {
+            //        infos.Add(new CodeLenInfo(abstractVariable.name, $"读取：{abstractVariable.references.Count}"));
+            //        infos.Add(new CodeLenInfo(abstractVariable.name, $"写入：{abstractVariable.write.Count}"));
+            //    }
             foreach (var file in space.functions)
                 if (file.abstractDeclaration is AbstractFunction abstractFunction)
                     infos.Add(new CodeLenInfo(abstractFunction.name, $"引用：{abstractFunction.references.Count}"));
@@ -226,11 +226,11 @@ namespace RainLanguageServer.RainLanguage
                 if (file.abstractDeclaration is AbstractStruct abstractStruct)
                 {
                     infos.Add(new CodeLenInfo(abstractStruct.name, $"引用：{abstractStruct.references.Count}"));
-                    foreach (var member in abstractStruct.variables)
-                    {
-                        infos.Add(new CodeLenInfo(member.name, $"读取：{member.references.Count}"));
-                        infos.Add(new CodeLenInfo(member.name, $"写入：{member.write.Count}"));
-                    }
+                    //foreach (var member in abstractStruct.variables)
+                    //{
+                    //    infos.Add(new CodeLenInfo(member.name, $"读取：{member.references.Count}"));
+                    //    infos.Add(new CodeLenInfo(member.name, $"写入：{member.write.Count}"));
+                    //}
                     foreach (var member in abstractStruct.functions)
                         infos.Add(new CodeLenInfo(member.name, $"引用：{member.references.Count}"));
                 }
@@ -250,11 +250,11 @@ namespace RainLanguageServer.RainLanguage
                 {
                     infos.Add(new CodeLenInfo(abstractClass.name, $"引用：{abstractClass.references.Count}"));
                     infos.Add(new CodeLenInfo(abstractClass.name, $"子类：{abstractClass.implements.Count}"));
-                    foreach (var member in abstractClass.variables)
-                    {
-                        infos.Add(new CodeLenInfo(member.name, $"读取：{member.references.Count}"));
-                        infos.Add(new CodeLenInfo(member.name, $"写入：{member.write.Count}"));
-                    }
+                    //foreach (var member in abstractClass.variables)
+                    //{
+                    //    infos.Add(new CodeLenInfo(member.name, $"读取：{member.references.Count}"));
+                    //    infos.Add(new CodeLenInfo(member.name, $"写入：{member.write.Count}"));
+                    //}
                     foreach (var member in abstractClass.functions)
                     {
                         infos.Add(new CodeLenInfo(member.name, $"引用：{member.references.Count}"));
