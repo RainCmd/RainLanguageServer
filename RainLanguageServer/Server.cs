@@ -343,13 +343,13 @@ namespace RainLanguageServer
             }
         }
 
-        private readonly List<Diagnostic> diagnosticsHelper = [];
         /// <summary>
         /// 刷新文件的诊断信息
         /// </summary>
         /// <param name="files"></param>
         private void RefreshDiagnostics(FileSpace space)
         {
+            var diagnostics = new List<Diagnostic>();
             foreach (var msg in space.collector)
             {
                 var diagnostic = new Diagnostic(TR2R(msg.range), msg.message);
@@ -364,6 +364,9 @@ namespace RainLanguageServer
                     case ErrorLevel.Info:
                         diagnostic.severity = DiagnosticSeverity.Information;
                         break;
+                    case ErrorLevel.Hint:
+                        diagnostic.severity = DiagnosticSeverity.Hint;
+                        break;
                 }
                 if (msg.related.Count > 0)
                 {
@@ -371,11 +374,10 @@ namespace RainLanguageServer
                     for (var i = 0; i < msg.related.Count; i++)
                         diagnostic.relatedInformation[i] = new DiagnosticRelatedInformation(TR2L(msg.related[i].range), msg.related[i].message);
                 }
-                diagnosticsHelper.Add(diagnostic);
+                if (msg.unnecessary) diagnostic.tags = [DiagnosticTag.Unnecessary];
+                diagnostics.Add(diagnostic);
             }
-            var param = new PublishDiagnosticsParams(new Uri(space.document.path), [.. diagnosticsHelper]);
-            Proxy.TextDocument.PublishDiagnostics(param);
-            diagnosticsHelper.Clear();
+            Proxy.TextDocument.PublishDiagnostics(new PublishDiagnosticsParams(new Uri(space.document.path), [.. diagnostics]));
         }
 
         private static Location TR2L(TextRange range)

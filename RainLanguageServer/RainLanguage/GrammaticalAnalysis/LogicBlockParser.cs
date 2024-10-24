@@ -564,7 +564,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 {
                     if (loopStatement.condition == null)
                     {
-                        collector.Add(loopStatement.elseBlock.statements[0].range, ErrorLevel.Warning, "无法访问的代码");
+                        collector.Add(loopStatement.elseBlock.statements[0].range, ErrorLevel.Hint, "无法访问的代码", true);
                         return true;
                     }
                     else return CheckReturn(loopStatement.elseBlock);
@@ -576,7 +576,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         private void InaccessibleCodeWarning(List<Statement> statements, int index)
         {
             if (index + 1 < statements.Count)
-                collector.Add(statements[index + 1].range, ErrorLevel.Warning, "无法访问的代码");
+                collector.Add(statements[index + 1].range, ErrorLevel.Hint, "无法访问的代码", true);
         }
         public static void Parse(Manager manager, LogicBlock logicBlock, AbstractDeclaration? declaration, AbstractCallable callable, List<TextLine> body)
         {
@@ -587,6 +587,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 
             var parser = new LogicBlockParser(manager, callable.name, context, localContext, callable.returns, body, callable.file.space.collector, false, logicBlock);
             parser.Parse();
+            localContext.CollectUnnecessary();
         }
         public static void Parse(Manager manager, TextRange name, LogicBlock logicBlock, AbstractDeclaration declaration, HashSet<AbstractSpace> relies, List<TextLine> body)
         {
@@ -594,6 +595,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             var localContext = new LocalContext(declaration.file.space.collector, declaration);
             var parser = new LogicBlockParser(manager, name, context, localContext, Tuple.Empty, body, declaration.file.space.collector, true, logicBlock);
             parser.Parse();
+            localContext.CollectUnnecessary();
         }
         public static Expression Parse(Manager manager, AbstractClass declaration, List<AbstractCallable> callables, TextRange invokerRange, List<Local> locals, TextRange parameterRange, MessageCollector collector)
         {
