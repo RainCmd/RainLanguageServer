@@ -5,6 +5,7 @@
         private static void AddRely(FileSpace space, ImportSpaceInfo import, AbstractSpace? rely)
         {
             import.space = rely;
+            rely?.references.Add(import.names[0]);
             for (var i = 1; i < import.names.Count; i++)
                 if (rely!.children.TryGetValue(import.names[i].ToString(), out rely)) rely.references.Add(import.names[i]);
                 else

@@ -155,6 +155,12 @@ namespace RainLanguageServer.RainLanguage
                                 result = fileSpace.name.Value;
                                 return true;
                             }
+                            foreach (var import in fileSpace.imports)
+                                if (import.range.Contain(textPosition))
+                                {
+                                    result = import.range;
+                                    return true;
+                                }
                             return false;
                         },
                         fileDeclaratioin =>
@@ -184,6 +190,19 @@ namespace RainLanguageServer.RainLanguage
                                 references.AddRange(fileSpace.space.references);
                                 return true;
                             }
+                            foreach (var import in fileSpace.imports)
+                                if (import.range.Contain(textPosition))
+                                {
+                                    if (import.space != null)
+                                        for (var i = 0; i < import.names.Count; i++)
+                                            if (import.names[i].Contain(textPosition))
+                                            {
+                                                var importReferences = import.GetSpace(i)?.references;
+                                                if (importReferences != null) references.AddRange(importReferences);
+                                                return true;
+                                            }
+                                    return false;
+                                }
                             return false;
                         },
                         fileDeclaration =>
