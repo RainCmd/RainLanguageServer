@@ -95,7 +95,7 @@
         protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
             collector.Add(DetailTokenType.Operator, symbol);
-            collector.Add(DetailTokenType.MemberElement, symbol);
+            collector.Add(DetailTokenType.MemberElement, identifier);
         }
 
         protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)

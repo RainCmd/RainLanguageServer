@@ -286,6 +286,8 @@
             if (identifier.Contain(position))
             {
                 references.AddRange(member.references);
+                if(member is AbstractStruct.Variable structMember) references.AddRange(structMember.write);
+                else if(member is AbstractClass.Variable classMember) references.AddRange(classMember.write);
                 return true;
             }
             return false;
@@ -299,7 +301,7 @@
 
         protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
         {
-            if (!identifier.Contain(position)) InfoUtility.Rename(member, ranges);
+            if (identifier.Contain(position)) InfoUtility.Rename(member, ranges);
         }
     }
 }

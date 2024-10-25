@@ -1,6 +1,7 @@
 ﻿using LanguageServer.Parameters.TextDocument;
 using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
 using System.Text;
+using System.Xml.Linq;
 
 namespace RainLanguageServer.RainLanguage
 {
@@ -537,11 +538,30 @@ namespace RainLanguageServer.RainLanguage
             foreach (var range in group)
                 infos.Add(new HighlightInfo(range, DocumentHighlightKind.Text));
         }
+        private static void Highlight(HashSet<TextRange> ranges, List<HighlightInfo> infos, DocumentHighlightKind kind)
+        {
+            foreach (var range in ranges)
+                infos.Add(new HighlightInfo(range, kind));
+        }
         public static void Highlight(AbstractDeclaration declaration, List<HighlightInfo> infos)
         {
             infos.Add(new HighlightInfo(declaration.name, DocumentHighlightKind.Text));
-            foreach (var reference in declaration.references)
-                infos.Add(new HighlightInfo(reference, DocumentHighlightKind.Text));
+            if (declaration is AbstractVariable variable)
+            {
+                Highlight(variable.references, infos, DocumentHighlightKind.Read);
+                Highlight(variable.write, infos, DocumentHighlightKind.Write);
+            }
+            else if (declaration is AbstractStruct.Variable structMember)
+            {
+                Highlight(structMember.references, infos, DocumentHighlightKind.Read);
+                Highlight(structMember.write, infos, DocumentHighlightKind.Write);
+            }
+            else if (declaration is AbstractClass.Variable classMember)
+            {
+                Highlight(classMember.references, infos, DocumentHighlightKind.Read);
+                Highlight(classMember.write, infos, DocumentHighlightKind.Write);
+            }
+            else Highlight(declaration.references, infos, DocumentHighlightKind.Text);
         }
         public static void FindReferences(this Local local, List<TextRange> references)
         {
@@ -593,6 +613,9 @@ namespace RainLanguageServer.RainLanguage
             if (declaration.declaration.library != Manager.LIBRARY_SELF) return;
             ranges.Add(declaration.name);
             ranges.AddRange(declaration.references);
+            if (declaration is AbstractVariable variable) ranges.AddRange(variable.write);
+            else if (declaration is AbstractStruct.Variable structMember) ranges.AddRange(structMember.write);
+            else if (declaration is AbstractClass.Variable classMember) ranges.AddRange(classMember.write);
             var name = declaration.name.ToString();
             ranges.RemoveAll(value => value != name);
         }
