@@ -147,7 +147,17 @@ namespace RainLanguageServer.RainLanguage
                 if (TryGetFileSpace(manager, uri, position, out var space, out var textPosition))
                 {
                     TextRange result = default;
-                    if (FileSpaceOperator(space, textPosition, null, fileDeclaratioin =>
+                    if (FileSpaceOperator(space, textPosition,
+                        fileSpace =>
+                        {
+                            if (fileSpace.name != null && fileSpace.name.Value.Contain(textPosition))
+                            {
+                                result = fileSpace.name.Value;
+                                return true;
+                            }
+                            return false;
+                        },
+                        fileDeclaratioin =>
                         {
                             if (fileDeclaratioin.abstractDeclaration != null)
                                 return fileDeclaratioin.abstractDeclaration.TryGetDefinition(manager, textPosition, out result);

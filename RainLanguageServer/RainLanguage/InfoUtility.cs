@@ -570,6 +570,12 @@ namespace RainLanguageServer.RainLanguage
         }
         public static bool TryGetDefinition(this FileType fileType, Manager manager, TextPosition position, Type type, out TextRange definition)
         {
+            foreach (var space in fileType.name.qualify)
+                if (space.Contain(position))
+                {
+                    definition = space;
+                    return true;
+                }
             if (fileType.name.name.Contain(position))
             {
                 if (manager.TryGetDeclaration(type, out var declaration)) definition = declaration.name;
