@@ -671,16 +671,21 @@ namespace RainLanguageServer.RainLanguage
                     }
                     else if (lexical.type.IsReloadable())
                     {
-                        if (TryParseTupleDeclaration(line, lexical.anchor.end, out var tuple, out var name, space.collector))
+                        if (TryParseTupleDeclaration(line, lexical.anchor.start, out var tuple, out var name, space.collector))
                         {
                             var parameterRange = ParseParameters(line, name.end, out var parameters, space.collector);
-                            CheckEnd(line, parameterRange.end, space.collector);
-                            var file = new FileFunction(space, Visibility.Private, name, parameters, tuple);
-                            file.attributes.AddRange(attributes);
-                            attributes.Clear();
-                            file.annotation.AddRange(annotations);
-                            annotations.Clear();
-                            space.functions.Add(file);
+                            if (parameterRange.Count > 0)
+                            {
+                                CheckEnd(line, parameterRange.end, space.collector);
+                                var file = new FileFunction(space, Visibility.Private, name, parameters, tuple) { range = TrimLine(line, parameterRange.end) };
+                                file.attributes.AddRange(attributes);
+                                attributes.Clear();
+                                file.annotation.AddRange(annotations);
+                                annotations.Clear();
+                                ParseBlock(reader, line.indent, file.body, annotations);
+                                file.range &= reader.GetLastValidLine();
+                                space.functions.Add(file);
+                            }
                         }
                         else space.collector.Add((lexical.anchor.end - 1) & lexical.anchor.end, ErrorLevel.Error, "需要输入标识符");
                     }
