@@ -49,7 +49,7 @@ namespace RainLanguageServer
                 result.capabilities.completionProvider.triggerCharacters = [".", ">"];
 
             var projectName = param.initializationOptions?.projectName?.Value as string;
-            manager = new Manager(projectName ?? "TestLibrary", kernelDefinePath, imports, LoadRelyLibrary, () => new DocumentLoader(new UnifiedPath(param.rootUri), this), () => documents.Values);
+            manager = new Manager(projectName ?? "RainTest", kernelDefinePath, imports, LoadRelyLibrary, () => new DocumentLoader(new UnifiedPath(param.rootUri), this), () => documents.Values);
             manager.Reparse(false);
 
             return Result<InitializeResult, ResponseError<InitializeErrorData>>.Success(result);
