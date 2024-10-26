@@ -243,7 +243,7 @@ namespace RainLanguageServer.RainLanguage
             if (count > 0)
             {
                 var line = file.name.start.Line;
-                return new CodeLenInfo(file.name, $"{title}:{count}", "cmd.rain.peek-reference", [new Position(line.line, file.name.start - line.start)]);
+                return new CodeLenInfo(file.name, $"{title}：{count}", "cmd.rain.peek-reference", [new Position(line.line, file.name.start - line.start)]);
             }
             return new CodeLenInfo(file.name, $"{title}:{count}");
         }
@@ -300,7 +300,7 @@ namespace RainLanguageServer.RainLanguage
                 if (file.abstractDeclaration is AbstractClass abstractClass)
                 {
                     infos.Add(GetReferenceInfo(file, "引用", abstractClass.references.Count));
-                    infos.Add(new CodeLenInfo(abstractClass.name, $"子类：{abstractClass.implements.Count}"));
+                    infos.Add(GetCodeLenInfo(file, abstractClass.implements, "子类"));
                     //foreach (var member in abstractClass.variables)
                     //{
                     //    infos.Add(GetReferenceInfo(member.file, "读取", member.references.Count));
