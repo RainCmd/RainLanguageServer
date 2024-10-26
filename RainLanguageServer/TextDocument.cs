@@ -205,7 +205,7 @@ namespace RainLanguageServer
                 var end = text.IndexOf('\n');
                 while (end > 0)
                 {
-                    lines.Add(new TextLine(lines.Count, GetIndent(start, end + 1), new TextPosition(this, start), new TextPosition(this, end + 1)));
+                    lines.Add(new TextLine(lines.Count, GetIndent(start, end), new TextPosition(this, start), new TextPosition(this, end)));
                     start = end + 1;
                     end = text.IndexOf('\n', start);
                 }

@@ -196,7 +196,7 @@ namespace RainLanguageServer
                 var list = ManagerOperator.CollectCodeLens(manager, param.textDocument.uri);
                 var codeLens = new CodeLens[list.Count];
                 for (int i = 0; i < list.Count; i++)
-                    codeLens[i] = new CodeLens(TR2R(list[i].range)) { command = new Command(list[i].title, "") };
+                    codeLens[i] = new CodeLens(TR2R(list[i].range)) { command = new Command(list[i].title, list[i].command) { arguments = list[i].arguments } };
                 return Result<CodeLens[], ResponseError>.Success(codeLens);
             }
             return Result<CodeLens[], ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
@@ -290,11 +290,6 @@ namespace RainLanguageServer
             lock (documents)
                 return documents.TryGetValue(path, out document!);
         }
-        private struct PreviewDoc(string path, string content)
-        {
-            public string path = path;
-            public string content = content;
-        }
         protected override void DidOpenTextDocument(DidOpenTextDocumentParams param)
         {
             string path = new UnifiedPath(param.textDocument.uri);
@@ -380,7 +375,7 @@ namespace RainLanguageServer
             Proxy.TextDocument.PublishDiagnostics(new PublishDiagnosticsParams(new Uri(space.document.path), [.. diagnostics]));
         }
 
-        private static Location TR2L(TextRange range)
+        public static Location TR2L(TextRange range)
         {
             return new Location(new Uri(range.start.document.path), TR2R(range));
         }
@@ -389,10 +384,6 @@ namespace RainLanguageServer
             var startLine = range.start.Line;
             var endLine = range.end.Line;
             return new LanguageServer.Parameters.Range(new Position(range.start.Line.line, range.start - startLine.start), new Position(range.end.Line.line, range.end - endLine.start));
-        }
-        private static TextPosition GetFilePosition(TextDocument document, Position position)
-        {
-            return document[(int)position.line].start + (int)position.character;
         }
 
         [GeneratedRegex(@"^\s*//\s*region\b")]

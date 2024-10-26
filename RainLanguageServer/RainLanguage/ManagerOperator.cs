@@ -6,10 +6,12 @@ using System.Text;
 
 namespace RainLanguageServer.RainLanguage
 {
-    internal readonly struct CodeLenInfo(TextRange range, string title)
+    internal readonly struct CodeLenInfo(TextRange range, string title, string command = "", dynamic[]? arguments = null)
     {
         public readonly TextRange range = range;
         public readonly string title = title;
+        public readonly string command = command;
+        public readonly dynamic[]? arguments = arguments;
     }
     internal static class ManagerOperator
     {
@@ -235,6 +237,22 @@ namespace RainLanguageServer.RainLanguage
             return collector;
         }
 
+        [RequiresDynamicCode("Calls RainLanguageServer.RainLanguage.ManagerOperator.GetReferenceParameter(FileDeclaration, HashSet<TextRange>)")]
+        private static CodeLenInfo GetReferenceInfo(FileDeclaration file, string title, int count)
+        {
+            if (count > 0)
+            {
+                var line = file.name.start.Line;
+                return new CodeLenInfo(file.name, $"{title}:{count}", "cmd.rain.peek-reference", [new Position(line.line, file.name.start - line.start)]);
+            }
+            return new CodeLenInfo(file.name, $"{title}:{count}");
+        }
+        [RequiresDynamicCode("Calls RainLanguageServer.RainLanguage.ManagerOperator.GetReferenceInfo(FileDeclaration, HashSet<TextRange>, String)")]
+        private static CodeLenInfo GetCodeLenInfo<T>(FileDeclaration file, List<T> values, string title) where T : AbstractDeclaration
+        {
+            return GetReferenceInfo(file, title, values.Count);
+        }
+        [RequiresDynamicCode("Calls RainLanguageServer.RainLanguage.ManagerOperator.GetReferenceParameter(FileDeclaration, TextRange, HashSet<TextRange>)")]
         private static void CollectCodeLens(Manager manager, FileSpace space, List<CodeLenInfo> infos)
         {
             foreach (var child in space.children)
@@ -242,67 +260,73 @@ namespace RainLanguageServer.RainLanguage
             //foreach (var file in space.variables)
             //    if (file.abstractDeclaration is AbstractVariable abstractVariable)
             //    {
-            //        infos.Add(new CodeLenInfo(abstractVariable.name, $"读取：{abstractVariable.references.Count}"));
-            //        infos.Add(new CodeLenInfo(abstractVariable.name, $"写入：{abstractVariable.write.Count}"));
+            //        infos.Add(GetReferenceInfo(file, "读取", abstractVariable.references.Count));
+            //        infos.Add(GetReferenceInfo(file, "写入", abstractVariable.write.Count));
             //    }
             foreach (var file in space.functions)
                 if (file.abstractDeclaration is AbstractFunction abstractFunction)
-                    infos.Add(new CodeLenInfo(abstractFunction.name, $"引用：{abstractFunction.references.Count}"));
+                {
+                    infos.Add(GetReferenceInfo(file, "引用", abstractFunction.references.Count));
+                    if (abstractFunction.parameters.Count == 0)
+                        infos.Add(new CodeLenInfo(abstractFunction.name, $"执行", "cmd.rain.execute", [$"{abstractFunction.space.FullName}.{abstractFunction.name}"]));
+                }
             foreach (var file in space.enums)
                 if (file.abstractDeclaration is AbstractEnum abstractEnum)
-                    infos.Add(new CodeLenInfo(abstractEnum.name, $"引用：{abstractEnum.references.Count}"));
+                    infos.Add(GetReferenceInfo(file, "引用", abstractEnum.references.Count));
             foreach (var file in space.structs)
                 if (file.abstractDeclaration is AbstractStruct abstractStruct)
                 {
-                    infos.Add(new CodeLenInfo(abstractStruct.name, $"引用：{abstractStruct.references.Count}"));
+                    infos.Add(GetReferenceInfo(file, "引用", abstractStruct.references.Count));
                     //foreach (var member in abstractStruct.variables)
                     //{
-                    //    infos.Add(new CodeLenInfo(member.name, $"读取：{member.references.Count}"));
-                    //    infos.Add(new CodeLenInfo(member.name, $"写入：{member.write.Count}"));
+                    //    infos.Add(GetReferenceInfo(member.file, "读取", member.references.Count));
+                    //    infos.Add(GetReferenceInfo(member.file, "写入", member.write.Count));
                     //}
                     foreach (var member in abstractStruct.functions)
-                        infos.Add(new CodeLenInfo(member.name, $"引用：{member.references.Count}"));
+                        infos.Add(GetReferenceInfo(member.file, "读取", member.references.Count));
                 }
             foreach (var file in space.interfaces)
                 if (file.abstractDeclaration is AbstractInterface abstractInterface)
                 {
-                    infos.Add(new CodeLenInfo(abstractInterface.name, $"引用：{abstractInterface.references.Count}"));
-                    infos.Add(new CodeLenInfo(abstractInterface.name, $"实现：{abstractInterface.implements.Count}"));
+                    infos.Add(GetReferenceInfo(file, "引用", abstractInterface.references.Count));
+                    infos.Add(GetCodeLenInfo(file, abstractInterface.implements, "实现"));
                     foreach (var member in abstractInterface.functions)
                     {
-                        infos.Add(new CodeLenInfo(member.name, $"引用：{member.references.Count}"));
-                        infos.Add(new CodeLenInfo(member.name, $"实现：{member.implements.Count}"));
+                        infos.Add(GetReferenceInfo(member.file, "引用", member.references.Count));
+                        infos.Add(GetCodeLenInfo(member.file, member.implements, "实现"));
                     }
                 }
             foreach (var file in space.classes)
                 if (file.abstractDeclaration is AbstractClass abstractClass)
                 {
-                    infos.Add(new CodeLenInfo(abstractClass.name, $"引用：{abstractClass.references.Count}"));
+                    infos.Add(GetReferenceInfo(file, "引用", abstractClass.references.Count));
                     infos.Add(new CodeLenInfo(abstractClass.name, $"子类：{abstractClass.implements.Count}"));
                     //foreach (var member in abstractClass.variables)
                     //{
-                    //    infos.Add(new CodeLenInfo(member.name, $"读取：{member.references.Count}"));
-                    //    infos.Add(new CodeLenInfo(member.name, $"写入：{member.write.Count}"));
+                    //    infos.Add(GetReferenceInfo(member.file, "读取", member.references.Count));
+                    //    infos.Add(GetReferenceInfo(member.file, "写入", member.write.Count));
                     //}
                     foreach (var member in abstractClass.functions)
                     {
-                        infos.Add(new CodeLenInfo(member.name, $"引用：{member.references.Count}"));
-                        infos.Add(new CodeLenInfo(member.name, $"实现：{member.implements.Count}"));
-                        infos.Add(new CodeLenInfo(member.name, $"覆盖：{member.overrides.Count}"));
+                        infos.Add(GetReferenceInfo(member.file, "引用", member.references.Count));
+                        infos.Add(GetCodeLenInfo(member.file, member.implements, "实现"));
+                        infos.Add(GetCodeLenInfo(member.file, member.overrides, "覆盖"));
                     }
                     foreach (var member in abstractClass.constructors)
-                        infos.Add(new CodeLenInfo(member.name, $"引用：{member.references.Count}"));
+                        infos.Add(GetReferenceInfo(member.file, "引用", member.references.Count));
                 }
             foreach (var file in space.delegates)
                 if (file.abstractDeclaration is AbstractDelegate abstractDelegate)
-                    infos.Add(new CodeLenInfo(abstractDelegate.name, $"引用：{abstractDelegate.references.Count}"));
+                    infos.Add(GetReferenceInfo(file, "引用", abstractDelegate.references.Count));
             foreach (var file in space.tasks)
                 if (file.abstractDeclaration is AbstractTask abstractTask)
-                    infos.Add(new CodeLenInfo(abstractTask.name, $"引用：{abstractTask.references.Count}"));
+                    infos.Add(GetReferenceInfo(file, "引用", abstractTask.references.Count));
             foreach (var file in space.natives)
                 if (file.abstractDeclaration is AbstractNative abstractNative)
-                    infos.Add(new CodeLenInfo(abstractNative.name, $"引用：{abstractNative.references.Count}"));
+                    infos.Add(GetReferenceInfo(file, "引用", abstractNative.references.Count));
         }
+
+        [RequiresDynamicCode("Calls RainLanguageServer.RainLanguage.ManagerOperator.CollectCodeLens(Manager, FileSpace, List<CodeLenInfo>)")]
         public static List<CodeLenInfo> CollectCodeLens(Manager manager, DocumentUri uri)
         {
             var results = new List<CodeLenInfo>();
