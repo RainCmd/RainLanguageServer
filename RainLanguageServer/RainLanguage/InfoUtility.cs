@@ -1,7 +1,6 @@
 ﻿using LanguageServer.Parameters.TextDocument;
 using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
 using System.Text;
-using System.Xml.Linq;
 
 namespace RainLanguageServer.RainLanguage
 {
@@ -986,6 +985,7 @@ namespace RainLanguageServer.RainLanguage
         public static void AddType(this SemanticTokenCollector collector, TextRange range, Manager manager, Type type)
         {
             var kernel = manager.kernelManager;
+            type = new Type(type, 0);
             if (type == kernel.BOOL || type == kernel.BYTE || type == kernel.CHAR || type == kernel.INT || type == kernel.REAL || type == kernel.REAL2 || type == kernel.REAL3 || type == kernel.REAL4 ||
                 type == kernel.ENUM || type == kernel.TYPE || type == kernel.STRING || type == kernel.ENTITY || type == kernel.HANDLE || type == kernel.DELEGATE || type == kernel.TASK || type == kernel.ARRAY)
                 collector.Add(DetailTokenType.KeywordType, range);
@@ -1067,7 +1067,7 @@ namespace RainLanguageServer.RainLanguage
                     collector.AddRange(SemanticTokenType.Function, SemanticTokenModifier.Documentation, range);
                     break;
                 case DetailTokenType.MemberConstructor:
-                    collector.AddRange(SemanticTokenType.Type, SemanticTokenModifier.Documentation, range);
+                    collector.AddRange(SemanticTokenType.Class, SemanticTokenModifier.Documentation, range);
                     break;
 
                 case DetailTokenType.Constant:
@@ -1090,7 +1090,7 @@ namespace RainLanguageServer.RainLanguage
                     collector.AddRange(SemanticTokenType.Type, SemanticTokenModifier.DefaultLibrary, range);
                     break;
                 case DetailTokenType.KeywordVariable:
-                    collector.AddRange(SemanticTokenType.Variable, SemanticTokenModifier.DefaultLibrary, range);
+                    collector.AddRange(SemanticTokenType.Keyword, SemanticTokenModifier.DefaultLibrary, range);
                     break;
                 case DetailTokenType.KeywordConst:
                     //collector.AddRange(SemanticTokenType.Regexp, SemanticTokenModifier.Documentation, range);
