@@ -896,6 +896,51 @@ namespace RainLanguageServer.RainLanguage
             if (context.declaration != null && filter == CompletionFilter.All)
                 CollectMember(manager, context.declaration.declaration.DefineType, context, infos);
         }
+        private static bool CheckMemberVisibility(AbstractClass source, AbstractCallable target)
+        {
+            switch (target.declaration.visibility)
+            {
+                case Visibility.None:
+                case Visibility.Public: return true;
+                case Visibility.Internal: return source.declaration.library == target.declaration.library;
+                case Visibility.Space:
+                    if (source.declaration.library == target.declaration.library)
+                        return target.space.Contain(source.space);
+                    break;
+                case Visibility.Protected: return true;
+                case Visibility.Private:
+                default: break;
+            }
+            return false;
+        }
+        public static void CollectOverride(Manager manager, AbstractClass abstractClass, List<CompletionInfo> infos)
+        {
+            var fliter = new HashSet<AbstractCallable>();
+            foreach (var function in abstractClass.functions)
+                fliter.AddRange(function.overrides);
+            var interfaceFliter = new HashSet<Type>();
+            foreach (var inherit in manager.GetInheritIterator(abstractClass))
+            {
+                if (inherit != abstractClass)
+                    foreach (var function in inherit.functions)
+                        if (!fliter.Contains(function))
+                        {
+                            if (CheckMemberVisibility(abstractClass, function))
+                                infos.Add(new CompletionInfo(function.name.start.Line.ToString().Trim(), CompletionItemKind.Method, function.CodeInfo(manager, abstractClass.space), "override"));
+                            fliter.AddRange(function.overrides);
+                        }
+                foreach (var type in inherit.inherits)
+                    if (type.code == TypeCode.Interface && interfaceFliter.Add(type) && manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractInterface abstractInterface)
+                        foreach (var inheritInterface in manager.GetInheritIterator(abstractInterface))
+                            foreach (var function in inheritInterface.functions)
+                                if (!fliter.Contains(function))
+                                {
+                                    if (CheckMemberVisibility(abstractClass, function))
+                                        infos.Add(new CompletionInfo(function.name.start.Line.ToString().Trim(), CompletionItemKind.Method, function.CodeInfo(manager, abstractClass.space), "override"));
+                                    fliter.AddRange(function.overrides);
+                                }
+            }
+        }
         public static void Completion(Manager manager, Context context, List<TextRange> ranges, TextPosition position, List<CompletionInfo> infos, CompletionFilter filter)
         {
             if (ranges[0].Contain(position))
@@ -970,8 +1015,13 @@ namespace RainLanguageServer.RainLanguage
                 else return;
             }
         }
-        public static void Completion(this FileType fileType, Manager manager, TextPosition position, List<CompletionInfo> infos)
+        public static void Completion(this FileType fileType, Manager manager, TextPosition position, List<CompletionInfo> infos, bool maybeVisibility = false)
         {
+            if (maybeVisibility && fileType.range.Contain(position))
+            {
+                if (fileType.name.qualify.Count > 0 && fileType.name.qualify[0].Contain(position)) CollectAccessKeyword(infos);
+                else if (fileType.name.qualify.Count == 0 && fileType.name.name.Contain(position)) CollectAccessKeyword(infos);
+            }
             if (ManagerOperator.TryGetContext(manager, position, out var context))
             {
                 var ranges = new List<TextRange>(fileType.name.qualify) { fileType.name.name };

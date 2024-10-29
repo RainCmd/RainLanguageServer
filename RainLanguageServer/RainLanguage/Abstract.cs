@@ -139,7 +139,7 @@ namespace RainLanguageServer.RainLanguage
         }
         public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
         {
-            if (fileVariable.type.range.Contain(position)) fileVariable.type.Completion(manager, position, infos);
+            if (fileVariable.type.range.Contain(position)) fileVariable.type.Completion(manager, position, infos, fileVariable.defaultVisibility);
             else if (expression != null && expression.range.Contain(position)) expression.Completion(manager, position, infos);
         }
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => expression?.CollectInlayHint(manager, infos);
@@ -311,14 +311,18 @@ namespace RainLanguageServer.RainLanguage
                         return;
                     }
         }
-        protected static void Completion(Manager manager, TextPosition position, List<FileType> returns, List<FileParameter> parameters, LogicBlock? block, List<CompletionInfo> infos)
+        protected static void Completion(Manager manager, TextPosition position, bool defaultVisibility, List<FileType> returns, List<FileParameter> parameters, LogicBlock? block, List<CompletionInfo> infos)
         {
+            var first = true;
             foreach (var type in returns)
+            {
                 if (type.range.Contain(position))
                 {
-                    type.Completion(manager, position, infos);
+                    type.Completion(manager, position, infos, first && defaultVisibility);
                     return;
                 }
+                first = false;
+            }
             foreach (var parameter in parameters)
                 if (parameter.range.Contain(position))
                 {
@@ -360,7 +364,7 @@ namespace RainLanguageServer.RainLanguage
             if (name.Contain(position)) InfoUtility.Rename(this, ranges);
             else Rename(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, ranges);
         }
-        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
+        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.defaultVisibility, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
             foreach (var statement in logicBlock.statements)
@@ -426,10 +430,7 @@ namespace RainLanguageServer.RainLanguage
                 if (name.Contain(position)) InfoUtility.Rename(this, ranges);
                 else if (expression != null && expression.range.Contain(position)) expression.Rename(manager, position, ranges);
             }
-            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
-            {
-                if (expression != null) expression.Completion(manager, position, infos);
-            }
+            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => expression?.Completion(manager, position, infos);
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => expression?.CollectInlayHint(manager, infos);
         }
         public readonly FileEnum fileEnum = file;
@@ -598,7 +599,7 @@ namespace RainLanguageServer.RainLanguage
                 if (name.Contain(position)) InfoUtility.Rename(this, ranges);
                 else Rename(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, ranges);
             }
-            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
+            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.defaultVisibility, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
             {
                 foreach (var statement in logicBlock.statements)
@@ -742,7 +743,7 @@ namespace RainLanguageServer.RainLanguage
                 if (name.Contain(position)) InfoUtility.Rename(this, ranges);
                 else Rename(manager, position, fileFunction.returns, fileFunction.parameters, null, ranges);
             }
-            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.returns, fileFunction.parameters, null, infos);
+            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, false, fileFunction.returns, fileFunction.parameters, null, infos);
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => infos.Add(new InlayHintInfo($"{KeyWords.PUBLIC} ", fileFunction.range.Trim.start));
         }
         public readonly FileInterface fileInterface = file;
@@ -926,7 +927,7 @@ namespace RainLanguageServer.RainLanguage
             }
             public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos)
             {
-                if (fileVariable.type.range.Contain(position)) fileVariable.type.Completion(manager, position, infos);
+                if (fileVariable.type.range.Contain(position)) fileVariable.type.Completion(manager, position, infos, fileVariable.defaultVisibility);
                 else if (expression != null && expression.range.Contain(position)) expression.Completion(manager, position, infos);
             }
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => expression?.CollectInlayHint(manager, infos);
@@ -1005,7 +1006,7 @@ namespace RainLanguageServer.RainLanguage
                         }
                     }
                 }
-                Completion(manager, position, fileConstructor.returns, fileConstructor.parameters, logicBlock, infos);
+                Completion(manager, position, fileConstructor.defaultVisibility, fileConstructor.returns, fileConstructor.parameters, logicBlock, infos);
             }
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
             {
@@ -1067,7 +1068,7 @@ namespace RainLanguageServer.RainLanguage
                 if (name.Contain(position)) InfoUtility.Rename(this, ranges);
                 else Rename(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, ranges);
             }
-            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
+            public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileFunction.defaultVisibility, fileFunction.returns, fileFunction.parameters, logicBlock, infos);
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
             {
                 foreach (var statement in logicBlock.statements)
@@ -1291,6 +1292,7 @@ namespace RainLanguageServer.RainLanguage
                 }
             var context = new Context(fileClass.space.document, space, fileClass.space.relies, this);
             InfoUtility.Completion(manager, context, position.Line, position, infos, true);
+            InfoUtility.CollectOverride(manager, this, infos);
         }
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos)
         {
@@ -1341,7 +1343,7 @@ namespace RainLanguageServer.RainLanguage
             if (name.Contain(position)) InfoUtility.Rename(this, ranges);
             else Rename(manager, position, fileDelegate.returns, fileDelegate.parameters, null, ranges);
         }
-        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileDelegate.returns, fileDelegate.parameters, null, infos);
+        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileDelegate.defaultVisibility, fileDelegate.returns, fileDelegate.parameters, null, infos);
     }
     internal class AbstractTask(FileTask file, AbstractSpace space, TextRange name, Declaration declaration, Tuple returns)
         : AbstractDeclaration(file, space, name, declaration)
@@ -1425,7 +1427,7 @@ namespace RainLanguageServer.RainLanguage
             if (name.Contain(position)) InfoUtility.Rename(this, ranges);
             else Rename(manager, position, fileNative.returns, fileNative.parameters, null, ranges);
         }
-        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileNative.returns, fileNative.parameters, null, infos);
+        public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileNative.defaultVisibility, fileNative.returns, fileNative.parameters, null, infos);
     }
     internal class AbstractSpace(AbstractSpace? parent, string name)
     {
