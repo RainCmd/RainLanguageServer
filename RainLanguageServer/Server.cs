@@ -5,6 +5,7 @@ using LanguageServer.Parameters.TextDocument;
 using Newtonsoft.Json.Linq;
 using RainLanguageServer.RainLanguage;
 using System.Collections;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using Message = LanguageServer.Message;
@@ -294,6 +295,38 @@ namespace RainLanguageServer
         }
         protected override Result<InlayHintResult, ResponseError> InlayHintResolve(InlayHintResult param, CancellationToken token) => Result<InlayHintResult, ResponseError>.Success(param);
 
+        protected override Result<CodeActionResult, ResponseError> CodeAction(CodeActionParams param, CancellationToken token)
+        {
+            if (manager != null)
+            {
+                var infos = ManagerOperator.CollectCodeAction(manager, param.textDocument.uri, param.range);
+                if (infos.Count > 0)
+                {
+                    var result = new CodeAction[infos.Count];
+                    for (int i = 0; i < infos.Count; i++)
+                    {
+                        var info = infos[i];
+                        var action = result[i] = new CodeAction(info.title) { kind = info.kind };
+                        if (info.changes != null)
+                        {
+                            action.edit = new WorkspaceEdit();
+                            var changes = new Dictionary<TextDocument, List<TextEdit>>();
+                            foreach (var change in info.changes)
+                            {
+                                if (!changes.TryGetValue(change.Key.start.document, out var list))
+                                    changes[change.Key.start.document] = list = [];
+                                list.Add(new TextEdit(TR2R(change.Key), change.Value));
+                            }
+                            action.edit.changes = [];
+                            foreach (var change in changes)
+                                action.edit.changes.Add(new Uri(change.Key.path), [.. change.Value]);
+                        }
+                    }
+                    return Result<CodeActionResult, ResponseError>.Success(new CodeActionResult(result));
+                }
+            }
+            return Result<CodeActionResult, ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
+        }
         #region 文档相关
         private readonly Dictionary<string, TextDocument> documents = [];
         private bool TryGetDoc(string path, out TextDocument document)

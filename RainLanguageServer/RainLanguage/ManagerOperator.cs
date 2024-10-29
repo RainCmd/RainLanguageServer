@@ -556,6 +556,17 @@ namespace RainLanguageServer.RainLanguage
                 FileSpaceOperator(manager, uri, null, declaration => declaration.abstractDeclaration?.CollectInlayHint(manager, infos));
         }
 
+        public static List<CodeActionInfo> CollectCodeAction(Manager manager, DocumentUri uri, LanguageServer.Parameters.Range sourceRange)
+        {
+            var result = new List<CodeActionInfo>();
+            if (manager.allFileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
+            {
+                var range = sourceRange.start.ToTextPosition(space.document) & sourceRange.end.ToTextPosition(space.document);
+                //todo 收集CodeActions
+            }
+            return result;
+        }
+
         public static AbstractSpace? GetSpace(Manager manager, TextPosition position) => GetFileSpace(manager, position)?.space;
         public static FileSpace? GetFileSpace(Manager manager, TextPosition position)
         {
