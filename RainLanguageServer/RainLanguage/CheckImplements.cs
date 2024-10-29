@@ -29,7 +29,7 @@
 
             if (manager.TryGetDeclaration(index, out var declaration) && declaration is AbstractClass inhert)
                 foreach (var abstractClass in manager.GetInheritIterator(inhert))
-                    foreach (var function in inhert.functions)
+                    foreach (var function in abstractClass.functions)
                         if (function.name == name && function.signature == implement.signature)
                         {
                             function.implements.Add(implement);
