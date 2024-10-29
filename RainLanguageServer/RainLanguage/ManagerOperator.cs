@@ -3,6 +3,7 @@ using LanguageServer.Parameters;
 using LanguageServer.Parameters.TextDocument;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using System.Xml.Linq;
 
 namespace RainLanguageServer.RainLanguage
 {
@@ -217,6 +218,118 @@ namespace RainLanguageServer.RainLanguage
             return false;
         }
 
+        [RequiresDynamicCode("Calls RainLanguageServer.Server.TR2R(TextRange)")]
+        private static DocumentSymbol GetDocumentSymbol(FileDeclaration declaration, SymbolKind kind)
+        {
+            return new DocumentSymbol(declaration.name.ToString(), kind, Server.TR2R(declaration.range), Server.TR2R(declaration.name));
+        }
+        [RequiresDynamicCode("Calls RainLanguageServer.Server.TR2R(TextRange)")]
+        private static void CollectSymbols(Manager manager, FileSpace space, out List<DocumentSymbol> result)
+        {
+            result = [];
+            foreach (var child in space.children)
+            {
+                CollectSymbols(manager, child, out var childSymbols);
+                if (child.name != null) result.Add(new DocumentSymbol(child.name.Value.ToString(), SymbolKind.Namespace, Server.TR2R(child.range), Server.TR2R(child.name.Value)) { children = [.. childSymbols] });
+                else result.AddRange(childSymbols);
+            }
+            foreach (var declaration in space.variables)
+                result.Add(GetDocumentSymbol(declaration, declaration.isReadonly ? SymbolKind.Constant : SymbolKind.Variable));
+            foreach (var declaration in space.functions)
+            {
+                var symbol = GetDocumentSymbol(declaration, SymbolKind.Function);
+                if (declaration.abstractDeclaration is AbstractCallable callable)
+                    symbol.detail = InfoUtility.GetParametersInfo(manager, space.space, callable.parameters);
+                result.Add(symbol);
+            }
+            foreach (var declaration in space.enums)
+            {
+                var symbol = GetDocumentSymbol(declaration, SymbolKind.Enum);
+                var symbols = new List<DocumentSymbol>();
+                foreach (var member in declaration.elements)
+                    symbols.Add(GetDocumentSymbol(member, SymbolKind.EnumMember));
+                symbol.children = [.. symbols];
+                result.Add(symbol);
+            }
+            foreach (var declaration in space.structs)
+            {
+                var symbol = GetDocumentSymbol(declaration, SymbolKind.Struct);
+                var symbols = new List<DocumentSymbol>();
+                foreach (var member in declaration.variables)
+                    symbols.Add(GetDocumentSymbol(member, SymbolKind.Field));
+                foreach (var member in declaration.functions)
+                {
+                    var memberSymbol = GetDocumentSymbol(member, SymbolKind.Method);
+                    if (member.abstractDeclaration is AbstractCallable callable)
+                        memberSymbol.detail = InfoUtility.GetParametersInfo(manager, space.space, callable.parameters);
+                    symbols.Add(memberSymbol);
+                }
+                symbol.children = [.. symbols];
+                result.Add(symbol);
+            }
+            foreach (var declaration in space.interfaces)
+            {
+                var symbol = GetDocumentSymbol(declaration, SymbolKind.Interface);
+                var symbols = new List<DocumentSymbol>();
+                foreach (var member in declaration.functions)
+                {
+                    var memberSymbol = GetDocumentSymbol(member, SymbolKind.Method);
+                    if (member.abstractDeclaration is AbstractCallable callable)
+                        memberSymbol.detail = InfoUtility.GetParametersInfo(manager, space.space, callable.parameters);
+                    symbols.Add(memberSymbol);
+                }
+                symbol.children = [.. symbols];
+                result.Add(symbol);
+            }
+            foreach (var declaration in space.classes)
+            {
+                var symbol = GetDocumentSymbol(declaration, SymbolKind.Class);
+                var symbols = new List<DocumentSymbol>();
+                foreach (var member in declaration.variables)
+                    symbols.Add(GetDocumentSymbol(member, SymbolKind.Field));
+                foreach (var member in declaration.constructors)
+                {
+                    var memberSymbol = GetDocumentSymbol(member, SymbolKind.Constructor);
+                    if (member.abstractDeclaration is AbstractCallable callable)
+                        memberSymbol.detail = InfoUtility.GetParametersInfo(manager, space.space, callable.parameters);
+                    symbols.Add(memberSymbol);
+                }
+                foreach (var member in declaration.functions)
+                {
+                    var memberSymbol = GetDocumentSymbol(member, SymbolKind.Method);
+                    if (member.abstractDeclaration is AbstractCallable callable)
+                        memberSymbol.detail = InfoUtility.GetParametersInfo(manager, space.space, callable.parameters);
+                    symbols.Add(memberSymbol);
+                }
+                symbol.children = [.. symbols];
+                result.Add(symbol);
+            }
+            foreach (var declaration in space.delegates)
+                result.Add(GetDocumentSymbol(declaration, SymbolKind.Event));
+            foreach (var declaration in space.tasks)
+                result.Add(GetDocumentSymbol(declaration, SymbolKind.Event));
+            foreach (var declaration in space.natives)
+            {
+                var symbol = GetDocumentSymbol(declaration, SymbolKind.Function);
+                if (declaration.abstractDeclaration is AbstractCallable callable)
+                    symbol.detail = InfoUtility.GetParametersInfo(manager, space.space, callable.parameters);
+                result.Add(symbol);
+            }
+        }
+
+        [RequiresDynamicCode("Calls RainLanguageServer.RainLanguage.ManagerOperator.CollectSymbols(FileSpace, out List<DocumentSymbol>)")]
+        public static bool TryGetDocumentSymbols(Manager manager, DocumentUri uri, [MaybeNullWhen(false)] out List<DocumentSymbol> result)
+        {
+            lock (manager)
+                if (manager.allFileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
+                {
+                    CollectSymbols(manager, space, out result);
+                    if (result.Count > 0)
+                        return true;
+                }
+            result = default;
+            return false;
+        }
         public static SemanticTokenCollector CollectSemanticToken(Manager manager, DocumentUri uri)
         {
             var collector = new SemanticTokenCollector();
@@ -245,7 +358,7 @@ namespace RainLanguageServer.RainLanguage
                 var line = file.name.start.Line;
                 return new CodeLenInfo(file.name, $"{title}：{count}", "cmd.rain.peek-reference", [new Position(line.line, file.name.start - line.start)]);
             }
-            return new CodeLenInfo(file.name, $"{title}:{count}");
+            return new CodeLenInfo(file.name, $"{title}：{count}");
         }
         [RequiresDynamicCode("Calls RainLanguageServer.RainLanguage.ManagerOperator.GetReferenceInfo(FileDeclaration, HashSet<TextRange>, String)")]
         private static CodeLenInfo GetCodeLenInfo<T>(FileDeclaration file, List<T> values, string title) where T : AbstractDeclaration
@@ -268,7 +381,7 @@ namespace RainLanguageServer.RainLanguage
                 {
                     infos.Add(GetReferenceInfo(file, "引用", abstractFunction.references.Count));
                     if (abstractFunction.parameters.Count == 0)
-                        infos.Add(new CodeLenInfo(abstractFunction.name, $"执行", "cmd.rain.execute", [$"{abstractFunction.space.FullName}.{abstractFunction.name}"]));
+                        infos.Add(new CodeLenInfo(abstractFunction.name, $"▶️", "cmd.rain.execute", [$"{abstractFunction.space.FullName}.{abstractFunction.name}"]));
                 }
             foreach (var file in space.enums)
                 if (file.abstractDeclaration is AbstractEnum abstractEnum)

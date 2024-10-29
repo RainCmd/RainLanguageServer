@@ -189,6 +189,13 @@ namespace RainLanguageServer
             return Result<DocumentHighlight[], ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
         }
 
+        protected override Result<DocumentSymbolResult, ResponseError> DocumentSymbols(DocumentSymbolParams param, CancellationToken token)
+        {
+            if (manager != null && ManagerOperator.TryGetDocumentSymbols(manager, param.textDocument.uri, out var result))
+                return Result<DocumentSymbolResult, ResponseError>.Success(result.ToArray());
+            return Result<DocumentSymbolResult, ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
+        }
+
         protected override Result<CodeLens[], ResponseError> CodeLens(CodeLensParams param, CancellationToken token)
         {
             if (manager != null)
@@ -196,7 +203,10 @@ namespace RainLanguageServer
                 var list = ManagerOperator.CollectCodeLens(manager, param.textDocument.uri);
                 var codeLens = new CodeLens[list.Count];
                 for (int i = 0; i < list.Count; i++)
-                    codeLens[i] = new CodeLens(TR2R(list[i].range)) { command = new Command(list[i].title, list[i].command) { arguments = list[i].arguments } };
+                {
+                    var info = list[i];
+                    codeLens[i] = new CodeLens(TR2R(info.range)) { command = new Command(info.title, info.command) { arguments = info.arguments } };
+                }
                 return Result<CodeLens[], ResponseError>.Success(codeLens);
             }
             return Result<CodeLens[], ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
@@ -283,6 +293,7 @@ namespace RainLanguageServer
             return Result<InlayHintResult[], ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
         }
         protected override Result<InlayHintResult, ResponseError> InlayHintResolve(InlayHintResult param, CancellationToken token) => Result<InlayHintResult, ResponseError>.Success(param);
+
         #region 文档相关
         private readonly Dictionary<string, TextDocument> documents = [];
         private bool TryGetDoc(string path, out TextDocument document)
@@ -379,7 +390,7 @@ namespace RainLanguageServer
         {
             return new Location(new Uri(range.start.document.path), TR2R(range));
         }
-        private static LanguageServer.Parameters.Range TR2R(TextRange range)
+        public static LanguageServer.Parameters.Range TR2R(TextRange range)
         {
             var startLine = range.start.Line;
             var endLine = range.end.Line;

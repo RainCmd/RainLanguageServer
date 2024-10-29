@@ -132,6 +132,12 @@ namespace RainLanguageServer.RainLanguage
             }
             builder.Append(')');
         }
+        public static string GetParametersInfo(Manager manager, AbstractSpace? space, List<AbstractCallable.Parameter> parameters)
+        {
+            var sb = new StringBuilder();
+            AppendParameters(sb, manager, space, parameters);
+            return sb.ToString();
+        }
         public static string CodeInfo(this Type type, Manager manager, AbstractSpace? space = null)
         {
             if (manager.TryGetDeclaration(type, out var declaration))
