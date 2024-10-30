@@ -14,5 +14,6 @@
 
         public override void Operator(Action<Statement> action) => throw new NotImplementedException();
         public override bool Operator(TextPosition position, StatementOperator action) => throw new NotImplementedException();
+        public override void Operator(TextRange range, Action<Statement> action) => throw new NotImplementedException();
     }
 }

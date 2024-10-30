@@ -1,5 +1,6 @@
 ﻿using LanguageServer.Parameters.TextDocument;
 using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace RainLanguageServer.RainLanguage
@@ -46,6 +47,12 @@ namespace RainLanguageServer.RainLanguage
         Class = 0x2,
         Define = 0x4 | Interface | Class,
         All = 0x8 | Define,
+    }
+    internal enum NamingRule
+    {
+        PascalCase,
+        CamelCase,
+        AllCaps,
     }
     internal static class InfoUtility
     {
@@ -627,6 +634,16 @@ namespace RainLanguageServer.RainLanguage
             if (declaration is AbstractVariable variable) ranges.AddRange(variable.write);
             else if (declaration is AbstractStruct.Variable structMember) ranges.AddRange(structMember.write);
             else if (declaration is AbstractClass.Variable classMember) ranges.AddRange(classMember.write);
+            else if (declaration is AbstractInterface.Function interfaceFunction)
+            {
+                foreach (var item in interfaceFunction.implements) ranges.AddRange(item.references);
+                foreach (var item in interfaceFunction.overrides) ranges.AddRange(item.references);
+            }
+            else if (declaration is AbstractClass.Function classFunction)
+            {
+                foreach (var item in classFunction.implements) ranges.AddRange(item.references);
+                foreach (var item in classFunction.overrides) ranges.AddRange(item.references);
+            }
             var name = declaration.name.ToString();
             ranges.RemoveAll(value => value != name);
         }
@@ -1170,6 +1187,78 @@ namespace RainLanguageServer.RainLanguage
                     collector.AddRange(SemanticTokenType.Operator, SemanticTokenModifier.Documentation, range);
                     break;
             }
+        }
+
+        public static void AddEdits(CodeActionInfo info, IEnumerable<TextRange> ranges, string srcText, string newText)
+        {
+            if (info.changes == null) return;
+            foreach (var range in ranges)
+                if (range == srcText)
+                    info.changes[range] = newText;
+        }
+        public static bool CheckNamingRule(TextRange range, NamingRule rule, out CodeActionInfo info, [MaybeNullWhen(false)] out string name)
+        {
+            if (range.Count > 0)
+                switch (rule)
+                {
+                    case NamingRule.PascalCase:
+                        {
+                            var c = range[0];
+                            if (c >= 'a' && c <= 'z')
+                            {
+                                info = new CodeActionInfo("使用大驼峰命名", null, []);
+                                name = (char)(c & ~0x20) + range.ToString()[1..];
+                                info.changes?.Add(range, name);
+                                return true;
+                            }
+                        }
+                        break;
+                    case NamingRule.CamelCase:
+                        {
+                            var c = range[0];
+                            if (c >= 'A' && c <= 'Z')
+                            {
+                                info = new CodeActionInfo("使用小驼峰命名", null, []);
+                                name = (char)(c | 0x20) + range.ToString()[1..];
+                                info.changes?.Add(range, name);
+                                return true;
+                            }
+                        }
+                        break;
+                    case NamingRule.AllCaps:
+                        for (int i = 0; i < range.Count; i++)
+                        {
+                            var c = range[i];
+                            if (c >= 'a' && c <= 'z')
+                            {
+                                info = new CodeActionInfo("使用全大写命名", null, []);
+                                var sb = new StringBuilder();
+                                var flag = false;
+                                for (i = 0; i < range.Count; i++)
+                                {
+                                    c = range[i];
+                                    if (c >= 'a' && c <= 'z')
+                                    {
+                                        sb.Append((char)(c & ~0x20));
+                                        flag = true;
+                                    }
+                                    else
+                                    {
+                                        if (flag && c != '_') sb.Append('_');
+                                        sb.Append(c);
+                                        flag = false;
+                                    }
+                                }
+                                name = sb.ToString();
+                                info.changes?.Add(range, name);
+                                return true;
+                            }
+                        }
+                        break;
+                }
+            info = default;
+            name = default;
+            return false;
         }
     }
 }

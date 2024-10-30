@@ -57,6 +57,7 @@ namespace RainLanguageServer
         public readonly TextRange this[Range range] => new(start + range.Start.GetOffset(Count), start + range.End.GetOffset(Count));
 
         public bool Contain(TextPosition position) => start <= position && position <= end;
+        public bool Overlap(TextRange range) => start <= range.end && end >= range.start;
         public static bool operator ==(TextRange left, TextRange right) => left.Equals(right);
         public static bool operator !=(TextRange left, TextRange right) => !left.Equals(right);
         public static bool operator ==(TextRange left, string? right)

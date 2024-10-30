@@ -178,6 +178,16 @@
         {
             if (identifier != null && identifier.Value.Contain(position) && local != null) local.Value.Rename(ranges);
         }
+
+        protected override void InternalCollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+        {
+            if (identifier != null && local != null && identifier.Value.Overlap(range) && InfoUtility.CheckNamingRule(identifier.Value, NamingRule.CamelCase, out var info, out var newName))
+            {
+                InfoUtility.AddEdits(info, local.Value.read, local.Value.name, newName);
+                InfoUtility.AddEdits(info, local.Value.write, local.Value.name, newName);
+                infos.Add(info);
+            }
+        }
     }
     internal class AsCastExpression : Expression
     {

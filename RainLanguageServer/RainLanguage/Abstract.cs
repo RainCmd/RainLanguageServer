@@ -1,4 +1,5 @@
-﻿using LanguageServer.Parameters.TextDocument;
+﻿using LanguageServer.Parameters;
+using LanguageServer.Parameters.TextDocument;
 using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
@@ -61,6 +62,7 @@ namespace RainLanguageServer.RainLanguage
         public abstract void Rename(Manager manager, TextPosition position, HashSet<TextRange> ranges);
         public virtual void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) { }
         public virtual void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) { }
+        public virtual void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos) { }
     }
     internal class AbstractVariable(FileVariable file, AbstractSpace space, TextRange name, Declaration declaration, bool isReadonly, Type type)
         : AbstractDeclaration(file, space, name, declaration)
@@ -143,6 +145,16 @@ namespace RainLanguageServer.RainLanguage
             else if (expression != null && expression.range.Contain(position)) expression.Completion(manager, position, infos);
         }
         public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => expression?.CollectInlayHint(manager, infos);
+        public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+        {
+            if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, isReadonly ? NamingRule.AllCaps : NamingRule.PascalCase, out var info, out var newName))
+            {
+                InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                InfoUtility.AddEdits(info, write, name.ToString(), newName);
+                infos.Add(info);
+            }
+            if (expression != null && expression.range.Overlap(range)) expression.CollectCodeAction(manager, range, infos);
+        }
     }
     internal abstract class AbstractCallable : AbstractDeclaration
     {
@@ -337,6 +349,19 @@ namespace RainLanguageServer.RainLanguage
                         return;
                     }
         }
+        protected static void CollectLogicBlockCodeAction(Manager manager, TextRange range, LogicBlock block, List<CodeActionInfo> infos)
+        {
+            foreach (var parameter in block.parameters)
+                if (parameter.range.Overlap(range) && InfoUtility.CheckNamingRule(parameter.range, NamingRule.CamelCase, out var info, out var newName))
+                {
+                    InfoUtility.AddEdits(info, parameter.read, parameter.name, newName);
+                    InfoUtility.AddEdits(info, parameter.write, parameter.name, newName);
+                    infos.Add(info);
+                }
+            foreach (var statement in block.statements)
+                if (statement.range.Overlap(range))
+                    statement.CollectCodeAction(manager, range, infos);
+        }
     }
     internal class AbstractFunction(FileFunction file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -369,6 +394,15 @@ namespace RainLanguageServer.RainLanguage
         {
             foreach (var statement in logicBlock.statements)
                 statement.CollectInlayHint(manager, infos);
+        }
+        public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+        {
+            if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.PascalCase, out var info, out var newName))
+            {
+                InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                infos.Add(info);
+            }
+            CollectLogicBlockCodeAction(manager, range, logicBlock, infos);
         }
     }
     internal class AbstractEnum(FileEnum file, AbstractSpace space, TextRange name, Declaration declaration)
@@ -432,6 +466,15 @@ namespace RainLanguageServer.RainLanguage
             }
             public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => expression?.Completion(manager, position, infos);
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => expression?.CollectInlayHint(manager, infos);
+            public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+            {
+                if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.PascalCase, out var info, out var newName))
+                {
+                    InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                    infos.Add(info);
+                }
+                if (expression != null && expression.range.Overlap(range)) expression.CollectCodeAction(manager, range, infos);
+            }
         }
         public readonly FileEnum fileEnum = file;
         public readonly List<Element> elements = [];
@@ -509,6 +552,16 @@ namespace RainLanguageServer.RainLanguage
             foreach (var element in elements)
                 element.CollectInlayHint(manager, infos);
         }
+        public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+        {
+            if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.PascalCase, out var info, out var newName))
+            {
+                InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                infos.Add(info);
+            }
+            foreach (var element in elements)
+                element.CollectCodeAction(manager, range, infos);
+        }
     }
     internal class AbstractStruct(FileStruct file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
@@ -567,6 +620,14 @@ namespace RainLanguageServer.RainLanguage
                 if (fileVariable.type.range.Contain(position)) fileVariable.type.Completion(manager, position, infos);
             }
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => infos.Add(new InlayHintInfo($"{KeyWords.PUBLIC} ", fileVariable.range.Trim.start));
+            public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+            {
+                if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.CamelCase, out var info, out var newName))
+                {
+                    InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                    infos.Add(info);
+                }
+            }
         }
         internal class Function(FileStruct.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -604,6 +665,15 @@ namespace RainLanguageServer.RainLanguage
             {
                 foreach (var statement in logicBlock.statements)
                     statement.CollectInlayHint(manager, infos);
+            }
+            public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+            {
+                if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.PascalCase, out var info, out var newName))
+                {
+                    InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                    infos.Add(info);
+                }
+                CollectLogicBlockCodeAction(manager, range, logicBlock, infos);
             }
         }
         public readonly FileStruct fileStruct = file;
@@ -714,6 +784,18 @@ namespace RainLanguageServer.RainLanguage
             foreach (var function in functions)
                 function.CollectInlayHint(manager, infos);
         }
+        public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+        {
+            if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.PascalCase, out var info, out var newName))
+            {
+                InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                infos.Add(info);
+            }
+            foreach (var variable in variables)
+                variable.CollectCodeAction(manager, range, infos);
+            foreach (var function in functions)
+                function.CollectCodeAction(manager, range, infos);
+        }
     }
     internal class AbstractInterface(FileInterface file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
@@ -745,6 +827,20 @@ namespace RainLanguageServer.RainLanguage
             }
             public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, false, fileFunction.returns, fileFunction.parameters, null, infos);
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => infos.Add(new InlayHintInfo($"{KeyWords.PUBLIC} ", fileFunction.range.Trim.start));
+            public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+            {
+                if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.PascalCase, out var info, out var newName))
+                {
+                    InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                    var ranges = new List<TextRange>();
+                    foreach (var item in implements)
+                        ranges.AddRange(item.references);
+                    foreach (var item in overrides)
+                        ranges.AddRange(item.references);
+                    InfoUtility.AddEdits(info, ranges, name.ToString(), newName);
+                    infos.Add(info);
+                }
+            }
         }
         public readonly FileInterface fileInterface = file;
         public readonly List<Type> inherits = [];
@@ -850,6 +946,16 @@ namespace RainLanguageServer.RainLanguage
             foreach (var function in functions)
                 function.CollectInlayHint(manager, infos);
         }
+        public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+        {
+            if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.PascalCase, out var info, out var newName))
+            {
+                InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                infos.Add(info);
+            }
+            foreach (var function in functions)
+                function.CollectCodeAction(manager, range, infos);
+        }
     }
     internal class AbstractClass(FileClass file, AbstractSpace space, TextRange name, Declaration declaration)
         : AbstractDeclaration(file, space, name, declaration)
@@ -931,6 +1037,15 @@ namespace RainLanguageServer.RainLanguage
                 else if (expression != null && expression.range.Contain(position)) expression.Completion(manager, position, infos);
             }
             public override void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => expression?.CollectInlayHint(manager, infos);
+            public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+            {
+                if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.CamelCase, out var info, out var newName))
+                {
+                    InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                    infos.Add(info);
+                }
+                if (expression != null && expression.range.Overlap(range)) expression.CollectCodeAction(manager, range, infos);
+            }
         }
         internal class Constructor(FileClass.Constructor file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -1014,6 +1129,11 @@ namespace RainLanguageServer.RainLanguage
                 foreach (var statement in logicBlock.statements)
                     statement.CollectInlayHint(manager, infos);
             }
+            public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+            {
+                if (expression != null && expression.range.Overlap(range)) expression.CollectCodeAction(manager, range, infos);
+                CollectLogicBlockCodeAction(manager, range, logicBlock, infos);
+            }
         }
         internal class Function(FileClass.Function file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns, bool valid)
             : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -1073,6 +1193,21 @@ namespace RainLanguageServer.RainLanguage
             {
                 foreach (var statement in logicBlock.statements)
                     statement.CollectInlayHint(manager, infos);
+            }
+            public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+            {
+                if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.PascalCase, out var info, out var newName))
+                {
+                    InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                    var ranges = new List<TextRange>();
+                    foreach (var item in implements)
+                        ranges.AddRange(item.references);
+                    foreach (var item in overrides)
+                        ranges.AddRange(item.references);
+                    InfoUtility.AddEdits(info, ranges, name.ToString(), newName);
+                    infos.Add(info);
+                }
+                CollectLogicBlockCodeAction(manager, range, logicBlock, infos);
             }
         }
         public readonly FileClass fileClass = file;
@@ -1324,6 +1459,20 @@ namespace RainLanguageServer.RainLanguage
             foreach (var statement in descontructorLogicBlock.statements)
                 statement.CollectInlayHint(manager, infos);
         }
+        public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+        {
+            if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.PascalCase, out var info, out var newName))
+            {
+                InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                infos.Add(info);
+            }
+            foreach(var member in variables)
+                member.CollectCodeAction(manager, range, infos);
+            foreach (var member in constructors)
+                member.CollectCodeAction(manager, range, infos);
+            foreach (var member in functions)
+                member.CollectCodeAction(manager, range, infos);
+        }
     }
     internal class AbstractDelegate(FileDelegate file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -1344,6 +1493,14 @@ namespace RainLanguageServer.RainLanguage
             else Rename(manager, position, fileDelegate.returns, fileDelegate.parameters, null, ranges);
         }
         public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileDelegate.defaultVisibility, fileDelegate.returns, fileDelegate.parameters, null, infos);
+        public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+        {
+            if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.PascalCase, out var info, out var newName))
+            {
+                InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                infos.Add(info);
+            }
+        }
     }
     internal class AbstractTask(FileTask file, AbstractSpace space, TextRange name, Declaration declaration, Tuple returns)
         : AbstractDeclaration(file, space, name, declaration)
@@ -1408,6 +1565,14 @@ namespace RainLanguageServer.RainLanguage
                     return;
                 }
         }
+        public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+        {
+            if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.PascalCase, out var info, out var newName))
+            {
+                InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                infos.Add(info);
+            }
+        }
     }
     internal class AbstractNative(FileNative file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
         : AbstractCallable(file, space, name, declaration, parameters, returns)
@@ -1428,6 +1593,14 @@ namespace RainLanguageServer.RainLanguage
             else Rename(manager, position, fileNative.returns, fileNative.parameters, null, ranges);
         }
         public override void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Completion(manager, position, fileNative.defaultVisibility, fileNative.returns, fileNative.parameters, null, infos);
+        public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+        {
+            if (name.Overlap(range) && InfoUtility.CheckNamingRule(name, NamingRule.PascalCase, out var info, out var newName))
+            {
+                InfoUtility.AddEdits(info, references, name.ToString(), newName);
+                infos.Add(info);
+            }
+        }
     }
     internal class AbstractSpace(AbstractSpace? parent, string name)
     {

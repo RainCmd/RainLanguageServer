@@ -16,6 +16,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         protected bool Operator(TextPosition position, ExpressionOperator action) => Operator(position, (Statement value) => value.InternalOperator(position, action));
         public abstract bool Operator(TextPosition position, StatementOperator action);
 
+        protected virtual void InternalOperator(TextRange range, Action<Expression> action) { }
+        protected void Operator(TextRange range, Action<Expression> action) => Operator(range, (Statement value) => value.InternalOperator(range, action));
+        public abstract void Operator(TextRange range, Action<Statement> action);
+
         public bool OnHover(Manager manager, TextPosition position, out HoverInfo info)
         {
             HoverInfo result = default;
@@ -81,5 +85,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         }
 
         public void Completion(Manager manager, TextPosition position, List<CompletionInfo> infos) => Operator(position, (Expression value) => { value.Completion(manager, position, infos); return default; });
+
+
+        public void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos) => Operator(range, (Expression value) => value.CollectCodeAction(manager, range, infos));
     }
 }

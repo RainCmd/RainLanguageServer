@@ -148,5 +148,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 
         protected virtual void InternalCollectInlayHint(Manager manager, List<InlayHintInfo> infos) { }
         public void CollectInlayHint(Manager manager, List<InlayHintInfo> infos) => Operator(expression => expression.InternalCollectInlayHint(manager, infos));
+
+        protected virtual void InternalCollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos) { }
+        public void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos) => Operator(expression => expression.InternalCollectCodeAction(manager, range, infos));
     }
 }

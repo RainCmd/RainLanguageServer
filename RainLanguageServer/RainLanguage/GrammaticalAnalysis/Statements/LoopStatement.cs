@@ -31,6 +31,16 @@
             if (elseBlock != null && elseBlock.range.Contain(position)) return elseBlock.Operator(position, action);
             return action(this);
         }
+        protected override void InternalOperator(TextRange range, Action<Expression> action)
+        {
+            if (condition != null && condition.range.Overlap(range)) action(condition);
+        }
+        public override void Operator(TextRange range, Action<Statement> action)
+        {
+            if (loopBlock != null && loopBlock.range.Overlap(range)) loopBlock.Operator(range, action);
+            if (elseBlock != null && elseBlock.range.Overlap(range)) elseBlock.Operator(range, action);
+            action(this);
+        }
 
         protected override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
         {
@@ -70,6 +80,12 @@
             if (front != null && front.range.Contain(position)) return action(front);
             if (back != null && back.range.Contain(position)) return action(back);
             return base.InternalOperator(position, action);
+        }
+        protected override void InternalOperator(TextRange range, Action<Expression> action)
+        {
+            if (front != null && front.range.Overlap(range)) action(front);
+            if (back != null && back.range.Overlap(range)) action(back);
+            base.InternalOperator(range, action);
         }
         protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {

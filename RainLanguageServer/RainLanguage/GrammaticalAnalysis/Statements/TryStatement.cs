@@ -1,4 +1,6 @@
-﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
+﻿using LanguageServer.Parameters;
+
+namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
     internal class TryStatement(TextRange trySymbol) : Statement
     {
@@ -41,6 +43,21 @@
                     return catchBlock.block.Operator(position, action);
             if (finallyBlock != null && finallyBlock.range.Contain(position)) return finallyBlock.Operator(position, action);
             return action(this);
+        }
+        protected override void InternalOperator(TextRange range, Action<Expression> action)
+        {
+            foreach (var catchBlock in catchBlocks)
+                if (catchBlock.expression != null && catchBlock.expression.range.Overlap(range))
+                    action(catchBlock.expression);
+        }
+        public override void Operator(TextRange range, Action<Statement> action)
+        {
+            if (tryBlock != null && tryBlock.range.Overlap(range)) tryBlock.Operator(range, action);
+            foreach (var catchBlock in catchBlocks)
+                if (catchBlock.block.range.Overlap(range))
+                    catchBlock.block.Operator(range, action);
+            if (finallyBlock != null && finallyBlock.range.Overlap(range)) finallyBlock.Operator(range, action);
+            action(this);
         }
 
         protected override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)

@@ -3,17 +3,9 @@ using LanguageServer.Parameters;
 using LanguageServer.Parameters.TextDocument;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
-using System.Xml.Linq;
 
 namespace RainLanguageServer.RainLanguage
 {
-    internal readonly struct CodeLenInfo(TextRange range, string title, string command = "", dynamic[]? arguments = null)
-    {
-        public readonly TextRange range = range;
-        public readonly string title = title;
-        public readonly string command = command;
-        public readonly dynamic[]? arguments = arguments;
-    }
     internal static class ManagerOperator
     {
         private static TextPosition ToTextPosition(this Position position, TextDocument document) => document[(int)position.line].start + (int)position.character;
@@ -57,6 +49,31 @@ namespace RainLanguageServer.RainLanguage
             if (FileDeclarationOperator(space.natives, position, out result, declarationAction)) return result;
             if (spaceAction != null) return spaceAction(space);
             return false;
+        }
+        private static void FileDeclarationOperator<T>(List<T> list, TextRange range, Action<FileDeclaration> action) where T : FileDeclaration
+        {
+            foreach (var item in list)
+                if (item.range.Overlap(range))
+                    action(item);
+        }
+        private static void FileSpaceOperator(FileSpace space, TextRange range, Action<FileSpace>? spaceAction, Action<FileDeclaration>? declarationAction)
+        {
+            foreach (var child in space.children)
+                if (child.range.Overlap(range))
+                    FileSpaceOperator(child, range, spaceAction, declarationAction);
+            spaceAction?.Invoke(space);
+            if (declarationAction != null)
+            {
+                FileDeclarationOperator(space.variables, range, declarationAction);
+                FileDeclarationOperator(space.functions, range, declarationAction);
+                FileDeclarationOperator(space.enums, range, declarationAction);
+                FileDeclarationOperator(space.structs, range, declarationAction);
+                FileDeclarationOperator(space.interfaces, range, declarationAction);
+                FileDeclarationOperator(space.classes, range, declarationAction);
+                FileDeclarationOperator(space.delegates, range, declarationAction);
+                FileDeclarationOperator(space.tasks, range, declarationAction);
+                FileDeclarationOperator(space.natives, range, declarationAction);
+            }
         }
         private static void FileSpaceOperator(FileSpace space, Action<FileSpace>? spaceAction, Action<FileDeclaration>? declarationAction)
         {
@@ -559,10 +576,19 @@ namespace RainLanguageServer.RainLanguage
         public static List<CodeActionInfo> CollectCodeAction(Manager manager, DocumentUri uri, LanguageServer.Parameters.Range sourceRange)
         {
             var result = new List<CodeActionInfo>();
-            if (manager.allFileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
+            if (manager.fileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
             {
                 var range = sourceRange.start.ToTextPosition(space.document) & sourceRange.end.ToTextPosition(space.document);
-                //todo 收集CodeActions
+                FileSpaceOperator(space, range,
+                    fileSpace =>
+                    {
+                        if (fileSpace.name != null && fileSpace.name.Value.Overlap(range) && InfoUtility.CheckNamingRule(fileSpace.name.Value, NamingRule.PascalCase, out var info, out var name))
+                        {
+                            InfoUtility.AddEdits(info, fileSpace.space.references, fileSpace.space.name, name);
+                            result.Add(info);
+                        }
+                    },
+                    fileDeclaration => fileDeclaration.abstractDeclaration?.CollectCodeAction(manager, range, result));
             }
             return result;
         }
