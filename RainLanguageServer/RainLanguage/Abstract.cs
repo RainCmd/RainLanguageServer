@@ -1,5 +1,4 @@
-﻿using LanguageServer.Parameters;
-using LanguageServer.Parameters.TextDocument;
+﻿using LanguageServer.Parameters.TextDocument;
 using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;

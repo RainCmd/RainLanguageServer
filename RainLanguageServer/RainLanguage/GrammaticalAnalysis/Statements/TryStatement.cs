@@ -1,6 +1,4 @@
-﻿using LanguageServer.Parameters;
-
-namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
+﻿namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis.Statements
 {
     internal class TryStatement(TextRange trySymbol) : Statement
     {

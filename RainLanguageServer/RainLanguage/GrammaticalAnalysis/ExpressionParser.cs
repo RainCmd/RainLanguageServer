@@ -1,6 +1,5 @@
 ﻿using RainLanguageServer.RainLanguage.GrammaticalAnalysis.Expressions;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq.Expressions;
 
 namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
 {

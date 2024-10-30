@@ -5,7 +5,6 @@ using LanguageServer.Parameters.TextDocument;
 using Newtonsoft.Json.Linq;
 using RainLanguageServer.RainLanguage;
 using System.Collections;
-using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using Message = LanguageServer.Message;
