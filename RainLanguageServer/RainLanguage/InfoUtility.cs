@@ -1260,5 +1260,16 @@ namespace RainLanguageServer.RainLanguage
             name = default;
             return false;
         }
+        public static void CheckDefaultAccess(AbstractDeclaration declaration, TextRange range, List<CodeActionInfo> infos)
+        {
+            var line = (TextRange)declaration.name.start.Line;
+            if (line.Overlap(range) && declaration.file.defaultVisibility)
+            {
+                line = line.Trim;
+                var info = new CodeActionInfo("添加默认访问权限", null, []);
+                info.changes?.Add(line, $"{KeyWords.PRIVATE} {line}");
+                infos.Add(info);
+            }
+        }
     }
 }

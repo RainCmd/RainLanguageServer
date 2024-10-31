@@ -152,6 +152,7 @@ namespace RainLanguageServer.RainLanguage
                 InfoUtility.AddEdits(info, write, name.ToString(), newName);
                 infos.Add(info);
             }
+            InfoUtility.CheckDefaultAccess(this, range, infos);
             if (expression != null && expression.range.Overlap(range)) expression.CollectCodeAction(manager, range, infos);
         }
     }
@@ -401,6 +402,7 @@ namespace RainLanguageServer.RainLanguage
                 InfoUtility.AddEdits(info, references, name.ToString(), newName);
                 infos.Add(info);
             }
+            InfoUtility.CheckDefaultAccess(this, range, infos);
             CollectLogicBlockCodeAction(manager, range, logicBlock, infos);
         }
     }
@@ -558,6 +560,7 @@ namespace RainLanguageServer.RainLanguage
                 InfoUtility.AddEdits(info, references, name.ToString(), newName);
                 infos.Add(info);
             }
+            InfoUtility.CheckDefaultAccess(this, range, infos);
             foreach (var element in elements)
                 element.CollectCodeAction(manager, range, infos);
         }
@@ -672,6 +675,7 @@ namespace RainLanguageServer.RainLanguage
                     InfoUtility.AddEdits(info, references, name.ToString(), newName);
                     infos.Add(info);
                 }
+                InfoUtility.CheckDefaultAccess(this, range, infos);
                 CollectLogicBlockCodeAction(manager, range, logicBlock, infos);
             }
         }
@@ -790,6 +794,7 @@ namespace RainLanguageServer.RainLanguage
                 InfoUtility.AddEdits(info, references, name.ToString(), newName);
                 infos.Add(info);
             }
+            InfoUtility.CheckDefaultAccess(this, range, infos);
             foreach (var variable in variables)
                 variable.CollectCodeAction(manager, range, infos);
             foreach (var function in functions)
@@ -952,6 +957,7 @@ namespace RainLanguageServer.RainLanguage
                 InfoUtility.AddEdits(info, references, name.ToString(), newName);
                 infos.Add(info);
             }
+            InfoUtility.CheckDefaultAccess(this, range, infos);
             foreach (var function in functions)
                 function.CollectCodeAction(manager, range, infos);
         }
@@ -1043,6 +1049,7 @@ namespace RainLanguageServer.RainLanguage
                     InfoUtility.AddEdits(info, references, name.ToString(), newName);
                     infos.Add(info);
                 }
+                InfoUtility.CheckDefaultAccess(this, range, infos);
                 if (expression != null && expression.range.Overlap(range)) expression.CollectCodeAction(manager, range, infos);
             }
         }
@@ -1130,6 +1137,7 @@ namespace RainLanguageServer.RainLanguage
             }
             public override void CollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
             {
+                InfoUtility.CheckDefaultAccess(this, range, infos);
                 if (expression != null && expression.range.Overlap(range)) expression.CollectCodeAction(manager, range, infos);
                 CollectLogicBlockCodeAction(manager, range, logicBlock, infos);
             }
@@ -1206,6 +1214,7 @@ namespace RainLanguageServer.RainLanguage
                     InfoUtility.AddEdits(info, ranges, name.ToString(), newName);
                     infos.Add(info);
                 }
+                InfoUtility.CheckDefaultAccess(this, range, infos);
                 CollectLogicBlockCodeAction(manager, range, logicBlock, infos);
             }
         }
@@ -1465,7 +1474,57 @@ namespace RainLanguageServer.RainLanguage
                 InfoUtility.AddEdits(info, references, name.ToString(), newName);
                 infos.Add(info);
             }
-            foreach(var member in variables)
+            InfoUtility.CheckDefaultAccess(this, range, infos);
+            var offset = inherits.Count == fileClass.inherits.Count ? 0 : 1;
+            var filterAll = new HashSet<AbstractCallable>();
+            foreach (var member in functions)
+            {
+                filterAll.Add(member);
+                filterAll.AddRange(member.overrides);
+            }
+            var filter = new HashSet<AbstractCallable>();
+            for (int i = 0; i < inherits.Count; i++)
+            {
+                var fileType = fileClass.inherits[i + offset];
+                if (fileType.range.Overlap(range))
+                {
+                    var type = inherits[i];
+                    if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractInterface abstractInterface)
+                    {
+                        var list = new List<AbstractCallable>();
+                        foreach (var inherit in manager.GetInheritIterator(abstractInterface))
+                            foreach (var function in inherit.functions)
+                                if (filter.Add(function))
+                                {
+                                    filter.AddRange(function.overrides);
+                                    if (!filterAll.Contains(function))
+                                        list.Add(function);
+                                }
+                        var endLine = fileClass.range.end.Line;
+                        var sb = new StringBuilder();
+                        for (var j = 0; j < endLine.indent; j++)
+                            sb.Append(' ');
+                        if (endLine.line == fileClass.range.start.Line.line)
+                            sb.Append("    ");
+                        var indent = sb.ToString();
+                        if (list.Count > 0)
+                        {
+                            info = new CodeActionInfo("实现接口", null, []);
+                            sb.Clear();
+                            foreach (var function in list)
+                            {
+                                sb.Append('\n');
+                                sb.Append(indent);
+                                sb.Append(((TextRange)function.name.start.Line).Trim);
+                            }
+                            info.changes?.Add(endLine.end & endLine.end, sb.ToString());
+                            infos.Add(info);
+                        }
+                    }
+                }
+                filter.Clear();
+            }
+            foreach (var member in variables)
                 member.CollectCodeAction(manager, range, infos);
             foreach (var member in constructors)
                 member.CollectCodeAction(manager, range, infos);
@@ -1499,6 +1558,7 @@ namespace RainLanguageServer.RainLanguage
                 InfoUtility.AddEdits(info, references, name.ToString(), newName);
                 infos.Add(info);
             }
+            InfoUtility.CheckDefaultAccess(this, range, infos);
         }
     }
     internal class AbstractTask(FileTask file, AbstractSpace space, TextRange name, Declaration declaration, Tuple returns)
@@ -1571,6 +1631,7 @@ namespace RainLanguageServer.RainLanguage
                 InfoUtility.AddEdits(info, references, name.ToString(), newName);
                 infos.Add(info);
             }
+            InfoUtility.CheckDefaultAccess(this, range, infos);
         }
     }
     internal class AbstractNative(FileNative file, AbstractSpace space, TextRange name, Declaration declaration, List<AbstractCallable.Parameter> parameters, Tuple returns)
@@ -1599,6 +1660,7 @@ namespace RainLanguageServer.RainLanguage
                 InfoUtility.AddEdits(info, references, name.ToString(), newName);
                 infos.Add(info);
             }
+            InfoUtility.CheckDefaultAccess(this, range, infos);
         }
     }
     internal class AbstractSpace(AbstractSpace? parent, string name)
