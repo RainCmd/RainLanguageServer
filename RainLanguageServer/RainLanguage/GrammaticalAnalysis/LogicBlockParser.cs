@@ -258,13 +258,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         else if (lexical.anchor == KeyWords.RETURN)
                         {
                             var result = parser.Parse(lexical.anchor.end & line.end);
-                            if (result.Valid)
-                            {
-                                if (result.tuple.Count != returns.Count) collector.Add(result.range, ErrorLevel.Error, "表达式返回值数量与函数返回值数量不一致");
-                                else for (var i = 0; i < returns.Count; i++)
-                                        if (ExpressionParser.Convert(manager, result.tuple[i], returns[i]) < 0)
-                                            collector.Add(result.range, ErrorLevel.Error, $"表达式第 {i + 1} 个返回值无法转换为函数的返回值类型");
-                            }
+                            if (result.Valid) result = parser.AssignmentConvert(result, returns);
                             stack.Peek().Add(new ReturnStatement(lexical.anchor, result, symbolGroup));
                         }
                         else if (lexical.anchor == KeyWords.WAIT)
