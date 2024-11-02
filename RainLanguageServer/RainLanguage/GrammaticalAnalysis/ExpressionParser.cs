@@ -1232,7 +1232,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                 index = lexical.anchor.end;
                                 var dimension = Lexical.ExtractDimension(range, ref index);
                                 var file = new FileType(lexical.anchor.start & index, new QualifiedName([lexical.anchor]), dimension);
-                                var expression = new TypeKeyworldExpression(lexical.anchor, localContext.Snapshoot, null, file, type);
+                                var expression = new TypeKeyworldExpression(lexical.anchor, localContext.Snapshoot, null, file, new Type(type, dimension));
                                 expressionStack.Push(expression);
                                 attribute = expression.attribute;
                                 goto label_next_lexical;
