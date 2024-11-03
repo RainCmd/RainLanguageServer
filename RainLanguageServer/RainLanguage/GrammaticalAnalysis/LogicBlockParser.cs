@@ -395,7 +395,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             for (var i = 0; i < logicBlock.statements.Count; i++)
             {
                 CheckFunctionStatementValidity(logicBlock.statements[i], null, false);
-                if (CheckReturn(logicBlock.statements[i]))
+                if (CheckReturn(logicBlock.statements[i], out var exit) || exit)
                 {
                     InaccessibleCodeWarning(logicBlock.statements, i);
                     return;
@@ -544,23 +544,39 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             group.Add(lexical.anchor);
             statements.Add(new BranchStatement(lexical.anchor, condition, group));
         }
-        private bool CheckReturn(Statement? statement)
+        private bool CheckReturn(Statement? statement, out bool exit)
         {
-            if (statement is ExitStatement || statement is ReturnStatement) return true;
+            if (statement is ExitStatement)
+            {
+                exit = true;
+                return false;
+            }
+            exit = false;
+            if (statement is ReturnStatement) return true;
             else if (statement is JumpStatement jumpStatement) return jumpStatement.condition == null && jumpStatement.group != null;
             else if (statement is BlockStatement blockStatement)
             {
                 for (var i = 0; i < blockStatement.statements.Count; i++)
                 {
                     var subStatement = blockStatement.statements[i];
-                    if (CheckReturn(subStatement))
+                    if (CheckReturn(subStatement, out exit))
                     {
                         InaccessibleCodeWarning(blockStatement.statements, i);
                         return true;
                     }
+                    else if (exit)
+                    {
+                        InaccessibleCodeWarning(blockStatement.statements, i);
+                        return false;
+                    }
                 }
             }
-            else if (statement is BranchStatement branchStatement) return CheckReturn(branchStatement.trueBranch) && CheckReturn(branchStatement.falseBranch);
+            else if (statement is BranchStatement branchStatement)
+            {
+                var result = CheckReturn(branchStatement.trueBranch, out var exitT) & CheckReturn(branchStatement.falseBranch, out var exitF);
+                exit = exitT & exitF;
+                return result;
+            }
             else if (statement is LoopStatement loopStatement)
             {
                 if (loopStatement.loopBlock != null)
@@ -588,15 +604,20 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     }
                                     else hasContinue = true;
                                 }
-                                if (CheckReturn(subStatement))
+                                if (CheckReturn(subStatement, out exit))
                                 {
                                     InaccessibleCodeWarning(loopStatement.loopBlock.statements, i);
                                     return true;
                                 }
+                                else if (exit)
+                                {
+                                    InaccessibleCodeWarning(loopStatement.loopBlock.statements, i);
+                                    return false;
+                                }
                             }
                         }
                     }
-                    else CheckReturn(loopStatement.loopBlock);
+                    else CheckReturn(loopStatement.loopBlock, out _);
                 }
                 if (loopStatement.elseBlock != null)
                 {
@@ -605,10 +626,15 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         collector.Add(loopStatement.elseBlock.statements[0].range, ErrorLevel.Hint, "无法访问的代码", true);
                         return true;
                     }
-                    else return CheckReturn(loopStatement.elseBlock);
+                    else if (CheckReturn(loopStatement.elseBlock, out exit)) return true;
+                    else return false;
                 }
             }
-            if (statement is TryStatement tryStatement) return CheckReturn(tryStatement.tryBlock);
+            if (statement is TryStatement tryStatement)
+            {
+                if (CheckReturn(tryStatement.tryBlock, out exit)) return true;
+                else if (exit) exit = tryStatement.catchBlocks.Count == 0;
+            }
             return false;
         }
         private void InaccessibleCodeWarning(List<Statement> statements, int index)
