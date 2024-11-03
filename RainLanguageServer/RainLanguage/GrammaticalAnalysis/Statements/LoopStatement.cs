@@ -94,4 +94,29 @@
             if (separator2 != null) collector.Add(DetailTokenType.Operator, separator2.Value);
         }
     }
+    internal class ForeachStatement(TextRange symbol, Expression? condition, TextRange separator, Expression? element) : LoopStatement(symbol, condition)
+    {
+        public readonly TextRange separator = separator;
+        public readonly Expression? element = element;
+        protected override void InternalOperator(Action<Expression> action)
+        {
+            base.InternalOperator(action);
+            if (element != null) action(element);
+        }
+        protected override bool InternalOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (element != null && element.range.Contain(position)) return action(element);
+            return base.InternalOperator(position, action);
+        }
+        protected override void InternalOperator(TextRange range, Action<Expression> action)
+        {
+            if (element != null && element.range.Overlap(range)) action(element);
+            base.InternalOperator(range, action);
+        }
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            base.InternalCollectSemanticToken(manager, collector);
+            collector.Add(DetailTokenType.Operator, separator);
+        }
+    }
 }

@@ -1868,7 +1868,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 default: throw new Exception("语法类型错误");
             }
         }
-        private Expression InferLeftValueType(Expression expression, TypeSpan span)
+        public Expression InferLeftValueType(Expression expression, TypeSpan span)
         {
             if (!expression.Valid)
             {

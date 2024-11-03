@@ -31,6 +31,14 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             this.destructor = destructor;
             this.logicBlock = logicBlock;
         }
+        private void PushBlock(Stack<List<Statement>> stack, Stack<int> indents, TextLine line)
+        {
+            var block = new BlockStatement(line.start & line.start);
+            stack.Peek().Add(block);
+            localContext.PushBlock();
+            stack.Push(block.statements);
+            indents.Push(line.indent);
+        }
         private void Parse()
         {
             if (body.Count > 0)
@@ -115,7 +123,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     {
                                         indent = indents.Pop();
                                         stack.Pop();
-                                        localContext.PushBlock();
+                                        localContext.PopBlock();
                                     }
                                     indents.Push(indent);
                                 }
@@ -192,37 +200,73 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         }
                         else if (lexical.anchor == KeyWords.FOR)
                         {
+                            PushBlock(stack, indents, line);
                             var range = lexical.anchor.end & line.end;
-                            var separator1 = ExpressionSplit.Split(range, SplitFlag.Semicolon, out var left, out var right, collector);
-                            if (separator1.type == LexicalType.Semicolon)
+                            var separator1 = ExpressionSplit.Split(range, SplitFlag.Colon, out var left, out var right, collector);
+                            if (separator1.type == LexicalType.Colon)
                             {
-                                var front = parser.Parse(left);
-                                Expression? condition, back;
-                                range = right;
-                                var separator2 = ExpressionSplit.Split(range, SplitFlag.Semicolon, out left, out right, collector);
-                                if (separator2.type == LexicalType.Semicolon)
+                                var element = parser.Parse(left);
+                                var iterator = parser.Parse(right);
+                                if (iterator.attribute.ContainAny(ExpressionAttribute.Value))
                                 {
-                                    condition = parser.Parse(left);
-                                    back = parser.Parse(right);
+                                    if (ExpressionParser.Convert(manager, iterator.tuple[0], manager.kernelManager.ENUMERABLE) >= 0)
+                                    {
+                                        if (!element.attribute.ContainAny(ExpressionAttribute.Assignable)) collector.Add(element.range, ErrorLevel.Error, "不可赋值");
+                                        else if (element.tuple.Count != 1) collector.Add(element.range, ErrorLevel.Error, "不能是元组");
+                                        else parser.TryInferLeftValueType(ref element, manager.kernelManager.HANDLE);
+                                    }
+                                    else if (manager.TryGetDeclaration(iterator.tuple[0], out var abstractDeclaration) && abstractDeclaration is AbstractDelegate abstractDelegate)
+                                    {
+                                        if (abstractDelegate.parameters.Count == 0 && abstractDelegate.returns.Count > 0 && abstractDelegate.returns[0] == manager.kernelManager.BOOL)
+                                        {
+                                            if (!element.attribute.ContainAny(ExpressionAttribute.Assignable)) collector.Add(element.range, ErrorLevel.Error, "不可赋值");
+                                            else if (element.tuple.Count != abstractDelegate.returns.Count - 1) collector.Add(element.range, ErrorLevel.Error, "类型数量不一致");
+                                            element = parser.InferLeftValueType(element, abstractDelegate.returns[1..]);
+                                            iterator = new TupleCastExpression(iterator, abstractDelegate.returns[1..], localContext.Snapshoot, manager.kernelManager);
+                                            iterator = parser.AssignmentConvert(iterator, element.tuple);
+                                        }
+                                        else collector.Add(iterator.range, ErrorLevel.Error, "必须是无参且第一个返回值是bool类型的委托才能迭代");
+                                    }
+                                    else collector.Add(iterator.range, ErrorLevel.Error, "不是可迭代对象");
                                 }
-                                else
-                                {
-                                    condition = parser.Parse(range);
-                                    back = null;
-                                }
-                                if (condition.Valid && !(condition.attribute.ContainAny(ExpressionAttribute.Value) && condition.tuple[0] == manager.kernelManager.BOOL))
-                                    collector.Add(condition.range, ErrorLevel.Error, "表达式返回值不是布尔类型");
-                                var loop = new ForStatement(lexical.anchor, condition, separator1.anchor, separator2.type == LexicalType.Semicolon ? separator2.anchor : null, front, back);
+                                else collector.Add(iterator.range, ErrorLevel.Error, "不是个值");
+                                var loop = new ForeachStatement(lexical.anchor, iterator, separator1.anchor, element);
                                 loop.group.Add(lexical.anchor);
                                 stack.Peek().Add(loop);
                             }
                             else
                             {
-                                collector.Add(lexical.anchor, ErrorLevel.Error, "for循环需要用 ; 分隔初始化表达式、条件表达式和更新表达式");
-                                var expression = parser.Parse(range);
-                                var loop = new ForStatement(lexical.anchor, null, null, null, expression, null);
-                                loop.group.Add(lexical.anchor);
-                                stack.Peek().Add(loop);
+                                separator1 = ExpressionSplit.Split(range, SplitFlag.Semicolon, out left, out right, collector);
+                                if (separator1.type == LexicalType.Semicolon)
+                                {
+                                    var front = parser.Parse(left);
+                                    Expression? condition, back;
+                                    range = right;
+                                    var separator2 = ExpressionSplit.Split(range, SplitFlag.Semicolon, out left, out right, collector);
+                                    if (separator2.type == LexicalType.Semicolon)
+                                    {
+                                        condition = parser.Parse(left);
+                                        back = parser.Parse(right);
+                                    }
+                                    else
+                                    {
+                                        condition = parser.Parse(range);
+                                        back = null;
+                                    }
+                                    if (condition.Valid && !(condition.attribute.ContainAny(ExpressionAttribute.Value) && condition.tuple[0] == manager.kernelManager.BOOL))
+                                        collector.Add(condition.range, ErrorLevel.Error, "表达式返回值不是布尔类型");
+                                    var loop = new ForStatement(lexical.anchor, condition, separator1.anchor, separator2.type == LexicalType.Semicolon ? separator2.anchor : null, front, back);
+                                    loop.group.Add(lexical.anchor);
+                                    stack.Peek().Add(loop);
+                                }
+                                else
+                                {
+                                    collector.Add(lexical.anchor, ErrorLevel.Error, "for循环需要用 ; 分隔初始化表达式、条件表达式和更新表达式");
+                                    var expression = parser.Parse(range);
+                                    var loop = new ForStatement(lexical.anchor, null, null, null, expression, null);
+                                    loop.group.Add(lexical.anchor);
+                                    stack.Peek().Add(loop);
+                                }
                             }
                         }
                         else if (lexical.anchor == KeyWords.BREAK)
