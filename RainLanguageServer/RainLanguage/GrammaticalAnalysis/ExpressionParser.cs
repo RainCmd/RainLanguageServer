@@ -2468,6 +2468,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             {
                 if (baseType == manager.kernelManager.ARRAY) return 1;
                 else if (baseType == manager.kernelManager.HANDLE) return 2;
+                else return GetInheritDeep(manager, baseType, manager.kernelManager.ARRAY);
             }
             else if (subType.code == TypeCode.Delegate)
             {
