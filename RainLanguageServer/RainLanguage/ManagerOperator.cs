@@ -383,16 +383,17 @@ namespace RainLanguageServer.RainLanguage
             return GetReferenceInfo(file, title, values.Count);
         }
         [RequiresDynamicCode("Calls RainLanguageServer.RainLanguage.ManagerOperator.GetReferenceParameter(FileDeclaration, TextRange, HashSet<TextRange>)")]
-        private static void CollectCodeLens(Manager manager, FileSpace space, List<CodeLenInfo> infos)
+        private static void CollectCodeLens(Manager manager, FileSpace space, List<CodeLenInfo> infos, Configuration configuration)
         {
             foreach (var child in space.children)
-                CollectCodeLens(manager, child, infos);
-            //foreach (var file in space.variables)
-            //    if (file.abstractDeclaration is AbstractVariable abstractVariable)
-            //    {
-            //        infos.Add(GetReferenceInfo(file, "读取", abstractVariable.references.Count));
-            //        infos.Add(GetReferenceInfo(file, "写入", abstractVariable.write.Count));
-            //    }
+                CollectCodeLens(manager, child, infos, configuration);
+            if (configuration.showVariableCodeLens)
+                foreach (var file in space.variables)
+                    if (file.abstractDeclaration is AbstractVariable abstractVariable)
+                    {
+                        infos.Add(GetReferenceInfo(file, "读取", abstractVariable.references.Count));
+                        infos.Add(GetReferenceInfo(file, "写入", abstractVariable.write.Count));
+                    }
             foreach (var file in space.functions)
                 if (file.abstractDeclaration is AbstractFunction abstractFunction)
                 {
@@ -407,11 +408,12 @@ namespace RainLanguageServer.RainLanguage
                 if (file.abstractDeclaration is AbstractStruct abstractStruct)
                 {
                     infos.Add(GetReferenceInfo(file, "引用", abstractStruct.references.Count));
-                    //foreach (var member in abstractStruct.variables)
-                    //{
-                    //    infos.Add(GetReferenceInfo(member.file, "读取", member.references.Count));
-                    //    infos.Add(GetReferenceInfo(member.file, "写入", member.write.Count));
-                    //}
+                    if (configuration.showFieldCodeLens)
+                        foreach (var member in abstractStruct.variables)
+                        {
+                            infos.Add(GetReferenceInfo(member.file, "读取", member.references.Count));
+                            infos.Add(GetReferenceInfo(member.file, "写入", member.write.Count));
+                        }
                     foreach (var member in abstractStruct.functions)
                         infos.Add(GetReferenceInfo(member.file, "读取", member.references.Count));
                 }
@@ -431,11 +433,12 @@ namespace RainLanguageServer.RainLanguage
                 {
                     infos.Add(GetReferenceInfo(file, "引用", abstractClass.references.Count));
                     infos.Add(GetCodeLenInfo(file, abstractClass.implements, "子类"));
-                    //foreach (var member in abstractClass.variables)
-                    //{
-                    //    infos.Add(GetReferenceInfo(member.file, "读取", member.references.Count));
-                    //    infos.Add(GetReferenceInfo(member.file, "写入", member.write.Count));
-                    //}
+                    if (configuration.showFieldCodeLens)
+                        foreach (var member in abstractClass.variables)
+                        {
+                            infos.Add(GetReferenceInfo(member.file, "读取", member.references.Count));
+                            infos.Add(GetReferenceInfo(member.file, "写入", member.write.Count));
+                        }
                     foreach (var member in abstractClass.functions)
                     {
                         infos.Add(GetReferenceInfo(member.file, "引用", member.references.Count));
@@ -457,12 +460,12 @@ namespace RainLanguageServer.RainLanguage
         }
 
         [RequiresDynamicCode("Calls RainLanguageServer.RainLanguage.ManagerOperator.CollectCodeLens(Manager, FileSpace, List<CodeLenInfo>)")]
-        public static List<CodeLenInfo> CollectCodeLens(Manager manager, DocumentUri uri)
+        public static List<CodeLenInfo> CollectCodeLens(Manager manager, DocumentUri uri, Configuration configuration)
         {
             var results = new List<CodeLenInfo>();
             lock (manager)
                 if (manager.allFileSpaces.TryGetValue(new UnifiedPath(uri), out var space))
-                    CollectCodeLens(manager, space, results);
+                    CollectCodeLens(manager, space, results, configuration);
             return results;
         }
 

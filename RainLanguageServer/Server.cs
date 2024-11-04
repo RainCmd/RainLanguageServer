@@ -2,6 +2,7 @@
 using LanguageServer.Parameters;
 using LanguageServer.Parameters.General;
 using LanguageServer.Parameters.TextDocument;
+using LanguageServer.Parameters.Workspace;
 using Newtonsoft.Json.Linq;
 using RainLanguageServer.RainLanguage;
 using System.Collections;
@@ -11,6 +12,12 @@ using Message = LanguageServer.Message;
 
 namespace RainLanguageServer
 {
+    internal class Configuration
+    {
+        public bool showInlayHint;
+        public bool showVariableCodeLens;
+        public bool showFieldCodeLens;
+    }
     [RequiresDynamicCode("Calls LanguageServer.Reflector.GetRequestType(MethodInfo)")]
     internal partial class Server(Stream input, Stream output, int timeout = 0) : ServiceConnection(input, output, timeout)
     {
@@ -34,6 +41,12 @@ namespace RainLanguageServer
             IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
         private Manager? manager;
+        private readonly Configuration configuration = new();
+        private TextDocument[] LoadRelyLibrary(string library)
+        {
+            var text = Proxy.SendRequest<string, string>("rainlanguage/loadRely", library).Result;
+            return [new TextDocument(Manager.ToRainScheme(library), text)];
+        }
         protected override Result<InitializeResult, ResponseError<InitializeErrorData>> Initialize(InitializeParams param, CancellationToken token)
         {
             var kernelDefinePath = param.initializationOptions?.kernelDefinePath?.Value as string;
@@ -60,11 +73,26 @@ namespace RainLanguageServer
                 lock (manager)
                     foreach (var space in manager.fileSpaces.Values)
                         RefreshDiagnostics(space);
+
+            Proxy.Client.RegisterCapability(new() { registrations = [new() { method = "workspace/didChangeConfiguration" }] });
+            RefreshConfiguration();
         }
-        private TextDocument[] LoadRelyLibrary(string library)
+
+        protected override void DidChangeConfiguration(DidChangeConfigurationParams param)
         {
-            var text = Proxy.SendRequest<string, string>("rainlanguage/loadRely", library).Result;
-            return [new TextDocument(Manager.ToRainScheme(library), text)];
+            RefreshConfiguration();
+        }
+
+        private void RefreshConfiguration()
+        {
+            var result = Proxy.Workspace.Configuration(new([
+                new() { scopeUri = "RainLanguageServer", section = "rain.showInlayHint" },
+                new() { scopeUri = "RainLanguageServer", section = "rain.showVariableCodeLens" },
+                new() { scopeUri = "RainLanguageServer", section = "rain.showFieldCodeLens" }
+                ])).Result;
+            configuration.showInlayHint = result[0] is bool showInlayHint && showInlayHint;
+            configuration.showVariableCodeLens = result[1] is bool showVariableCodeLens && showVariableCodeLens;
+            configuration.showFieldCodeLens = result[2] is bool showFieldCodeLens && showFieldCodeLens;
         }
 
         protected override Result<CompletionResult, ResponseError> Completion(CompletionParams param, CancellationToken token)
@@ -200,7 +228,7 @@ namespace RainLanguageServer
         {
             if (manager != null)
             {
-                var list = ManagerOperator.CollectCodeLens(manager, param.textDocument.uri);
+                var list = ManagerOperator.CollectCodeLens(manager, param.textDocument.uri, configuration);
                 var codeLens = new CodeLens[list.Count];
                 for (int i = 0; i < list.Count; i++)
                 {
@@ -270,7 +298,7 @@ namespace RainLanguageServer
 
         protected override Result<InlayHintResult[], ResponseError> InlayHint(InlayHintParams param, CancellationToken token)
         {
-            if (manager != null)
+            if (manager != null && configuration.showInlayHint)
             {
                 var infos = new List<InlayHintInfo>();
                 ManagerOperator.CollectInlayHint(manager, param.textDocument.uri, infos);
