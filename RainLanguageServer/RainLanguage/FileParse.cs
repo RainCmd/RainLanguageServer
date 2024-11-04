@@ -368,6 +368,7 @@ namespace RainLanguageServer.RainLanguage
                         if (TryParseVariable(memberLine, index, out var name, out var type, out var expression, space.collector))
                         {
                             if (visibility != Visibility.None) space.collector.Add(name, ErrorLevel.Error, "结构体成员字段不允许有访问修饰符");
+                            if (expression != null) space.collector.Add(expression.Value, ErrorLevel.Error, "结构体成员字段不允许初始化");
                             var member = new FileStruct.Variable(space, name, type) { range = TrimLine(memberLine, name.end) };
                             member.attributes.AddRange(attributes);
                             attributes.Clear();
