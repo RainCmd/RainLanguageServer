@@ -574,11 +574,15 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             else if (statement is BranchStatement branchStatement)
             {
                 var result = CheckReturn(branchStatement.trueBranch, out var exitT) & CheckReturn(branchStatement.falseBranch, out var exitF);
-                exit = exitT & exitF;
+                exit = exitT & exitF | result;
                 return result;
             }
             else if (statement is LoopStatement loopStatement)
             {
+                var resultLoop = false;
+                var exitLoop = false;
+                var resultElse = false;
+                var exitElse = false;
                 if (loopStatement.loopBlock != null)
                 {
                     if (loopStatement.condition == null)
@@ -617,7 +621,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                             }
                         }
                     }
-                    else CheckReturn(loopStatement.loopBlock, out _);
+                    else resultLoop = CheckReturn(loopStatement.loopBlock, out exitLoop);
                 }
                 if (loopStatement.elseBlock != null)
                 {
@@ -626,9 +630,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         collector.Add(loopStatement.elseBlock.statements[0].range, ErrorLevel.Hint, "无法访问的代码", true);
                         return true;
                     }
-                    else if (CheckReturn(loopStatement.elseBlock, out exit)) return true;
-                    else return false;
+                    else resultElse = CheckReturn(loopStatement.elseBlock, out exitElse);
                 }
+                exit = (exitLoop | resultLoop) & (exitElse | resultElse);
+                return resultLoop & resultElse;
             }
             if (statement is TryStatement tryStatement)
             {
