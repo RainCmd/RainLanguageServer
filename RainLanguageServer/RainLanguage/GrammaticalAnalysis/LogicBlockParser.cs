@@ -214,6 +214,16 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                         if (!element.attribute.ContainAny(ExpressionAttribute.Assignable)) collector.Add(element.range, ErrorLevel.Error, "不可赋值");
                                         else if (element.tuple.Count != 1) collector.Add(element.range, ErrorLevel.Error, "不能是元组");
                                         else parser.TryInferLeftValueType(ref element, manager.kernelManager.HANDLE);
+                                        if (manager.TryGetDeclaration(manager.kernelManager.ENUMERABLE, out var declaration) && declaration is AbstractInterface abstractInterface)
+                                        {
+                                            var function = abstractInterface.functions[0];
+                                            foreach (var implement in function.implements)
+                                                if (implement.declaration.DefineType == iterator.tuple[0])
+                                                {
+                                                    implement.references.Add(separator1.anchor);
+                                                    break;
+                                                }
+                                        }
                                     }
                                     else if (manager.TryGetDeclaration(iterator.tuple[0], out var abstractDeclaration) && abstractDeclaration is AbstractDelegate abstractDelegate)
                                     {
