@@ -398,7 +398,7 @@ namespace RainLanguageServer.RainLanguage
                 if (file.abstractDeclaration is AbstractFunction abstractFunction)
                 {
                     infos.Add(GetReferenceInfo(file, "引用", abstractFunction.references.Count));
-                    if (abstractFunction.parameters.Count == 0)
+                    if (abstractFunction.parameters.Count == 0 && abstractFunction.declaration.library == Manager.LIBRARY_SELF)
                         infos.Add(new CodeLenInfo(abstractFunction.name, $"▶️", "cmd.rain.execute", [$"{abstractFunction.space.FullName}.{abstractFunction.name}"]));
                 }
             foreach (var file in space.enums)
