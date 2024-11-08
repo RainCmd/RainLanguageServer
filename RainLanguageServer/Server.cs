@@ -63,7 +63,6 @@ namespace RainLanguageServer
 
             var projectName = param.initializationOptions?.projectName?.Value as string;
             manager = new Manager(projectName ?? "RainTest", kernelDefinePath, imports, LoadRelyLibrary, () => new DocumentLoader(new UnifiedPath(param.rootUri), this), () => documents.Values);
-            manager.Reparse(false);
 
             return Result<InitializeResult, ResponseError<InitializeErrorData>>.Success(result);
         }
@@ -71,8 +70,11 @@ namespace RainLanguageServer
         {
             if (manager != null)
                 lock (manager)
+                {
+                    manager.Reparse(false);
                     foreach (var space in manager.fileSpaces.Values)
                         RefreshDiagnostics(space);
+                }
 
             Proxy.Client.RegisterCapability(new() { registrations = [new() { method = "workspace/didChangeConfiguration" }] });
             RefreshConfiguration();
