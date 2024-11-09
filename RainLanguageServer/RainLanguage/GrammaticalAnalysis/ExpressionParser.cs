@@ -1933,7 +1933,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         private Expression CreateOperation(TextRange range, string operation, TextRange symbol, params Expression[] expressions)
         {
             var parameters = TupleExpression.Create(expressions, localContext.Snapshoot, collector);
-            if (TryGetFunction(symbol, context.FindOperation(manager, operation), parameters, out var callable))
+            if (TryGetFunction(symbol, context.FindOperation(manager, operation), parameters, out var callable, true))
             {
                 if ((operation == "++" || operation == "--") && callable.declaration.library == Manager.LIBRARY_KERNEL)
                     foreach (var expression in expressions)
@@ -1945,7 +1945,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             else if (parameters.Valid) collector.Add(symbol, ErrorLevel.Error, "操作未找到");
             return new InvalidOperationExpression(range, localContext.Snapshoot, symbol, parameters);
         }
-        public bool TryGetFunction(TextRange range, List<AbstractCallable> callbales, Expression parameters, [MaybeNullWhen(false)] out AbstractCallable result)
+        public bool TryGetFunction(TextRange range, List<AbstractCallable> callbales, Expression parameters, [MaybeNullWhen(false)] out AbstractCallable result, bool isOperatoion = false)
         {
             if (!parameters.Valid)
             {
@@ -1967,6 +1967,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                     {
                         var measure = Convert(new TypeSpan(types), callable.signature);
                         if (measure >= 0)
+                        {
+                            if (isOperatoion && callable.declaration.library == Manager.LIBRARY_KERNEL) measure++;
                             if (results.Count == 0 || measure < min)
                             {
                                 results.Clear();
@@ -1974,6 +1976,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                 results.Add(callable);
                             }
                             else if (measure == min) results.Add(callable);
+                        }
                     }
                     types.Clear();
                 }
