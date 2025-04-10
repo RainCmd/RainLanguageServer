@@ -2,6 +2,7 @@
 using LanguageServer.Parameters;
 using LanguageServer.Parameters.General;
 using LanguageServer.Parameters.TextDocument;
+using LanguageServer.Parameters.Workspace;
 using Newtonsoft.Json.Linq;
 using RainLanguageServer.RainLanguage;
 using System.Collections;
@@ -11,6 +12,12 @@ using Message = LanguageServer.Message;
 
 namespace RainLanguageServer
 {
+    internal class Configuration
+    {
+        public bool showInlayHint;
+        public bool showVariableCodeLens;
+        public bool showFieldCodeLens;
+    }
     [RequiresDynamicCode("Calls LanguageServer.Reflector.GetRequestType(MethodInfo)")]
     internal partial class Server(Stream input, Stream output, int timeout = 0) : ServiceConnection(input, output, timeout)
     {
@@ -34,6 +41,12 @@ namespace RainLanguageServer
             IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
         private Manager? manager;
+        private readonly Configuration configuration = new();
+        private TextDocument[] LoadRelyLibrary(string library)
+        {
+            var text = Proxy.SendRequest<string, string>("rainlanguage/loadRely", library).Result;
+            return [new TextDocument(Manager.ToRainScheme(library), text)];
+        }
         protected override Result<InitializeResult, ResponseError<InitializeErrorData>> Initialize(InitializeParams param, CancellationToken token)
         {
             var kernelDefinePath = param.initializationOptions?.kernelDefinePath?.Value as string;
@@ -49,8 +62,7 @@ namespace RainLanguageServer
                 result.capabilities.completionProvider.triggerCharacters = [".", ">"];
 
             var projectName = param.initializationOptions?.projectName?.Value as string;
-            manager = new Manager(projectName ?? "TestLibrary", kernelDefinePath, imports, LoadRelyLibrary, () => new DocumentLoader(new UnifiedPath(param.rootUri), this), () => documents.Values);
-            manager.Reparse(false);
+            manager = new Manager(projectName ?? "RainTest", kernelDefinePath, imports, LoadRelyLibrary, () => new DocumentLoader(new UnifiedPath(param.rootUri), this), () => documents.Values);
 
             return Result<InitializeResult, ResponseError<InitializeErrorData>>.Success(result);
         }
@@ -58,13 +70,31 @@ namespace RainLanguageServer
         {
             if (manager != null)
                 lock (manager)
+                {
+                    manager.Reparse(false);
                     foreach (var space in manager.fileSpaces.Values)
                         RefreshDiagnostics(space);
+                }
+
+            Proxy.Client.RegisterCapability(new() { registrations = [new() { method = "workspace/didChangeConfiguration" }] });
+            RefreshConfiguration();
         }
-        private TextDocument[] LoadRelyLibrary(string library)
+
+        protected override void DidChangeConfiguration(DidChangeConfigurationParams param)
         {
-            var text = Proxy.SendRequest<string, string>("rainlanguage/loadRely", library).Result;
-            return [new TextDocument(Manager.ToRainScheme(library), text)];
+            RefreshConfiguration();
+        }
+
+        private void RefreshConfiguration()
+        {
+            var result = Proxy.Workspace.Configuration(new([
+                new() { scopeUri = "RainLanguageServer", section = "rain.showInlayHint" },
+                new() { scopeUri = "RainLanguageServer", section = "rain.showVariableCodeLens" },
+                new() { scopeUri = "RainLanguageServer", section = "rain.showFieldCodeLens" }
+                ])).Result;
+            configuration.showInlayHint = result[0] is bool showInlayHint && showInlayHint;
+            configuration.showVariableCodeLens = result[1] is bool showVariableCodeLens && showVariableCodeLens;
+            configuration.showFieldCodeLens = result[2] is bool showFieldCodeLens && showFieldCodeLens;
         }
 
         protected override Result<CompletionResult, ResponseError> Completion(CompletionParams param, CancellationToken token)
@@ -79,7 +109,7 @@ namespace RainLanguageServer
                     for (var i = 0; i < infos.Count; i++)
                     {
                         var info = infos[i];
-                        items[i] = new CompletionItem(info.lable) { kind = info.kind, documentation = new MarkupContent(MarkupKind.Markdown, info.documentation) };
+                        items[i] = new CompletionItem(info.lable) { kind = info.kind, documentation = new MarkupContent(MarkupKind.Markdown, info.documentation), filterText = info.filterText };
                     }
                     return Result<CompletionResult, ResponseError>.Success(new CompletionResult(items));
                 }
@@ -189,14 +219,24 @@ namespace RainLanguageServer
             return Result<DocumentHighlight[], ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
         }
 
+        protected override Result<DocumentSymbolResult, ResponseError> DocumentSymbols(DocumentSymbolParams param, CancellationToken token)
+        {
+            if (manager != null && ManagerOperator.TryGetDocumentSymbols(manager, param.textDocument.uri, out var result))
+                return Result<DocumentSymbolResult, ResponseError>.Success(result.ToArray());
+            return Result<DocumentSymbolResult, ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
+        }
+
         protected override Result<CodeLens[], ResponseError> CodeLens(CodeLensParams param, CancellationToken token)
         {
             if (manager != null)
             {
-                var list = ManagerOperator.CollectCodeLens(manager, param.textDocument.uri);
+                var list = ManagerOperator.CollectCodeLens(manager, param.textDocument.uri, configuration);
                 var codeLens = new CodeLens[list.Count];
                 for (int i = 0; i < list.Count; i++)
-                    codeLens[i] = new CodeLens(TR2R(list[i].range)) { command = new Command(list[i].title, "") };
+                {
+                    var info = list[i];
+                    codeLens[i] = new CodeLens(TR2R(info.range)) { command = new Command(info.title, info.command) { arguments = info.arguments } };
+                }
                 return Result<CodeLens[], ResponseError>.Success(codeLens);
             }
             return Result<CodeLens[], ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
@@ -260,7 +300,7 @@ namespace RainLanguageServer
 
         protected override Result<InlayHintResult[], ResponseError> InlayHint(InlayHintParams param, CancellationToken token)
         {
-            if (manager != null)
+            if (manager != null && configuration.showInlayHint)
             {
                 var infos = new List<InlayHintInfo>();
                 ManagerOperator.CollectInlayHint(manager, param.textDocument.uri, infos);
@@ -283,17 +323,45 @@ namespace RainLanguageServer
             return Result<InlayHintResult[], ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
         }
         protected override Result<InlayHintResult, ResponseError> InlayHintResolve(InlayHintResult param, CancellationToken token) => Result<InlayHintResult, ResponseError>.Success(param);
+
+        protected override Result<CodeActionResult, ResponseError> CodeAction(CodeActionParams param, CancellationToken token)
+        {
+            if (manager != null)
+            {
+                var infos = ManagerOperator.CollectCodeAction(manager, param.textDocument.uri, param.range);
+                if (infos.Count > 0)
+                {
+                    var result = new CodeAction[infos.Count];
+                    for (int i = 0; i < infos.Count; i++)
+                    {
+                        var info = infos[i];
+                        var action = result[i] = new CodeAction(info.title) { kind = info.kind };
+                        if (info.changes != null)
+                        {
+                            action.edit = new WorkspaceEdit();
+                            var changes = new Dictionary<TextDocument, List<TextEdit>>();
+                            foreach (var change in info.changes)
+                            {
+                                if (!changes.TryGetValue(change.Key.start.document, out var list))
+                                    changes[change.Key.start.document] = list = [];
+                                list.Add(new TextEdit(TR2R(change.Key), change.Value));
+                            }
+                            action.edit.changes = [];
+                            foreach (var change in changes)
+                                action.edit.changes.Add(new Uri(change.Key.path), [.. change.Value]);
+                        }
+                    }
+                    return Result<CodeActionResult, ResponseError>.Success(new CodeActionResult(result));
+                }
+            }
+            return Result<CodeActionResult, ResponseError>.Error(Message.ServerError(ErrorCodes.ServerCancelled));
+        }
         #region 文档相关
         private readonly Dictionary<string, TextDocument> documents = [];
         private bool TryGetDoc(string path, out TextDocument document)
         {
             lock (documents)
                 return documents.TryGetValue(path, out document!);
-        }
-        private struct PreviewDoc(string path, string content)
-        {
-            public string path = path;
-            public string content = content;
         }
         protected override void DidOpenTextDocument(DidOpenTextDocumentParams param)
         {
@@ -323,6 +391,7 @@ namespace RainLanguageServer
         }
         protected override void DidCloseTextDocument(DidCloseTextDocumentParams param)
         {
+            Proxy.TextDocument.PublishDiagnostics(new PublishDiagnosticsParams(new Uri(param.textDocument.uri), []));
             lock (documents)
                 documents.Remove(new UnifiedPath(param.textDocument.uri));
             OnChanged();
@@ -342,13 +411,13 @@ namespace RainLanguageServer
             }
         }
 
-        private readonly List<Diagnostic> diagnosticsHelper = [];
         /// <summary>
         /// 刷新文件的诊断信息
         /// </summary>
         /// <param name="files"></param>
         private void RefreshDiagnostics(FileSpace space)
         {
+            var diagnostics = new List<Diagnostic>();
             foreach (var msg in space.collector)
             {
                 var diagnostic = new Diagnostic(TR2R(msg.range), msg.message);
@@ -363,6 +432,9 @@ namespace RainLanguageServer
                     case ErrorLevel.Info:
                         diagnostic.severity = DiagnosticSeverity.Information;
                         break;
+                    case ErrorLevel.Hint:
+                        diagnostic.severity = DiagnosticSeverity.Hint;
+                        break;
                 }
                 if (msg.related.Count > 0)
                 {
@@ -370,26 +442,21 @@ namespace RainLanguageServer
                     for (var i = 0; i < msg.related.Count; i++)
                         diagnostic.relatedInformation[i] = new DiagnosticRelatedInformation(TR2L(msg.related[i].range), msg.related[i].message);
                 }
-                diagnosticsHelper.Add(diagnostic);
+                if (msg.unnecessary) diagnostic.tags = [DiagnosticTag.Unnecessary];
+                diagnostics.Add(diagnostic);
             }
-            var param = new PublishDiagnosticsParams(new Uri(space.document.path), [.. diagnosticsHelper]);
-            Proxy.TextDocument.PublishDiagnostics(param);
-            diagnosticsHelper.Clear();
+            Proxy.TextDocument.PublishDiagnostics(new PublishDiagnosticsParams(new Uri(space.document.path), [.. diagnostics]));
         }
 
-        private static Location TR2L(TextRange range)
+        public static Location TR2L(TextRange range)
         {
             return new Location(new Uri(range.start.document.path), TR2R(range));
         }
-        private static LanguageServer.Parameters.Range TR2R(TextRange range)
+        public static LanguageServer.Parameters.Range TR2R(TextRange range)
         {
             var startLine = range.start.Line;
             var endLine = range.end.Line;
             return new LanguageServer.Parameters.Range(new Position(range.start.Line.line, range.start - startLine.start), new Position(range.end.Line.line, range.end - endLine.start));
-        }
-        private static TextPosition GetFilePosition(TextDocument document, Position position)
-        {
-            return document[(int)position.line].start + (int)position.character;
         }
 
         [GeneratedRegex(@"^\s*//\s*region\b")]

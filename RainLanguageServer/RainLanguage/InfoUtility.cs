@@ -1,5 +1,6 @@
 ﻿using LanguageServer.Parameters.TextDocument;
 using RainLanguageServer.RainLanguage.GrammaticalAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace RainLanguageServer.RainLanguage
@@ -46,6 +47,12 @@ namespace RainLanguageServer.RainLanguage
         Class = 0x2,
         Define = 0x4 | Interface | Class,
         All = 0x8 | Define,
+    }
+    internal enum NamingRule
+    {
+        PascalCase,
+        CamelCase,
+        AllCaps,
     }
     internal static class InfoUtility
     {
@@ -132,6 +139,12 @@ namespace RainLanguageServer.RainLanguage
             }
             builder.Append(')');
         }
+        public static string GetParametersInfo(Manager manager, AbstractSpace? space, List<AbstractCallable.Parameter> parameters)
+        {
+            var sb = new StringBuilder();
+            AppendParameters(sb, manager, space, parameters);
+            return sb.ToString();
+        }
         public static string CodeInfo(this Type type, Manager manager, AbstractSpace? space = null)
         {
             if (manager.TryGetDeclaration(type, out var declaration))
@@ -147,7 +160,7 @@ namespace RainLanguageServer.RainLanguage
                         sb.Append(KeyWords.ENUM);
                         break;
                     case TypeCode.Handle:
-                        sb.Append(KeyWords.HANDLE);
+                        sb.Append(KeyWords.CLASS);
                         break;
                     case TypeCode.Interface:
                         sb.Append(KeyWords.INTERFACE);
@@ -537,11 +550,30 @@ namespace RainLanguageServer.RainLanguage
             foreach (var range in group)
                 infos.Add(new HighlightInfo(range, DocumentHighlightKind.Text));
         }
+        private static void Highlight(HashSet<TextRange> ranges, List<HighlightInfo> infos, DocumentHighlightKind kind)
+        {
+            foreach (var range in ranges)
+                infos.Add(new HighlightInfo(range, kind));
+        }
         public static void Highlight(AbstractDeclaration declaration, List<HighlightInfo> infos)
         {
             infos.Add(new HighlightInfo(declaration.name, DocumentHighlightKind.Text));
-            foreach (var reference in declaration.references)
-                infos.Add(new HighlightInfo(reference, DocumentHighlightKind.Text));
+            if (declaration is AbstractVariable variable)
+            {
+                Highlight(variable.references, infos, DocumentHighlightKind.Read);
+                Highlight(variable.write, infos, DocumentHighlightKind.Write);
+            }
+            else if (declaration is AbstractStruct.Variable structMember)
+            {
+                Highlight(structMember.references, infos, DocumentHighlightKind.Read);
+                Highlight(structMember.write, infos, DocumentHighlightKind.Write);
+            }
+            else if (declaration is AbstractClass.Variable classMember)
+            {
+                Highlight(classMember.references, infos, DocumentHighlightKind.Read);
+                Highlight(classMember.write, infos, DocumentHighlightKind.Write);
+            }
+            else Highlight(declaration.references, infos, DocumentHighlightKind.Text);
         }
         public static void FindReferences(this Local local, List<TextRange> references)
         {
@@ -550,6 +582,12 @@ namespace RainLanguageServer.RainLanguage
         }
         public static bool TryGetDefinition(this FileType fileType, Manager manager, TextPosition position, Type type, out TextRange definition)
         {
+            foreach (var space in fileType.name.qualify)
+                if (space.Contain(position))
+                {
+                    definition = space;
+                    return true;
+                }
             if (fileType.name.name.Contain(position))
             {
                 if (manager.TryGetDeclaration(type, out var declaration)) definition = declaration.name;
@@ -593,6 +631,19 @@ namespace RainLanguageServer.RainLanguage
             if (declaration.declaration.library != Manager.LIBRARY_SELF) return;
             ranges.Add(declaration.name);
             ranges.AddRange(declaration.references);
+            if (declaration is AbstractVariable variable) ranges.AddRange(variable.write);
+            else if (declaration is AbstractStruct.Variable structMember) ranges.AddRange(structMember.write);
+            else if (declaration is AbstractClass.Variable classMember) ranges.AddRange(classMember.write);
+            else if (declaration is AbstractInterface.Function interfaceFunction)
+            {
+                foreach (var item in interfaceFunction.implements) ranges.AddRange(item.references);
+                foreach (var item in interfaceFunction.overrides) ranges.AddRange(item.references);
+            }
+            else if (declaration is AbstractClass.Function classFunction)
+            {
+                foreach (var item in classFunction.implements) ranges.AddRange(item.references);
+                foreach (var item in classFunction.overrides) ranges.AddRange(item.references);
+            }
             var name = declaration.name.ToString();
             ranges.RemoveAll(value => value != name);
         }
@@ -715,6 +766,7 @@ namespace RainLanguageServer.RainLanguage
                 {
                     foreach (var element in abstractEnum.elements)
                         infos.Add(new CompletionInfo(element.name.ToString(), CompletionItemKind.EnumMember, element.CodeInfo(manager, context.space)));
+                    CollectMember(manager, manager.kernelManager.ENUM, context, infos);
                 }
                 else if (declaration is AbstractStruct abstractStruct)
                 {
@@ -750,6 +802,25 @@ namespace RainLanguageServer.RainLanguage
                                 set.AddRange(member.overrides);
                             }
                     }
+                }
+            }
+        }
+        public static void CollectClassFunction(Manager manager, Type type, Context context, List<CompletionInfo> infos)
+        {
+            if (type.dimension > 0) type = manager.kernelManager.ARRAY;
+            else if (type.code == TypeCode.Delegate) type = manager.kernelManager.DELEGATE;
+            else if (type.code == TypeCode.Task) type = manager.kernelManager.TASK;
+            if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractClass abstractClass)
+            {
+                foreach (var inherit in manager.GetInheritIterator(abstractClass))
+                {
+                    var set = new HashSet<AbstractCallable>();
+                    foreach (var member in inherit.functions)
+                        if (set.Add(member) && context.IsVisiable(manager, member.declaration))
+                        {
+                            infos.Add(new CompletionInfo(member.name.ToString(), CompletionItemKind.Method, member.CodeInfo(manager, context.space)));
+                            set.AddRange(member.overrides);
+                        }
                 }
             }
         }
@@ -842,6 +913,51 @@ namespace RainLanguageServer.RainLanguage
             if (context.declaration != null && filter == CompletionFilter.All)
                 CollectMember(manager, context.declaration.declaration.DefineType, context, infos);
         }
+        private static bool CheckMemberVisibility(AbstractClass source, AbstractCallable target)
+        {
+            switch (target.declaration.visibility)
+            {
+                case Visibility.None:
+                case Visibility.Public: return true;
+                case Visibility.Internal: return source.declaration.library == target.declaration.library;
+                case Visibility.Space:
+                    if (source.declaration.library == target.declaration.library)
+                        return target.space.Contain(source.space);
+                    break;
+                case Visibility.Protected: return true;
+                case Visibility.Private:
+                default: break;
+            }
+            return false;
+        }
+        public static void CollectOverride(Manager manager, AbstractClass abstractClass, List<CompletionInfo> infos)
+        {
+            var fliter = new HashSet<AbstractCallable>();
+            foreach (var function in abstractClass.functions)
+                fliter.AddRange(function.overrides);
+            var interfaceFliter = new HashSet<Type>();
+            foreach (var inherit in manager.GetInheritIterator(abstractClass))
+            {
+                if (inherit != abstractClass)
+                    foreach (var function in inherit.functions)
+                        if (!fliter.Contains(function))
+                        {
+                            if (CheckMemberVisibility(abstractClass, function))
+                                infos.Add(new CompletionInfo(function.name.start.Line.ToString().Trim(), CompletionItemKind.Method, function.CodeInfo(manager, abstractClass.space), "override"));
+                            fliter.AddRange(function.overrides);
+                        }
+                foreach (var type in inherit.inherits)
+                    if (type.code == TypeCode.Interface && interfaceFliter.Add(type) && manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractInterface abstractInterface)
+                        foreach (var inheritInterface in manager.GetInheritIterator(abstractInterface))
+                            foreach (var function in inheritInterface.functions)
+                                if (!fliter.Contains(function))
+                                {
+                                    if (CheckMemberVisibility(abstractClass, function))
+                                        infos.Add(new CompletionInfo(function.name.start.Line.ToString().Trim(), CompletionItemKind.Method, function.CodeInfo(manager, abstractClass.space), "override"));
+                                    fliter.AddRange(function.overrides);
+                                }
+            }
+        }
         public static void Completion(Manager manager, Context context, List<TextRange> ranges, TextPosition position, List<CompletionInfo> infos, CompletionFilter filter)
         {
             if (ranges[0].Contain(position))
@@ -916,8 +1032,13 @@ namespace RainLanguageServer.RainLanguage
                 else return;
             }
         }
-        public static void Completion(this FileType fileType, Manager manager, TextPosition position, List<CompletionInfo> infos)
+        public static void Completion(this FileType fileType, Manager manager, TextPosition position, List<CompletionInfo> infos, bool maybeVisibility = false)
         {
+            if (maybeVisibility && fileType.range.Contain(position))
+            {
+                if (fileType.name.qualify.Count > 0 && fileType.name.qualify[0].Contain(position)) CollectAccessKeyword(infos);
+                else if (fileType.name.qualify.Count == 0 && fileType.name.name.Contain(position)) CollectAccessKeyword(infos);
+            }
             if (ManagerOperator.TryGetContext(manager, position, out var context))
             {
                 var ranges = new List<TextRange>(fileType.name.qualify) { fileType.name.name };
@@ -937,6 +1058,7 @@ namespace RainLanguageServer.RainLanguage
         public static void AddType(this SemanticTokenCollector collector, TextRange range, Manager manager, Type type)
         {
             var kernel = manager.kernelManager;
+            type = new Type(type, 0);
             if (type == kernel.BOOL || type == kernel.BYTE || type == kernel.CHAR || type == kernel.INT || type == kernel.REAL || type == kernel.REAL2 || type == kernel.REAL3 || type == kernel.REAL4 ||
                 type == kernel.ENUM || type == kernel.TYPE || type == kernel.STRING || type == kernel.ENTITY || type == kernel.HANDLE || type == kernel.DELEGATE || type == kernel.TASK || type == kernel.ARRAY)
                 collector.Add(DetailTokenType.KeywordType, range);
@@ -1002,10 +1124,10 @@ namespace RainLanguageServer.RainLanguage
                     collector.AddRange(SemanticTokenType.Class, SemanticTokenModifier.Definition, range);
                     break;
                 case DetailTokenType.TypeDelegate:
-                    collector.AddRange(SemanticTokenType.Type, SemanticTokenModifier.Definition, range);
+                    collector.AddRange(SemanticTokenType.Event, SemanticTokenModifier.Definition, range);
                     break;
                 case DetailTokenType.TypeTask:
-                    collector.AddRange(SemanticTokenType.Type, SemanticTokenModifier.Definition, range);
+                    collector.AddRange(SemanticTokenType.Event, SemanticTokenModifier.Definition, range);
                     break;
 
                 case DetailTokenType.MemberElement:
@@ -1018,7 +1140,7 @@ namespace RainLanguageServer.RainLanguage
                     collector.AddRange(SemanticTokenType.Function, SemanticTokenModifier.Documentation, range);
                     break;
                 case DetailTokenType.MemberConstructor:
-                    collector.AddRange(SemanticTokenType.Type, SemanticTokenModifier.Documentation, range);
+                    collector.AddRange(SemanticTokenType.Class, SemanticTokenModifier.Documentation, range);
                     break;
 
                 case DetailTokenType.Constant:
@@ -1041,17 +1163,17 @@ namespace RainLanguageServer.RainLanguage
                     collector.AddRange(SemanticTokenType.Type, SemanticTokenModifier.DefaultLibrary, range);
                     break;
                 case DetailTokenType.KeywordVariable:
-                    collector.AddRange(SemanticTokenType.Variable, SemanticTokenModifier.DefaultLibrary, range);
+                    collector.AddRange(SemanticTokenType.Keyword, SemanticTokenModifier.DefaultLibrary, range);
                     break;
                 case DetailTokenType.KeywordConst:
-                    collector.AddRange(SemanticTokenType.Macro, SemanticTokenModifier.Readonly, range);
+                    //collector.AddRange(SemanticTokenType.Regexp, SemanticTokenModifier.Documentation, range);
                     break;
 
                 case DetailTokenType.Numeric:
                     collector.AddRange(SemanticTokenType.Number, SemanticTokenModifier.Readonly, range);
                     break;
                 case DetailTokenType.String:
-                    collector.AddRange(SemanticTokenType.String, SemanticTokenModifier.Readonly, range);
+                    //collector.AddRange(SemanticTokenType.String, SemanticTokenModifier.Readonly, range);
                     break;
 
                 case DetailTokenType.Namespace:
@@ -1064,6 +1186,89 @@ namespace RainLanguageServer.RainLanguage
                 case DetailTokenType.Operator:
                     collector.AddRange(SemanticTokenType.Operator, SemanticTokenModifier.Documentation, range);
                     break;
+            }
+        }
+
+        public static void AddEdits(CodeActionInfo info, IEnumerable<TextRange> ranges, string srcText, string newText)
+        {
+            if (info.changes == null) return;
+            foreach (var range in ranges)
+                if (range == srcText)
+                    info.changes[range] = newText;
+        }
+        public static bool CheckNamingRule(TextRange range, NamingRule rule, out CodeActionInfo info, [MaybeNullWhen(false)] out string name)
+        {
+            if (range.Count > 0)
+                switch (rule)
+                {
+                    case NamingRule.PascalCase:
+                        {
+                            var c = range[0];
+                            if (c >= 'a' && c <= 'z')
+                            {
+                                info = new CodeActionInfo("使用大驼峰命名", null, []);
+                                name = (char)(c & ~0x20) + range.ToString()[1..];
+                                info.changes?.Add(range, name);
+                                return true;
+                            }
+                        }
+                        break;
+                    case NamingRule.CamelCase:
+                        {
+                            var c = range[0];
+                            if (c >= 'A' && c <= 'Z')
+                            {
+                                info = new CodeActionInfo("使用小驼峰命名", null, []);
+                                name = (char)(c | 0x20) + range.ToString()[1..];
+                                info.changes?.Add(range, name);
+                                return true;
+                            }
+                        }
+                        break;
+                    case NamingRule.AllCaps:
+                        for (int i = 0; i < range.Count; i++)
+                        {
+                            var c = range[i];
+                            if (c >= 'a' && c <= 'z')
+                            {
+                                info = new CodeActionInfo("使用全大写命名", null, []);
+                                var sb = new StringBuilder();
+                                var flag = false;
+                                for (i = 0; i < range.Count; i++)
+                                {
+                                    c = range[i];
+                                    if (c >= 'a' && c <= 'z')
+                                    {
+                                        sb.Append((char)(c & ~0x20));
+                                        flag = true;
+                                    }
+                                    else
+                                    {
+                                        if (flag && c != '_') sb.Append('_');
+                                        sb.Append(c);
+                                        flag = false;
+                                    }
+                                }
+                                name = sb.ToString();
+                                info.changes?.Add(range, name);
+                                return true;
+                            }
+                        }
+                        break;
+                }
+            info = default;
+            name = default;
+            return false;
+        }
+        public static void CheckDefaultAccess(AbstractDeclaration declaration, TextRange range, List<CodeActionInfo> infos)
+        {
+            var line = (TextRange)declaration.name.start.Line;
+            if (line.Overlap(range) && declaration.file.defaultVisibility)
+            {
+                line = line.Trim;
+                var info = new CodeActionInfo("添加默认访问权限", null, []);
+                info.changes?.Add(line, $"{KeyWords.PRIVATE} {line}");
+                infos.Add(info);
             }
         }
     }

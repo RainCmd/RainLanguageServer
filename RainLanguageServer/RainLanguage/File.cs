@@ -12,52 +12,53 @@
         public readonly FileType type = type;
         public readonly TextRange name = name;
     }
-    internal class FileDeclaration(FileSpace space, Visibility visibility, TextRange name)
+    internal class FileDeclaration(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name)
     {
         public List<TextLine> annotation = [];
 
         public TextRange range;
         public readonly FileSpace space = space;
+        public readonly bool defaultVisibility = defaultVisibility;
         public readonly Visibility visibility = visibility;
         public readonly TextRange name = name;
         public readonly List<TextRange> attributes = [];
 
         public AbstractDeclaration? abstractDeclaration;
     }
-    internal class FileVariable(FileSpace space, Visibility visibility, TextRange name, bool isReadonly, FileType type, TextRange? expression = null)
-        : FileDeclaration(space, visibility, name)
+    internal class FileVariable(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name, bool isReadonly, FileType type, TextRange? expression = null)
+        : FileDeclaration(space, defaultVisibility, visibility, name)
     {
         public readonly bool isReadonly = isReadonly;
         public readonly FileType type = type;
         public readonly TextRange? expression = expression;
     }
-    internal class FileFunction(FileSpace space, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns)
-        : FileDeclaration(space, visibility, name)
+    internal class FileFunction(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns)
+        : FileDeclaration(space, defaultVisibility, visibility, name)
     {
         public readonly List<FileParameter> parameters = parameters;
         public readonly List<FileType> returns = returns;
         public readonly List<TextLine> body = [];
     }
-    internal class FileEnum(FileSpace space, Visibility visibility, TextRange name)
-        : FileDeclaration(space, visibility, name)
+    internal class FileEnum(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name)
+        : FileDeclaration(space, defaultVisibility, visibility, name)
     {
         internal class Element(FileSpace space, TextRange name, TextRange? expression)
-            : FileDeclaration(space, Visibility.Public, name)
+            : FileDeclaration(space, false, Visibility.Public, name)
         {
             public readonly TextRange? expression = expression;
         }
         public readonly List<Element> elements = [];
     }
-    internal class FileStruct(FileSpace space, Visibility visibility, TextRange name)
-        : FileDeclaration(space, visibility, name)
+    internal class FileStruct(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name)
+        : FileDeclaration(space, defaultVisibility, visibility, name)
     {
         internal class Variable(FileSpace space, TextRange name, FileType type)
-            : FileDeclaration(space, Visibility.Public, name)
+            : FileDeclaration(space, false, Visibility.Public, name)
         {
             public readonly FileType type = type;
         }
-        internal class Function(FileSpace space, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns) :
-            FileDeclaration(space, visibility, name)
+        internal class Function(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns) :
+            FileDeclaration(space, defaultVisibility, visibility, name)
         {
             public readonly List<FileParameter> parameters = parameters;
             public readonly List<FileType> returns = returns;
@@ -66,11 +67,11 @@
         public readonly List<Variable> variables = [];
         public readonly List<Function> functions = [];
     }
-    internal class FileInterface(FileSpace space, Visibility visibility, TextRange name)
-        : FileDeclaration(space, visibility, name)
+    internal class FileInterface(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name)
+        : FileDeclaration(space, defaultVisibility, visibility, name)
     {
         internal class Function(FileSpace space, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns)
-            : FileDeclaration(space, visibility, name)
+            : FileDeclaration(space, false, visibility, name)
         {
             public readonly List<FileParameter> parameters = parameters;
             public readonly List<FileType> returns = returns;
@@ -78,25 +79,25 @@
         public readonly List<FileType> inherits = [];
         public readonly List<Function> functions = [];
     }
-    internal class FileClass(FileSpace space, Visibility visibility, TextRange name)
-        : FileDeclaration(space, visibility, name)
+    internal class FileClass(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name)
+        : FileDeclaration(space, defaultVisibility, visibility, name)
     {
-        internal class Variable(FileSpace space, Visibility visibility, TextRange name, FileType type, TextRange? expression)
-            : FileDeclaration(space, visibility, name)
+        internal class Variable(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name, FileType type, TextRange? expression)
+            : FileDeclaration(space, defaultVisibility, visibility, name)
         {
             public readonly FileType type = type;
             public readonly TextRange? expression = expression;
         }
-        internal class Constructor(FileSpace space, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns, TextRange expression)
-            : FileDeclaration(space, visibility, name)
+        internal class Constructor(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns, TextRange expression)
+            : FileDeclaration(space, defaultVisibility, visibility, name)
         {
             public readonly List<FileParameter> parameters = parameters;
             public readonly List<FileType> returns = returns;
             public readonly TextRange expression = expression;
             public readonly List<TextLine> body = [];
         }
-        internal class Function(FileSpace space, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns)
-            : FileDeclaration(space, visibility, name)
+        internal class Function(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns)
+            : FileDeclaration(space, defaultVisibility, visibility, name)
         {
             public readonly List<FileParameter> parameters = parameters;
             public readonly List<FileType> returns = returns;
@@ -114,19 +115,19 @@
         public readonly List<Function> functions = [];
         public Descontructor? descontructor;
     }
-    internal class FileDelegate(FileSpace space, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns)
-        : FileDeclaration(space, visibility, name)
+    internal class FileDelegate(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns)
+        : FileDeclaration(space, defaultVisibility, visibility, name)
     {
         public readonly List<FileParameter> parameters = parameters;
         public readonly List<FileType> returns = returns;
     }
-    internal class FileTask(FileSpace space, Visibility visibility, TextRange name, List<FileType> returns)
-        : FileDeclaration(space, visibility, name)
+    internal class FileTask(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name, List<FileType> returns)
+        : FileDeclaration(space, defaultVisibility, visibility, name)
     {
         public readonly List<FileType> returns = returns;
     }
-    internal class FileNative(FileSpace space, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns)
-        : FileDeclaration(space, visibility, name)
+    internal class FileNative(FileSpace space, bool defaultVisibility, Visibility visibility, TextRange name, List<FileParameter> parameters, List<FileType> returns)
+        : FileDeclaration(space, defaultVisibility, visibility, name)
     {
         public readonly List<FileParameter> parameters = parameters;
         public readonly List<FileType> returns = returns;

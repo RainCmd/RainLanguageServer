@@ -296,7 +296,7 @@
             action(this);
         }
 
-        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.Operator, symbol);
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector) => collector.Add(DetailTokenType.KeywordCtrl, symbol);
     }
     internal class BlurrySetExpression : Expression
     {

@@ -102,6 +102,15 @@
             typeExpression.Operator(action);
             base.Operator(action);
         }
+        protected override void InternalCollectCodeAction(Manager manager, TextRange range, List<CodeActionInfo> infos)
+        {
+            if (identifier.Overlap(range) && InfoUtility.CheckNamingRule(identifier, NamingRule.CamelCase, out var info, out var newName))
+            {
+                InfoUtility.AddEdits(info, local.read, local.name, newName);
+                InfoUtility.AddEdits(info, local.write, local.name, newName);
+                infos.Add(info);
+            }
+        }
     }
     internal class VariableKeyworldLocalExpression(TextRange range, Local local, Type type, LocalContextSnapshoot snapshoot, TextRange identifier, ExpressionAttribute attribute, Manager.KernelManager manager) : VariableLocalExpression(range, local, type, snapshoot, identifier, attribute, manager)
     {
@@ -286,6 +295,8 @@
             if (identifier.Contain(position))
             {
                 references.AddRange(member.references);
+                if (member is AbstractStruct.Variable structMember) references.AddRange(structMember.write);
+                else if (member is AbstractClass.Variable classMember) references.AddRange(classMember.write);
                 return true;
             }
             return false;
@@ -299,7 +310,7 @@
 
         protected override void InternalRename(Manager manager, TextPosition position, HashSet<TextRange> ranges)
         {
-            if (!identifier.Contain(position)) InfoUtility.Rename(member, ranges);
+            if (identifier.Contain(position)) InfoUtility.Rename(member, ranges);
         }
     }
 }

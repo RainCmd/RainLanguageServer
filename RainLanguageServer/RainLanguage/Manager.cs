@@ -25,6 +25,7 @@ namespace RainLanguageServer.RainLanguage
             public readonly Type TASK = GetType(kernel.classes, "Task");
             public readonly Type ARRAY = GetType(kernel.classes, "array");
 
+            public readonly Type ENUMERABLE = GetType(kernel.interfaces, "Enumerable");
             private static Type GetType<T>(List<T> declarations, string name) where T : AbstractDeclaration
             {
                 foreach (var declaration in declarations)

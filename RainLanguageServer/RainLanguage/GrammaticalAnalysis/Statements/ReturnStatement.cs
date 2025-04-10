@@ -18,6 +18,11 @@
         public override void Operator(Action<Statement> action) => action(this);
         protected override bool InternalOperator(TextPosition position, ExpressionOperator action) => result.range.Contain(position) && action(result);
         public override bool Operator(TextPosition position, StatementOperator action) => action(this);
+        protected override void InternalOperator(TextRange range, Action<Expression> action)
+        {
+            if (result.range.Overlap(range)) action(result);
+        }
+        public override void Operator(TextRange range, Action<Statement> action) => action(this);
 
         protected override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
         {

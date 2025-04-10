@@ -149,6 +149,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                                 constructors.Add(constructor);
                                         if (TryGetFunction(expression.range, constructors, bracket, out var callable))
                                         {
+                                            bracket = bracket.Replace(AssignmentConvert(bracket.expression, callable.signature));
                                             if (destructor) collector.Add(expression.range, ErrorLevel.Error, "析构函数中不能创建托管对象");
                                             expression = new ConstructorExpression(expression.range & bracket.range, type, localContext.Snapshoot, callable, null, bracket, manager.kernelManager);
                                         }
@@ -855,7 +856,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                     case LexicalType.ConstNumber:
                         {
                             var value = long.Parse(lexical.anchor.ToString().Replace("_", ""));
-                            var expression = new ConstIntegerExpression(lexical.anchor, localContext.Snapshoot, value, manager.kernelManager);
+                            var expression = new ConstIntegerExpression(lexical.anchor, localContext.Snapshoot, value, false, manager.kernelManager);
                             if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
                             {
                                 expressionStack.Push(expression);
@@ -880,7 +881,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     if (c == '1') value++;
                                 }
                             }
-                            var expression = new ConstIntegerExpression(lexical.anchor, localContext.Snapshoot, value, manager.kernelManager);
+                            var expression = new ConstIntegerExpression(lexical.anchor, localContext.Snapshoot, value, true, manager.kernelManager);
                             if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
                             {
                                 expressionStack.Push(expression);
@@ -906,7 +907,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                     else throw new Exception($"{c}不是16进制字符");
                                 }
                             }
-                            var expression = new ConstIntegerExpression(lexical.anchor, localContext.Snapshoot, value, manager.kernelManager);
+                            var expression = new ConstIntegerExpression(lexical.anchor, localContext.Snapshoot, value, true, manager.kernelManager);
                             if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
                             {
                                 expressionStack.Push(expression);
@@ -923,16 +924,19 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         {
                             long value = 0;
                             var anchor = lexical.anchor;
-                            if (anchor[^1] == '\'') anchor = anchor[1..^2];
+                            if (anchor[^1] == '\'') anchor = anchor[1..^1];
                             else anchor = anchor[1..];
-                            for (var i = 0; i < anchor.Count; i++)
+                            var count = 0;
+                            for (var i = 0; i < anchor.Count; i++, count++)
                             {
                                 var c = anchor[i] & 0xff;
                                 value <<= 8;
                                 if (c == '\\') value += Utility.EscapeCharacter(anchor, ref i);
                                 else value += c;
                             }
-                            var expression = new ConstCharsExpression(lexical.anchor, localContext.Snapshoot, value, manager.kernelManager);
+                            Expression expression;
+                            if (count == 1) expression = new ConstCharExpression(lexical.anchor, localContext.Snapshoot, (char)value, manager.kernelManager);
+                            else expression = new ConstCharsExpression(lexical.anchor, localContext.Snapshoot, value, manager.kernelManager);
                             if (attribute.ContainAny(ExpressionAttribute.None | ExpressionAttribute.Operator))
                             {
                                 expressionStack.Push(expression);
@@ -984,10 +988,19 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                             collector.Add(bracket.expression.range, ErrorLevel.Error, "内插字符串内的表达式必须是返回单个值");
                                         expressions.Add(bracket);
 
-                                        i = bracket.range.end - anchor.start;
+                                        i = bracket.range.end - anchor.start - 1;
                                         start = bracket.range.end;
                                     }
                                 }
+                                else if (c == '}')
+                                {
+                                    if (i + 1 < anchor.Count && anchor[i + 1] != '}')
+                                    {
+                                        var position = anchor.start + i;
+                                        collector.Add(position & position + 1, ErrorLevel.Error, "缺少配对的符号");
+                                    }
+                                }
+                                else if (c == '\\') i++;
                             }
                             if (start < lexical.anchor.end)
                                 expressions.Add(new ConstStringExpression(start & lexical.anchor.end, localContext.Snapshoot, manager.kernelManager));
@@ -1132,13 +1145,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                             {
                                 if (Lexical.TryExtractName(range, lexical.anchor.end, out var names, collector))
                                 {
-                                    var name = new QualifiedName(names);
-                                    index = name.name.end;
-                                    var dimension = Lexical.ExtractDimension(range, ref index);
-                                    var file = new FileType(name.Range.start & index, name, dimension);
-                                    var type = FileLink.GetType(context, manager, file, collector);
+                                    var typeExpression = GetTypeExpression(range, names, ref index, out var type);
                                     var source = expressionStack.Pop();
-                                    var typeExpression = new TypeExpression(file.range, localContext.Snapshoot, null, file, type);
+                                    if (Convert(manager, source.tuple[0], type) >= 0) collector.Add(source.range & typeExpression.range, ErrorLevel.Warning, "给定的表达式始终为目标类型");
+                                    else if (Convert(manager, type, source.tuple[0]) < 0) collector.Add(source.range & typeExpression.range, ErrorLevel.Warning, "给定的表达式始终无法转换为目标类型");
                                     if (Lexical.TryAnalysis(range, index, out var identifier, collector))
                                     {
                                         index = identifier.anchor.end;
@@ -1165,14 +1175,10 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                             {
                                 if (Lexical.TryExtractName(range, lexical.anchor.end, out var names, collector))
                                 {
-                                    var name = new QualifiedName(names);
-                                    index = name.name.end;
-                                    var dimension = Lexical.ExtractDimension(range, ref index);
-                                    var file = new FileType(name.Range.start & index, name, dimension);
-                                    var type = FileLink.GetType(context, manager, file, collector);
+                                    var typeExpression = GetTypeExpression(range, names, ref index, out var type);
+                                    if (!type.Managed) collector.Add(typeExpression.range, ErrorLevel.Error, "不是引用类型");
                                     var source = expressionStack.Pop();
-                                    var typeExpression = new TypeExpression(file.range, localContext.Snapshoot, null, file, type);
-                                    var expression = new AsCastExpression(source.range.start & index, localContext.Snapshoot, lexical.anchor, source, typeExpression);
+                                    var expression = new AsCastExpression(source.range.start & index, localContext.Snapshoot, lexical.anchor, source, typeExpression, type);
                                     expressionStack.Push(expression);
                                     attribute = expression.attribute;
                                     goto label_next_lexical;
@@ -1226,7 +1232,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                 index = lexical.anchor.end;
                                 var dimension = Lexical.ExtractDimension(range, ref index);
                                 var file = new FileType(lexical.anchor.start & index, new QualifiedName([lexical.anchor]), dimension);
-                                var expression = new TypeKeyworldExpression(lexical.anchor, localContext.Snapshoot, null, file, type);
+                                var expression = new TypeKeyworldExpression(lexical.anchor, localContext.Snapshoot, null, file, new Type(type, dimension));
                                 expressionStack.Push(expression);
                                 attribute = expression.attribute;
                                 goto label_next_lexical;
@@ -1296,6 +1302,24 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             }
             else if (expressionStack.Count > 0) return expressionStack.Pop();
             else return new TupleExpression(range, localContext.Snapshoot);
+        }
+        private Expression GetTypeExpression(TextRange range, List<TextRange> names, ref TextPosition index, out Type type)
+        {
+            if (names[^1].Count == 0)
+            {
+                index = names[^1].end;
+                type = default;
+                return new InvalidOperationExpression(names[0] & names[^1], localContext.Snapshoot, (names[^2] & names[^1]).Trim, new InvalidExpression(names[0] & names[^2], localContext.Snapshoot));
+            }
+            else
+            {
+                var name = new QualifiedName(names);
+                index = name.name.end;
+                var dimension = Lexical.ExtractDimension(range, ref index);
+                var file = new FileType(name.Range.start & index, name, dimension);
+                type = FileLink.GetType(context, manager, file, collector);
+                return new TypeExpression(file.range, localContext.Snapshoot, null, file, type);
+            }
         }
         private void PushDeclarationsExpression(TextRange range, ref TextPosition index, ref ExpressionAttribute attribute, Stack<Expression> expressionStack, List<AbstractDeclaration> declarations, TextRange? qualifier, QualifiedName name)
         {
@@ -1516,12 +1540,15 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                         return TryFindDeclaration(range, ref index, expressionStack, attribute, children, spaceName, out results, out name, context);
                     }
                     PushInvalidExpression(expressionStack, spaceName[0] & lexical.anchor, attribute, "声明未找到", new InvalidExpression(spaceName[0] & lexical.anchor, localContext.Snapshoot));
-                    results = default;
-                    name = default;
-                    return false;
+                }
+                else
+                {
+                    index = dot.end;
+                    var parameter = new InvalidExpression(spaceName[0] & spaceName[^1], localContext.Snapshoot);
+                    PushInvalidExpression(expressionStack, dot, attribute, "缺少标识符", new InvalidOperationExpression(parameter.range & dot, localContext.Snapshoot, dot, parameter));
                 }
             }
-            PushInvalidExpression(expressionStack, spaceName[0] & spaceName[^1], attribute, "声明未找到", new InvalidExpression(spaceName[0] & spaceName[^1], localContext.Snapshoot));
+            else PushInvalidExpression(expressionStack, spaceName[0] & spaceName[^1], attribute, "声明未找到", new InvalidExpression(spaceName[0] & spaceName[^1], localContext.Snapshoot));
             results = default;
             name = default;
             return false;
@@ -1841,7 +1868,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 default: throw new Exception("语法类型错误");
             }
         }
-        private Expression InferLeftValueType(Expression expression, TypeSpan span)
+        public Expression InferLeftValueType(Expression expression, TypeSpan span)
         {
             if (!expression.Valid)
             {
@@ -1906,7 +1933,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
         private Expression CreateOperation(TextRange range, string operation, TextRange symbol, params Expression[] expressions)
         {
             var parameters = TupleExpression.Create(expressions, localContext.Snapshoot, collector);
-            if (TryGetFunction(symbol, context.FindOperation(manager, operation), parameters, out var callable))
+            if (TryGetFunction(symbol, context.FindOperation(manager, operation), parameters, out var callable, true))
             {
                 if ((operation == "++" || operation == "--") && callable.declaration.library == Manager.LIBRARY_KERNEL)
                     foreach (var expression in expressions)
@@ -1918,7 +1945,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             else if (parameters.Valid) collector.Add(symbol, ErrorLevel.Error, "操作未找到");
             return new InvalidOperationExpression(range, localContext.Snapshoot, symbol, parameters);
         }
-        public bool TryGetFunction(TextRange range, List<AbstractCallable> callbales, Expression parameters, [MaybeNullWhen(false)] out AbstractCallable result)
+        public bool TryGetFunction(TextRange range, List<AbstractCallable> callbales, Expression parameters, [MaybeNullWhen(false)] out AbstractCallable result, bool isOperatoion = false)
         {
             if (!parameters.Valid)
             {
@@ -1940,6 +1967,8 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                     {
                         var measure = Convert(new TypeSpan(types), callable.signature);
                         if (measure >= 0)
+                        {
+                            if (isOperatoion && callable.declaration.library == Manager.LIBRARY_KERNEL) measure++;
                             if (results.Count == 0 || measure < min)
                             {
                                 results.Clear();
@@ -1947,6 +1976,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                                 results.Add(callable);
                             }
                             else if (measure == min) results.Add(callable);
+                        }
                     }
                     types.Clear();
                 }
@@ -2188,12 +2218,12 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
                 if (type == manager.kernelManager.REAL)
                 {
                     if (constExpression is not ConstRealExpression && constExpression.TryEvaluate(out double value))
-                        return new ConstRealExpression(expression.range, localContext.Snapshoot, value, manager.kernelManager);
+                        return new ConstRealTransformExpression(constExpression, localContext.Snapshoot, value, manager.kernelManager);
                 }
                 else if (type == manager.kernelManager.INT)
                 {
                     if (constExpression is not ConstIntegerExpression && constExpression.TryEvaluate(out long value))
-                        return new ConstIntegerExpression(expression.range, localContext.Snapshoot, value, manager.kernelManager);
+                        return new ConstIntegerExpression(expression.range, localContext.Snapshoot, value, true, manager.kernelManager);
                 }
                 else if (type == manager.kernelManager.CHAR)
                 {
@@ -2441,6 +2471,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             {
                 if (baseType == manager.kernelManager.ARRAY) return 1;
                 else if (baseType == manager.kernelManager.HANDLE) return 2;
+                else return GetInheritDeep(manager, baseType, manager.kernelManager.ARRAY);
             }
             else if (subType.code == TypeCode.Delegate)
             {

@@ -306,14 +306,16 @@ namespace RainLanguageServer.RainLanguage
                 return;
             }
 
+            var defaultVisibility = true;
             if (visibility == Visibility.None) visibility = Visibility.Private;
+            else defaultVisibility = false;
 
             if (lexical.anchor == KeyWords.CONST)
             {
                 if (TryParseVariable(line, lexical.anchor.end, out var name, out var type, out var expression, space.collector))
                 {
                     if (expression == null && space.space.Library.library == Manager.LIBRARY_SELF) space.collector.Add(name, ErrorLevel.Error, "常量必须在声明时赋值");
-                    var variable = new FileVariable(space, visibility, name, true, type, expression) { range = TrimLine(line, name.end) };
+                    var variable = new FileVariable(space, defaultVisibility, visibility, name, true, type, expression) { range = TrimLine(line, name.end) };
                     variable.attributes.AddRange(attributes);
                     attributes.Clear();
                     variable.annotation.AddRange(annotations);
@@ -329,7 +331,7 @@ namespace RainLanguageServer.RainLanguage
                 ParseDeclaration(space, reader, line, lexical.anchor,
                     name =>
                     {
-                        var file = new FileEnum(space, visibility, name);
+                        var file = new FileEnum(space, defaultVisibility, visibility, name);
                         CheckEnd(line, name.end, space.collector);
                         space.enums.Add(file);
                         return file;
@@ -355,7 +357,7 @@ namespace RainLanguageServer.RainLanguage
                 ParseDeclaration(space, reader, line, lexical.anchor,
                     name =>
                     {
-                        var file = new FileStruct(space, visibility, name);
+                        var file = new FileStruct(space, defaultVisibility, visibility, name);
                         CheckEnd(line, name.end, space.collector);
                         space.structs.Add(file);
                         return file;
@@ -366,6 +368,7 @@ namespace RainLanguageServer.RainLanguage
                         if (TryParseVariable(memberLine, index, out var name, out var type, out var expression, space.collector))
                         {
                             if (visibility != Visibility.None) space.collector.Add(name, ErrorLevel.Error, "结构体成员字段不允许有访问修饰符");
+                            if (expression != null) space.collector.Add(expression.Value, ErrorLevel.Error, "结构体成员字段不允许初始化");
                             var member = new FileStruct.Variable(space, name, type) { range = TrimLine(memberLine, name.end) };
                             member.attributes.AddRange(attributes);
                             attributes.Clear();
@@ -375,14 +378,16 @@ namespace RainLanguageServer.RainLanguage
                         }
                         else
                         {
+                            var defaultVisibility = true;
                             if (visibility == Visibility.None) visibility = Visibility.Private;
+                            else defaultVisibility = false;
                             if (TryParseTupleDeclaration(memberLine, index, out var tuple, out var memberName, space.collector))
                             {
                                 var parameterRange = ParseParameters(memberLine, memberName.end, out var parameters, space.collector);
                                 if (parameterRange.Count > 0)
                                 {
                                     CheckEnd(memberLine, parameterRange.end, space.collector);
-                                    var member = new FileStruct.Function(space, visibility, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
+                                    var member = new FileStruct.Function(space, defaultVisibility, visibility, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
                                     member.attributes.AddRange(attributes);
                                     attributes.Clear();
                                     member.annotation.AddRange(annotations);
@@ -401,18 +406,20 @@ namespace RainLanguageServer.RainLanguage
                 ParseDeclaration(space, reader, line, lexical.anchor,
                     name =>
                     {
-                        var file = new FileClass(space, visibility, name);
+                        var file = new FileClass(space, defaultVisibility, visibility, name);
                         ParseInherits(line, name.end, file.inherits, space.collector);
                         space.classes.Add(file);
                         return file;
                     },
                     (file, memberLine) =>
                     {
+                        var defaultVisibility = true;
                         var visibility = ParseVisibility(memberLine, out var index, space.collector);
                         if (TryParseVariable(memberLine, index, out var name, out var type, out var expression, space.collector))
                         {
                             if (visibility == Visibility.None) visibility = Visibility.Private;
-                            var member = new FileClass.Variable(space, visibility, name, type, expression) { range = TrimLine(memberLine, name.end) };
+                            else defaultVisibility = false;
+                            var member = new FileClass.Variable(space, defaultVisibility, visibility, name, type, expression) { range = TrimLine(memberLine, name.end) };
                             member.attributes.AddRange(attributes);
                             attributes.Clear();
                             member.annotation.AddRange(annotations);
@@ -440,6 +447,7 @@ namespace RainLanguageServer.RainLanguage
                             else
                             {
                                 if (visibility == Visibility.None) visibility = Visibility.Private;
+                                else defaultVisibility = false;
                                 if (TryParseTupleDeclaration(memberLine, index, out var tuple, out var memberName, space.collector))
                                 {
                                     var parameterRange = ParseParameters(memberLine, memberName.end, out var parameters, space.collector);
@@ -447,7 +455,7 @@ namespace RainLanguageServer.RainLanguage
                                     {
                                         if (tuple.Count == 0 && memberName.ToString() == file.name)
                                         {
-                                            var member = new FileClass.Constructor(space, visibility, memberName, parameters, tuple, parameterRange.end & memberLine.end) { range = TrimLine(memberLine, parameterRange.end) };
+                                            var member = new FileClass.Constructor(space, defaultVisibility, visibility, memberName, parameters, tuple, parameterRange.end & memberLine.end) { range = TrimLine(memberLine, parameterRange.end) };
                                             member.attributes.AddRange(attributes);
                                             attributes.Clear();
                                             member.annotation.AddRange(annotations);
@@ -459,7 +467,7 @@ namespace RainLanguageServer.RainLanguage
                                         else
                                         {
                                             CheckEnd(memberLine, parameterRange.end, space.collector);
-                                            var member = new FileClass.Function(space, visibility, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
+                                            var member = new FileClass.Function(space, defaultVisibility, visibility, memberName, parameters, tuple) { range = TrimLine(memberLine, parameterRange.end) };
                                             member.attributes.AddRange(attributes);
                                             attributes.Clear();
                                             member.annotation.AddRange(annotations);
@@ -473,6 +481,7 @@ namespace RainLanguageServer.RainLanguage
                                 else space.collector.Add((index - 1) & index, ErrorLevel.Error, "需要输入标识符");
                             }
                         }
+                        else space.collector.Add((index - 1) & index, ErrorLevel.Error, "需要输入标识符");
                     }, attributes, annotations);
 
             }
@@ -481,7 +490,7 @@ namespace RainLanguageServer.RainLanguage
                 ParseDeclaration(space, reader, line, lexical.anchor,
                     name =>
                     {
-                        var file = new FileInterface(space, visibility, name);
+                        var file = new FileInterface(space, defaultVisibility, visibility, name);
                         ParseInherits(line, name.end, file.inherits, space.collector);
                         space.interfaces.Add(file);
                         return file;
@@ -510,7 +519,7 @@ namespace RainLanguageServer.RainLanguage
                 {
                     var parameterRange = ParseParameters(line, name.end, out var parameters, space.collector);
                     CheckEnd(line, parameterRange.end, space.collector);
-                    var file = new FileDelegate(space, visibility, name, parameters, tuple) { range = TrimLine(line, parameterRange.end) };
+                    var file = new FileDelegate(space, defaultVisibility, visibility, name, parameters, tuple) { range = TrimLine(line, parameterRange.end) };
                     file.attributes.AddRange(attributes);
                     attributes.Clear();
                     file.annotation.AddRange(annotations);
@@ -524,7 +533,7 @@ namespace RainLanguageServer.RainLanguage
                 if (TryParseTupleDeclaration(line, lexical.anchor.end, out var tuple, out var name, space.collector))
                 {
                     CheckEnd(line, name.end, space.collector);
-                    var file = new FileTask(space, visibility, name, tuple) { range = TrimLine(line, name.end) };
+                    var file = new FileTask(space, defaultVisibility, visibility, name, tuple) { range = TrimLine(line, name.end) };
                     file.attributes.AddRange(attributes);
                     attributes.Clear();
                     file.annotation.AddRange(annotations);
@@ -539,7 +548,7 @@ namespace RainLanguageServer.RainLanguage
                 {
                     var parameterRange = ParseParameters(line, name.end, out var parameters, space.collector);
                     CheckEnd(line, parameterRange.end, space.collector);
-                    var file = new FileNative(space, visibility, name, parameters, tuple) { range = TrimLine(line, parameterRange.end) };
+                    var file = new FileNative(space, defaultVisibility, visibility, name, parameters, tuple) { range = TrimLine(line, parameterRange.end) };
                     file.attributes.AddRange(attributes);
                     attributes.Clear();
                     file.annotation.AddRange(annotations);
@@ -550,7 +559,7 @@ namespace RainLanguageServer.RainLanguage
             }
             else if (TryParseVariable(line, lexical.anchor.start, out var name, out var type, out var expression, space.collector))
             {
-                var file = new FileVariable(space, visibility, name, false, type, expression) { range = TrimLine(line, expression != null ? expression.Value.end : name.end) };
+                var file = new FileVariable(space, defaultVisibility, visibility, name, false, type, expression) { range = TrimLine(line, expression != null ? expression.Value.end : name.end) };
                 file.attributes.AddRange(attributes);
                 attributes.Clear();
                 file.annotation.AddRange(annotations);
@@ -563,7 +572,7 @@ namespace RainLanguageServer.RainLanguage
                 if (parameterRange.Count > 0)
                 {
                     CheckEnd(line, parameterRange.end, space.collector);
-                    var file = new FileFunction(space, visibility, name, parameters, tuple) { range = TrimLine(line, parameterRange.end) };
+                    var file = new FileFunction(space, defaultVisibility, visibility, name, parameters, tuple) { range = TrimLine(line, parameterRange.end) };
                     file.attributes.AddRange(attributes);
                     attributes.Clear();
                     file.annotation.AddRange(annotations);
@@ -658,7 +667,11 @@ namespace RainLanguageServer.RainLanguage
                                 index.space.attributes.AddRange(attributes);
                                 attributes.Clear();
                                 ParseSpace(index, reader, line.indent);
-                                index.range &= reader.GetLastValidLine();
+                                while (index != space)
+                                {
+                                    index.range &= reader.GetLastValidLine();
+                                    index = index.parent!;
+                                }
                             }
                             else space.collector.Add(lexical.anchor, ErrorLevel.Error, "需要输入命名空间名");
                         }
@@ -666,16 +679,21 @@ namespace RainLanguageServer.RainLanguage
                     }
                     else if (lexical.type.IsReloadable())
                     {
-                        if (TryParseTupleDeclaration(line, lexical.anchor.end, out var tuple, out var name, space.collector))
+                        if (TryParseTupleDeclaration(line, lexical.anchor.start, out var tuple, out var name, space.collector))
                         {
                             var parameterRange = ParseParameters(line, name.end, out var parameters, space.collector);
-                            CheckEnd(line, parameterRange.end, space.collector);
-                            var file = new FileFunction(space, Visibility.Private, name, parameters, tuple);
-                            file.attributes.AddRange(attributes);
-                            attributes.Clear();
-                            file.annotation.AddRange(annotations);
-                            annotations.Clear();
-                            space.functions.Add(file);
+                            if (parameterRange.Count > 0)
+                            {
+                                CheckEnd(line, parameterRange.end, space.collector);
+                                var file = new FileFunction(space, true, Visibility.Private, name, parameters, tuple) { range = TrimLine(line, parameterRange.end) };
+                                file.attributes.AddRange(attributes);
+                                attributes.Clear();
+                                file.annotation.AddRange(annotations);
+                                annotations.Clear();
+                                ParseBlock(reader, line.indent, file.body, annotations);
+                                file.range &= reader.GetLastValidLine();
+                                space.functions.Add(file);
+                            }
                         }
                         else space.collector.Add((lexical.anchor.end - 1) & lexical.anchor.end, ErrorLevel.Error, "需要输入标识符");
                     }

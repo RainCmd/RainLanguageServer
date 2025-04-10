@@ -33,6 +33,7 @@
         private readonly Stack<LocalContextSnapshoot> snapshoot = [];
         private readonly List<Dictionary<string, Local>> localStack = [[]];
         private readonly MessageCollector collector;
+        private readonly List<Local> locals = [];
         public LocalContextSnapshoot Snapshoot => snapshoot.Peek();
         public LocalContext(MessageCollector collector, AbstractDeclaration? declaration = null)
         {
@@ -69,7 +70,7 @@
             {
                 if (TryGetLocal(name, out var overrideLocal))
                 {
-                    var msg = new Message(range, ErrorLevel.Info, "局部变量名覆盖了前面的局部变量");
+                    var msg = new Message(range, ErrorLevel.Hint, "局部变量名覆盖了前面的局部变量");
                     msg.AddRelated(overrideLocal.range, "被覆盖的局部变量");
                     collector.Add(msg);
                 }
@@ -80,6 +81,7 @@
                     current = current.AddLocal(local);
                     snapshoot.Push(current);
                 }
+                locals.Add(local);
             }
             return local;
         }
@@ -91,6 +93,12 @@
                     return true;
             local = default;
             return false;
+        }
+        public void CollectUnnecessary()
+        {
+            foreach (var local in locals)
+                if (local.read.Count == 0 && local.name != KeyWords.THIS)
+                    collector.Add(local.range, ErrorLevel.Hint, "未使用的变量", true);
         }
     }
 }

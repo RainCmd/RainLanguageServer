@@ -20,5 +20,12 @@
                     return statement.Operator(position, action);
             return action(this);
         }
+        public override void Operator(TextRange range, Action<Statement> action)
+        {
+            foreach (var statement in statements)
+                if (statement.range.Overlap(range))
+                    statement.Operator(range, action);
+            action(this);
+        }
     }
 }

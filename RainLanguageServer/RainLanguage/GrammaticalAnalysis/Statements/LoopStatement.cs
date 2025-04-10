@@ -31,6 +31,16 @@
             if (elseBlock != null && elseBlock.range.Contain(position)) return elseBlock.Operator(position, action);
             return action(this);
         }
+        protected override void InternalOperator(TextRange range, Action<Expression> action)
+        {
+            if (condition != null && condition.range.Overlap(range)) action(condition);
+        }
+        public override void Operator(TextRange range, Action<Statement> action)
+        {
+            if (loopBlock != null && loopBlock.range.Overlap(range)) loopBlock.Operator(range, action);
+            if (elseBlock != null && elseBlock.range.Overlap(range)) elseBlock.Operator(range, action);
+            action(this);
+        }
 
         protected override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
         {
@@ -71,11 +81,42 @@
             if (back != null && back.range.Contain(position)) return action(back);
             return base.InternalOperator(position, action);
         }
+        protected override void InternalOperator(TextRange range, Action<Expression> action)
+        {
+            if (front != null && front.range.Overlap(range)) action(front);
+            if (back != null && back.range.Overlap(range)) action(back);
+            base.InternalOperator(range, action);
+        }
         protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
         {
             base.InternalCollectSemanticToken(manager, collector);
             if (separator1 != null) collector.Add(DetailTokenType.Operator, separator1.Value);
             if (separator2 != null) collector.Add(DetailTokenType.Operator, separator2.Value);
+        }
+    }
+    internal class ForeachStatement(TextRange symbol, Expression? condition, TextRange separator, Expression? element) : LoopStatement(symbol, condition)
+    {
+        public readonly TextRange separator = separator;
+        public readonly Expression? element = element;
+        protected override void InternalOperator(Action<Expression> action)
+        {
+            base.InternalOperator(action);
+            if (element != null) action(element);
+        }
+        protected override bool InternalOperator(TextPosition position, ExpressionOperator action)
+        {
+            if (element != null && element.range.Contain(position)) return action(element);
+            return base.InternalOperator(position, action);
+        }
+        protected override void InternalOperator(TextRange range, Action<Expression> action)
+        {
+            if (element != null && element.range.Overlap(range)) action(element);
+            base.InternalOperator(range, action);
+        }
+        protected override void InternalCollectSemanticToken(Manager manager, SemanticTokenCollector collector)
+        {
+            base.InternalCollectSemanticToken(manager, collector);
+            collector.Add(DetailTokenType.Operator, separator);
         }
     }
 }

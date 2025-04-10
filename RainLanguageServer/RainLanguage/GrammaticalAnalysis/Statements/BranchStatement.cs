@@ -26,6 +26,16 @@
             if (falseBranch != null && falseBranch.range.Contain(position)) return falseBranch.Operator(position, action);
             return action(this);
         }
+        protected override void InternalOperator(TextRange range, Action<Expression> action)
+        {
+            if (condition.range.Overlap(range)) action(condition);
+        }
+        public override void Operator(TextRange range, Action<Statement> action)
+        {
+            if (trueBranch != null && trueBranch.range.Overlap(range)) trueBranch.Operator(range, action);
+            if (falseBranch != null && falseBranch.range.Overlap(range)) falseBranch.Operator(range, action);
+            action(this);
+        }
 
         protected override bool TryHighlightGroup(TextPosition position, List<HighlightInfo> infos)
         {
