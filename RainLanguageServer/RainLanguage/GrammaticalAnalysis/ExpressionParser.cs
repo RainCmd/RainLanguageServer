@@ -2163,7 +2163,7 @@ namespace RainLanguageServer.RainLanguage.GrammaticalAnalysis
             }
             else if (expression is BlurryLambdaExpression blurryLambda)
             {
-                if (manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractDelegate abstractDelegate)
+                if (type.dimension == 0 && manager.TryGetDeclaration(type, out var declaration) && declaration is AbstractDelegate abstractDelegate)
                 {
                     if (blurryLambda.parameters.Count != abstractDelegate.parameters.Count)
                     {
